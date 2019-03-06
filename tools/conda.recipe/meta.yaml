@@ -1,0 +1,39 @@
+package:
+  version: "{{ PROJECT_VERSION }}"
+  name: 'roberto'
+
+source:
+  path: ../../
+
+build:
+  number: 0
+  script: python setup.py install --single-version-externally-managed --record=record.txt
+
+requirements:
+  run:
+    - python
+    - pyyaml
+    - invoke
+  build:
+    - python
+    - setuptools
+
+test:
+  requires:
+    - pytest
+  imports:
+    - roberto
+  commands:
+    - pytest -v --pyargs roberto
+
+about:
+  dev_url: https://github.com/theochem/roberto
+  description: Collection of configurable development workflows
+  license: GNU General Public License v3 or later (GPLv3+)
+  license_family: GPL3
+  home: https://github.com/theochem/roberto
+  license_file: LICENSE.txt
+  doc_url: https://github.com/theochem/roberto
+
+extra:
+  recipe-maintainers: TV <tv@v>

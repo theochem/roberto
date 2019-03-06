@@ -1,0 +1,11 @@
+linters:
+  - import:
+      packages: ['roberto']
+  - pylint:
+      config: .pylintrc
+  - pycodestyle:
+      config: .pycodestylerc
+  - pydocstyle:
+      config: .pydocstylerc
+  - whitespace:
+  - yamllint:
