@@ -1,7 +1,8 @@
 project:
   name: roberto
   packages:
-    - kind: py
+    - conda_name: roberto
+      kind: py
       name: roberto
       path: .
       tools: [cardboardlint, pytest]
