@@ -20,6 +20,7 @@
 """Tasks in Roberto's workflow."""
 
 
+from glob import glob
 import json
 import os
 import platform
@@ -32,7 +33,72 @@ from invoke import task
 from invoke.exceptions import Failure
 import yaml
 
-from .utils import update_env_command, compute_req_hash, run_tools, append_path
+from .utils import (update_env_command, compute_req_hash, run_tools,
+                    append_path, parse_git_describe)
+
+
+@task
+def sanitize_git(ctx):
+    """Fetch required git branches when absent."""
+    branch = ctx.git.merge_branch
+
+    # Test if merge branch is present
+    try:
+        ctx.run("git rev-parse --verify {}".format(branch))
+        return
+    except Failure:
+        print("Merge branch \"{}\" not found.".format(branch))
+
+    # Try to create it without connection to origin
+    try:
+        ctx.run("git branch --track {0} origin/{0}".format(branch))
+        return
+    except Failure:
+        print("Local copy of remote merge branch \"{}\" not found.".format(branch))
+
+    # Last resort: fetch the merge branch
+    ctx.run("git fetch origin {0}:{0}".format(branch))
+
+
+@task(sanitize_git)
+def _finalize_config(ctx):
+    """Derive some config variables for convenience."""
+    # The conda environment
+    env_name = ctx.project.name + '-dev'
+    if ctx.conda.pinning:
+        env_name += '-' + '-'.join(ctx.conda.pinning.split())
+    print("# Conda development environment: {}".format(env_name))
+
+    # Package default options
+    base_path = ctx.conda.install_path
+    env_path = os.path.join(base_path, 'envs', env_name)
+    ctx.conda.base_path = base_path
+    ctx.conda.env_name = env_name
+    ctx.conda.env_path = env_path
+    for package in ctx.project.packages:
+        if 'path' not in package:
+            package['path'] = '.'
+        if 'name' not in package:
+            package['name'] = ctx.project.name
+
+    # Fix a problem with the conda build purge feature.
+    # See https://github.com/conda/conda-build/issues/2592
+    # CONDA_BLD_PATH should not be overwritten, to allow for customization.
+    if 'CONDA_BLD_PATH' not in os.environ:
+        os.environ['CONDA_BLD_PATH'] = os.path.join(ctx.conda.env_path, 'conda-bld')
+    ctx.conda.build_path = os.environ['CONDA_BLD_PATH']
+
+    # Git version and branch information
+    try:
+        git_describe = ctx.run('git describe --tags').stdout
+    except Failure:
+        # May fail, e.g. when there are no tags.
+        git_describe = '0.0.0-0-notag'
+    ctx.git.update(parse_git_describe(git_describe))
+    print('Version number {} derived from `git describe --tags` {}.'.format(
+        ctx.git.tag_version, ctx.git.describe))
+    result = ctx.run("git rev-parse --abbrev-ref HEAD")
+    ctx.git.branch = result.stdout.strip()
 
 
 @task
@@ -60,25 +126,6 @@ def install_conda(ctx):
 
         print("Installing conda in {}.".format(dest))
         ctx.run("{} -b -p {}".format(dwnl, dest))
-
-
-@task
-def _finalize_config(ctx):
-    """Derive some config variables for convenience."""
-    env_name = ctx.project.name + '-dev'
-    if ctx.conda.pinning:
-        env_name += '-' + '-'.join(ctx.conda.pinning.split())
-    print("# Conda development environment: {}".format(env_name))
-    base_path = ctx.conda.install_path
-    env_path = os.path.join(base_path, 'envs', env_name)
-    ctx.conda.base_path = base_path
-    ctx.conda.env_name = env_name
-    ctx.conda.env_path = env_path
-    for package in ctx.project.packages:
-        if 'path' not in package:
-            package['path'] = '.'
-        if 'name' not in package:
-            package['name'] = ctx.project.name
 
 
 @task(install_conda, _finalize_config)
@@ -119,17 +166,14 @@ def setup_conda_env(ctx):
     update_env_command(ctx, ". {}/etc/profile.d/conda.sh; conda activate {}".format(
         ctx.conda.base_path, ctx.conda.env_name))
 
-    # Fix a problem with the conda build purge feature. TODO: report bug.
-    # See https://github.com/conda/conda-build/issues/2592
-    os.environ['CONDA_BLD_PATH'] = os.path.join(os.environ['CONDA_PREFIX'], 'conda-bld')
-
 
 @task(setup_conda_env)
 def install_requirements(ctx):
     """Install dependencies, linters and packaging tools."""
     # Collect all parameters determining the install commands, to good
     # approximation and turn them into a hash.
-    conda_packages = set(["conda-build", "anaconda-client", "conda-verify"])
+    conda_packages = set(["conda-build", "anaconda-client", "conda-verify",
+                          "twine", "conda-forge::hub"])
     pip_packages = set([])
     recipe_dirs = []
     for package in ctx.project.packages:
@@ -188,29 +232,6 @@ def install_requirements(ctx):
     else:
         print("Skipping install and update of packages in conda env.")
         print("To force install: rm {}".format(fn_skip))
-
-
-@task(_finalize_config)
-def sanitize_git(ctx):
-    """Fetch required git branches when absent."""
-    branch = ctx.git.merge_branch
-
-    # Test if merge branch is present
-    try:
-        ctx.run("git rev-parse --verify {}".format(branch))
-        return
-    except Failure:
-        print("Merge branch \"{}\" not found.".format(branch))
-
-    # Try to create it without connection to origin
-    try:
-        ctx.run("git branch --track {0} origin/{0}".format(branch))
-        return
-    except Failure:
-        print("Local copy of remote merge branch \"{}\" not found.".format(branch))
-
-    # Last resort: fetch the merge branch
-    ctx.run("git fetch origin {0}:{0}".format(branch))
 
 
 @task(install_requirements, sanitize_git)
@@ -287,6 +308,8 @@ def build_inplace(ctx):
 def test_inplace(ctx):
     """Run tests in-place."""
     run_tools(ctx, "test_inplace", env=ctx.project.inplace_env)
+    if "CONTINUOUS_INTEGRATION" in os.environ:
+        ctx.run("bash <(curl -s https://codecov.io/bash)")
 
 
 @task(build_inplace, sanitize_git)
@@ -322,26 +345,122 @@ def build_conda(ctx):
         ctx.run("cd {}; rm -rf build; conda build tools/conda.recipe".format(workdir), env=env)
 
 
-@task(_finalize_config)
+def check_env_var(name):
+    """Check if an environment variable is set and non-empty."""
+    if name not in os.environ:
+        print('The environment variable {} is not set.'.format(name))
+    elif os.environ[name] == "":
+        print('The environment variable {} is empty.'.format(name))
+    else:
+        print('The environment variable {} is non-empty.'.format(name))
+
+
+@task(_finalize_config, install_requirements)
+def deploy_pypi(ctx):
+    """Upload source release to pypi (files must be present)."""
+    if ctx.git.tag_stable:
+        # Sanity check on user and pass
+        check_env_var('TWINE_USERNAME')
+        check_env_var('TWINE_PASSWORD')
+
+        # Run twine on every separate package because it can hanle only one
+        # at a time.
+        for package in ctx.project.packages:
+            if package['kind'] == 'py':
+                pattern = os.path.join(
+                    package['path'], 'dist',
+                    '{}-{}.*'.format(package['name'], ctx.git.tag_version)
+                )
+                filenames = glob(pattern)
+                if not filenames:
+                    raise Failure("Could not find release for pattern: {}".format(pattern))
+                ctx.run("twine upload {}".format(' '.join(filenames)), warn=True)
+    else:
+        print("No pypi release. This would require a stable version.")
+
+
+@task(_finalize_config, install_requirements)
+def deploy_github(ctx):
+    """Upload source release to github (files must be present)."""
+    if ctx.git.tag_release:
+        # Collect assets
+        assets = []
+        for package in ctx.project.packages:
+            pattern = os.path.join(
+                package['path'], 'dist',
+                '{}-{}.*'.format(package['name'], ctx.git.tag_version)
+            )
+            filenames = glob(pattern)
+            if not filenames:
+                raise Failure("Could not find release for pattern: {}".format(pattern))
+            assets.extend(filenames)
+
+        # Sanity check on token
+        check_env_var('GITHUB_TOKEN')
+
+        # Upload to github
+        ctx.run("hub release create {} {} {} {}".format(
+            " ".join("-a {}".format(srf) for srf in assets),
+            '' if ctx.git.tag_stable else '-p',
+            '-m "Automic release of version {}"'.format(ctx.git.tag_version),
+            ctx.git.tag,
+        ), warn=True)
+    else:
+        print("No github release. This would require a tagged commit.")
+
+
+@task(_finalize_config, install_requirements)
+def deploy_conda(ctx):
+    """Upload conda release to anaconda (files must be present)."""
+    if ctx.git.tag_release:
+        # Determine the label
+        if ctx.git.tag_stable:
+            anaconda_label = "main"
+        elif ctx.git.tag_test:
+            anaconda_label = "test"
+        elif ctx.git.tag_dev:
+            anaconda_label = "dev"
+        else:
+            raise NotImplementedError
+
+        # Determine the assets
+        assets = []
+        for package in ctx.project.packages:
+            pattern = os.path.join(
+                ctx.conda.build_path, '*',
+                '{}-{}-*.*'.format(package['name'], ctx.git.tag_version)
+            )
+            filenames = glob(pattern)
+            if not filenames:
+                raise Failure("Could not find release for pattern: {}".format(pattern))
+            assets.extend(filenames)
+
+        # Sanity check on token
+        check_env_var('ANACONDA_API_TOKEN')
+
+        # Call the uploader
+        ctx.run("anaconda upload --force -l {} {}".format(
+            anaconda_label, " ".join(assets),
+        ), warn=True)
+    else:
+        print("No conda release. This would require a tagged commit.")
+
+
+@task(_finalize_config, setup_conda_env)
 def nuclear(ctx):
     """USE AT YOUR OWN RISK. Purge conda env and stale files in source tree."""
+    update_env_command(ctx, ". {}/etc/profile.d/conda.sh; conda deactivate".format(
+        ctx.conda.base_path))
     ctx.run("conda uninstall -n {} --all -y".format(ctx.conda.env_name))
     ctx.run("git clean -fdx")
 
 
-@task(_finalize_config)
-def export_deploy_vars(ctx):
-    """Print export lines for deployment."""
-    if "a" in ctx.git.tag_version_patch:
-        anaconda_label = "dev"
-    elif "b" in ctx.git.tag_version_patch:
-        anaconda_label = "test"
-    else:
-        anaconda_label = "main"
-    print("export ANACONDA_LABEL={}".format(anaconda_label))
-
-
 @task(lint_static, test_inplace, lint_dynamic, build_source, build_conda,
       default=True)
-def robot(ctx):  # pylint: disable=unused-argument
-    """Run all tasks."""
+def test(ctx):  # pylint: disable=unused-argument
+    """Run all testing tasks, including package builds."""
+
+
+@task(deploy_pypi, deploy_conda, deploy_github)
+def deploy(ctx):  # pylint: disable=unused-argument
+    """Run all deployment tasks."""

@@ -20,7 +20,6 @@
 """Roberto's entry point and default configuration."""
 
 import os
-import subprocess
 
 from invoke import Collection, Program
 from invoke.config import Config, merge_dicts
@@ -30,38 +29,6 @@ try:
 except ImportError:
     __version__ = '0.0.0'
 from . import tasks
-
-
-def get_git_version() -> dict:
-    """Get the version from git describe."""
-    try:
-        git_describe = subprocess.check_output(
-            ['git', 'describe', '--tags'], stderr=subprocess.STDOUT).strip()
-        version_words = git_describe.decode('utf-8').strip().split('-')
-        version = version_words[0]
-        if len(version_words) > 1:
-            version += '.post' + version_words[1]
-    except subprocess.CalledProcessError:
-        version = '0.0.0'
-        git_describe = '0.0.0'
-    major, minor, patch = version.split('.', 2)
-    return {
-        'describe': git_describe,
-        'tag_version': version,
-        'tag_soversion': '.'.join([major, minor]),
-        'tag_version_major': major,
-        'tag_version_minor': minor,
-        'tag_version_patch': patch,
-    }
-
-
-def get_git_branch() -> str:
-    """Determine the current git branch, if any."""
-    result = subprocess.run(["git", "rev-parse", "--abbrev-ref", "HEAD"],
-                            stdout=subprocess.PIPE, stderr=subprocess.PIPE)
-    if result.returncode == 0:
-        return result.stdout.strip().decode('utf-8')
-    return ""
 
 
 class RobertoConfig(Config):
@@ -115,7 +82,6 @@ class RobertoConfig(Config):
             ]
         }, 'git': {
             'merge_branch': 'master',
-            'branch': get_git_branch(),
         }, 'tools': {
             'cardboardlint': {
                 '__pip__': ['git+https://github.com/theochem/cardboardlint.git'
@@ -136,7 +102,7 @@ class RobertoConfig(Config):
                 'test_inplace_ci': ["bash <(curl -s https://codecov.io/bash)"]
             }, 'nose': {
                 '__conda__': ['nose', 'coverage'],
-                'test_inplace': ["rm .coverage",
+                'test_inplace': ["rm -f .coverage",
                                  "nosetests {name} -v --detailed-errors "
                                  "--with-coverage --cover-package={name} "
                                  "--cover-tests --cover-inclusive --cover-branches",
@@ -150,7 +116,6 @@ class RobertoConfig(Config):
                     " --object-directory ../build/{name}/CMakeFiles/{name}.dir"],
             }
         }}
-        my_defaults["git"].update(get_git_version())
         return merge_dicts(their_defaults, my_defaults)
 
 

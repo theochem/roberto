@@ -15,11 +15,14 @@ matrix:
       language: generic
       env:
         - ROBERTO_CONDA_PINNING="python 3.7"
+        - MAKE_RELEASE=true
     - os: osx
+      osx_image: xcode9.4
       language: generic
       env:
         - ROBERTO_CONDA_PINNING="python 3.6"
     - os: osx
+      osx_image: xcode9.4
       language: generic
       env:
         - ROBERTO_CONDA_PINNING="python 3.7"
@@ -28,6 +31,13 @@ env:
   global:
     # Install conda in a *sub*directory of a directory cached by travis.
     - ROBERTO_CONDA_INSTALL_PATH=$HOME/cache/miniconda3
+    # Build conda packages outside the miniconda tree, to avoid caching.
+    # This makes it possible to still deploy packages after cache cleaning.
+    - CONDA_BLD_PATH=$HOME/conda-bld
+
+    # Debugging options
+    - HUB_VERBOSE=1
+
     # Instructions for (re)setting up a GITHUB_TOKEN, for theochem admins
     #   0) Install the travis-ci command-line client.
     #      https://github.com/travis-ci/travis.rb#installation
@@ -43,47 +53,44 @@ env:
     #      This command asks for a username and password. Roberto's account
     #      must be used.
     #   8) Copy-paste the encrypted line below
+    #   9) Add the repository to the list the Buildtools team on theochem and
+    #      enable write permission.
     # GITHUB_TOKEN
-    - secure: AAA
-    # Instructions for (re)setting up ANACONDA_TOKEN, for theochem admins
+    # yamllint disable-line rule:line-length
+    - secure: "kHLuS7Znf25Zv0hYRYyHlZEV0X78Dcm6JyfCO0txokEZ/cNaxj/WknAmLVe9QYVx53LJ5pYS+3bL2eZiK3eop5SrriXnjc6P2miB5AAMcZI7o7WAiE6ov3I7SH/pg6ExZ599RG+nTOEQG7Ppio28SQSVMzu/jXHEzL/SY+UsYMAM/m4wSvfoTOgk60lm+EjBI27QGI+ZLbAvMUmHtWWSTTUAU4XgPWNEVIAyVOcFuEknKtjXOmfIF8nRi4Qfg0tCBpfuS762fag8sPpu6O/Vw8XA/ckFyfD2tCP2nOjc8fDfWm66VoDBu/Vm3IZ7Q1nacHezXqXBN3E+7SqMVWtk2LrVIhGx3eedkvPxMqIjU65mG6Xf+3PM1lB52+IJWbEC1OMVD8Z6UfmuCbKbO5d4dYyYUrQh6ASmPHumCaEB5Uf4FWWrcASgSbsdrFn7VfVE0BTPeZ7OVXV/imBRvGPZLoTnb5v08uzqf0VjBit4ZBiZLAc2yiL8UFZUG+V66w8jcG2/1s9zRISEHDcynnU1QkzPTyp0JdI5OPAWLdCxdi0P2EA/f3MjhYrujB6urYPVKISe+Rnwc81zXZANdYUuo6n6VMP1VIQPWO9fS5LVO7H9CyqBwNrpGwkCF0HoXuxG/JD/jn2KBBLJHmaXgGrjY8V4soAD5BFGP2Z0b3w3Pz4="
+    # Instructions for (re)setting up ANACONDA_API_TOKEN, for theochem admins
     #   0) Install travis-ci command-line client.
+    #      https://github.com/travis-ci/travis.rb#installation
     #   1) Login with Roberto's account on anaconda.org
     #   2) Go to profile settings. (https://anaconda.org/theochem/settings/profile)
     #   3) Select "Access".
-    #   4) Create a new token (all operations)
+    #   4) Create a new token (Allow all API operations)
     #   5) Copy the token.
     #   6) Encrypt the token on the command line
-    #      travis encrypt --pro ANACONDA_TOKEN="[copy-paste-your-anaconda-token]"
+    #      travis encrypt --pro ANACONDA_API_TOKEN="[copy-paste-your-anaconda-token]"
     #      This command asks for a username and password. Roberto's account
     #      must be used.
     #   7) Copy-paste the encrypted line below
-    # ANACONDA_TOKEN
-    - secure: BBB
-    # Instructions for (re)setting up PYPI_PASSWD, for theochem admins
+    # ANACONDA_API_TOKEN
+    # yamllint disable-line rule:line-length
+    - secure: "TB+OtIxBb+nwvDu2LjDl/JQvzNhVbzsb6NAflLjbVq9etz2+jL0pA/51IWlIdU0eQnYT7IQxQHxrv4+ApftHeUrS2LTwdsO3Ld9X6d62bXR2kYzX5aH4a9wsIG4+Xxy+4oRfM4XKmAH98bb8qHN0w8P7q7h/21uLd1A17n47HoV8hvfvQAvRbHqX2KtwQkShhoqFp6ic/LG6abp5aPx2Ilzf1knRNk81XQYmG+LyRhLKaHXQpa1tPWpuofsNZ91UjjZGXN1BVODbPIcvFdO03N9E8xv7lAwKdWFzeTMvMiy4/wekPSvkdvMfF3nSZo9uR0dj8CdhEGM8Sp2HhjAhYPOqnU4SuoAkpPueI01cZfuaNJt1VDfKbJnFVh7zg49ukLH/CvbCjg/iM9HQZCQ8KagoTbYcUTQRDNEjMvl735HuYaAtuXD7Vh7hDHI90U2TiB1YF6TOBYS2fX5dNbRGTBk2xyw/xKZ9vIkkXZvtWYUPDMHJCOU2HCePArZ0aByEmGmdhfI54ZYtb17bKtBnpys5CVng8j8zGtUB2gCD1vwtuHbYlsvgCyaoYh6TO7+77veruW56b3R5x/c1a2R9Jxt0ashxSLNvE4vHGm7+zZmDpxDGEfhtelgIuj6ypoki8wg8wr7LlZfLjj+XKJK43DEk8LKZsVJuTeVPUQOeHws="
+    # Instructions for (re)setting up TWINE_PASSWORD, for theochem admins
     #   0) Install travis-ci command-line client.
-    #   1) Encrypt Roberto's Pypo password on the command line
-    #      travis encrypt --pro PYPI_PASSWD="[copy-paste-pypi-password]"
+    #      https://github.com/travis-ci/travis.rb#installation
+    #   1) Encrypt Roberto's Pypi password on the command line
+    #      travis encrypt --pro TWINE_PASSWORD='[copy-paste-pypi-password]'
     #      This command asks for a username and password. Roberto's account
     #      must be used.
     #   2) Copy-paste the encrypted line below
-    # PYPI_PASSWD
-    - secure: CCC
-
-sudo: false
+    #   3) Fill in your username below.
+    # TWINE_PASSWORD
+    # yamllint disable-line rule:line-length
+    - secure: "jlhDSD7sy8vXmdnLZokDTSrqX92oZxAA8Y+Z33mbefISGXsyi+JXprQ0dhOhp2Y7ZpzQT4YlQLHJxH5uc1v493eN6JFin1NsHknpDAaH42OXZHTGoQyuf5zZAtorD/VjuPtQmAPLksu7aIid24RG4qwRl3og9F7UCDs/QnFyPQMw84Xm5brMsNpANyROj5S8qNWk4/GARqr3Lzsq/SG5prXDgrO+FrCkS5OpjZTikDB7/8Ptp3YytgWQVl9RrA0RhFJiBLiVLXupxhLqxu84XFshesuPocFIxTe8jHbDZTQd49mBjDm6DfRQJNxgjg5CvMn+njRrP5aXwcxKM6zd21Vfcl1AoApP5Qd4f1ZUYEPjDm0ax6ipdKu/af4P/fCy99z/S2/Yxmh9JxPu65QqKBV4YEEy1BcflZLdKK3Syz0khspWoMGvDHdVKfcmOmvYQkmuH/QezEPPl49raOfPx8t+oW4nUEWMotMTFkFS9F/ahiKgjlxtLK5ZIIg5clo1gS0XfL85phm+NGBprbVd92JytUm1n/1F4eYquh0d6BRKYffV6ASMSOse5iadNmr30nQy2JIxzf65iZ8zYeYewLH4WOP6SjwkVGDnsRwemOU8oiXGP9EJqW0B3xkCGTj56e7WA7Hga5MUPRw2rYhSCX7c8IVUlf+z2yrG0Xs2Zwo="
+    - TWINE_USERNAME: theochem
 
 cache:
   directories:
     - $HOME/cache
-
-before_cache:
-  - rm -rf ${ROBERTO_CONDA_INSTALL_PATH}/conda-bld
-  - rm -rf ${ROBERTO_CONDA_INSTALL_PATH}/locks
-  - rm -rf ${ROBERTO_CONDA_INSTALL_PATH}/pkgs
-  - rm -rf ${ROBERTO_CONDA_INSTALL_PATH}/var
-  - rm -rf ${ROBERTO_CONDA_INSTALL_PATH}/envs/*/conda-bld
-  - rm -rf ${ROBERTO_CONDA_INSTALL_PATH}/envs/*locks
-  - rm -rf ${ROBERTO_CONDA_INSTALL_PATH}/envs/*pkgs
-  - rm -rf ${ROBERTO_CONDA_INSTALL_PATH}/envs/*var
 
 install:
   # Get a basic python 3 with pip to run roberto
@@ -94,61 +101,17 @@ install:
   - python3 -m pip install . --user
 
 script:
-  # Instead of calling simply `rob -e`, we do something that always works on osx too.
+  # Instead of simply calling `rob -e`, we do something that always works on osx too.
   - python3 -m roberto -e
-  - bash <(curl -s https://codecov.io/bash)
+  # This will analyze the current tag and decide which deployments are appropriate.
+  - if [[ -n ${MAKE_RELEASE} ]]; then python3 -m roberto -e deploy; fi
 
-before_deploy:
-  # More variables still need to be added to the export-deploy-vars task.
-  - python -m roberto export-deploy-vars
-  - source <(python -m roberto export-deploy-vars)
-
-# In deployment, the env var TRAVIS_TAG contains the name of the current version, if any.
-deploy:
-  - provider: releases
-    skip_cleanup: true
-    api_key: ${GITHUB_TOKEN}
-    file: dist/${PROJECT_NAME}-${TRAVIS_TAG}.tar.gz
-    on:
-      repo: ${GITHUB_REPO_NAME}
-      tags: true
-      condition: "$MYCONDAPY == 2.7 && $TRAVIS_OS_NAME == linux && $TRAVIS_TAG == *[ab]*"
-    prerelease: true
-
-  - provider: releases
-    skip_cleanup: true
-    api_key: ${GITHUB_TOKEN}
-    file: dist/${PROJECT_NAME}-${TRAVIS_TAG}.tar.gz
-    on:
-      repo: ${GITHUB_REPO_NAME}
-      tags: true
-      condition: "$MYCONDAPY == 2.7 && $TRAVIS_OS_NAME == linux && $TRAVIS_TAG != *[ab]*"
-    prerelease: false
-
-  - provider: script
-    skip_cleanup: true
-    script:
-      anaconda -t $ANACONDA_TOKEN upload --force -l ${ANACONDA_LABEL}
-      ${ROBERTO_CONDA_INSTAL_PATH}/conda-bld/*/${PROJECT_NAME}-*.tar.bz2
-    on:
-      repo: ${GITHUB_REPO_NAME}
-      tags: true
-
-  - provider: pypi
-    skip_cleanup: true
-    user: ${PYPI_LOGIN}
-    password: ${PYPI_PASSWD}
-    on:
-      repo: ${GITHUB_REPO_NAME}
-      tags: true
-      condition: "$TRAVIS_TAG != *[ab]* && $MYCONDAPY == 2.7 && $TRAVIS_OS_NAME == linux"
-
-  - provider: pages
-    skip_cleanup: true
-    github_token: ${GITHUB_TOKEN}
-    project_name: ${PROJECT_NAME}
-    local_dir: doc/_build/html
-    on:
-      repo: ${GITHUB_REPO_NAME}
-      condition: "-e doc && $TRAVIS_TAG != *[ab]* && $MYCONDAPY == 2.7 && $TRAVIS_OS_NAME == linux"
-      tags: true
+before_cache:
+  - rm -rf ${ROBERTO_CONDA_INSTALL_PATH}/conda-bld
+  - rm -rf ${ROBERTO_CONDA_INSTALL_PATH}/locks
+  - rm -rf ${ROBERTO_CONDA_INSTALL_PATH}/pkgs
+  - rm -rf ${ROBERTO_CONDA_INSTALL_PATH}/var
+  - rm -rf ${ROBERTO_CONDA_INSTALL_PATH}/envs/*/conda-bld
+  - rm -rf ${ROBERTO_CONDA_INSTALL_PATH}/envs/*/locks
+  - rm -rf ${ROBERTO_CONDA_INSTALL_PATH}/envs/*/pkgs
+  - rm -rf ${ROBERTO_CONDA_INSTALL_PATH}/envs/*/var

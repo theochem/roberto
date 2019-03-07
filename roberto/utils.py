@@ -27,12 +27,14 @@ from glob import glob
 import hashlib
 import json
 import os
+import re
 from typing import List
 
 from invoke import Context
 
 
-__all__ = ['update_env_command', 'compute_req_hash', 'run_tools', 'append_path']
+__all__ = ['update_env_command', 'compute_req_hash', 'run_tools', 'append_path',
+           'parse_git_describe']
 
 
 def update_env_command(ctx: Context, command: str) -> None:
@@ -130,3 +132,71 @@ def append_path(env: dict, name: str, newdir: str):
         env[name] += ':' + newdir
     else:
         env[name] = newdir
+
+
+class TagError(Exception):
+    """An exception raised when a version tag is invalid."""
+
+    def __init__(self, message, tag):
+        message = 'Invalid tag: {} ({})'.format(tag, message)
+        super().__init__(message)
+
+
+def parse_git_describe(git_describe: str) -> dict:
+    """Parse the output of `git describe --tags`.
+
+    Parameters
+    ----------
+    git_describe
+        The output of git describe
+
+    Returns
+    -------
+    version_info
+        A dictionary with version information.
+
+    """
+    # Split the input string into basic parts.
+    git_describe = git_describe.strip()
+    version_words = git_describe.split('-')
+    tag = version_words[0]
+    version_parts = tag.split('.', 2)
+    if len(version_parts) != 3:
+        raise TagError('A version tag must at least contain two dots.', tag)
+
+    # If the last version part has a non numeric suffix,
+    # it needs to be taken out.
+    match = re.fullmatch(r'(\d+)(.*)', version_parts[-1])
+    if match is None:
+        raise TagError('The patch version must start with a number.', tag)
+    version_parts[-1] = match.group(1)
+    suffix = match.group(2)
+
+    # Define various meaningful pieces
+    major, minor, patch = version_parts
+    if not minor.isnumeric():
+        raise TagError('The minor version must be numeric.', tag)
+    if not major.isnumeric():
+        raise TagError('The major version must be numeric.', tag)
+    if len(version_words) > 1:
+        suffix += '.post' + version_words[1]
+
+    # Construct results
+    version_info = {
+        'describe': git_describe,
+        'tag': tag,
+        'tag_version': '{}.{}.{}{}'.format(major, minor, patch, suffix),
+        'tag_soversion': '{}.{}'.format(major, minor),
+        'tag_version_major': major,
+        'tag_version_minor': minor,
+        'tag_version_patch': patch,
+        'tag_version_suffix': suffix,
+        'tag_stable': len(suffix) == 0,
+        'tag_test': re.fullmatch(r'b\d+', suffix) is not None,
+        'tag_dev': re.fullmatch(r'a\d+', suffix) is not None,
+    }
+    version_info['tag_release'] = (
+        version_info['tag_stable']
+        or version_info['tag_test']
+        or version_info['tag_dev'])
+    return version_info

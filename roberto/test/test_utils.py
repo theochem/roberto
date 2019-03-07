@@ -23,7 +23,8 @@ import os
 
 from invoke import Context
 
-from ..utils import update_env_command, compute_req_hash, append_path
+from ..utils import (update_env_command, compute_req_hash, append_path,
+                     parse_git_describe)
 
 
 def test_update_env_command():
@@ -80,3 +81,132 @@ def test_append_path():
     assert len(env) == 2
     assert env["T"] == "aaa:bbb"
     assert env["S"] == "ccc"
+
+
+def test_parse_git_describe():
+    assert parse_git_describe("1.2.3") == {
+        'describe': '1.2.3',
+        'tag': '1.2.3',
+        'tag_version': '1.2.3',
+        'tag_soversion': '1.2',
+        'tag_version_major': '1',
+        'tag_version_minor': '2',
+        'tag_version_patch': '3',
+        'tag_version_suffix': '',
+        'tag_stable': True,
+        'tag_test': False,
+        'tag_dev': False,
+        'tag_release': True
+    }
+    assert parse_git_describe("0.18.1b1") == {
+        'describe': '0.18.1b1',
+        'tag': '0.18.1b1',
+        'tag_version': '0.18.1b1',
+        'tag_soversion': '0.18',
+        'tag_version_major': '0',
+        'tag_version_minor': '18',
+        'tag_version_patch': '1',
+        'tag_version_suffix': 'b1',
+        'tag_stable': False,
+        'tag_test': True,
+        'tag_dev': False,
+        'tag_release': True
+    }
+    assert parse_git_describe("30.1.2a7") == {
+        'describe': '30.1.2a7',
+        'tag': '30.1.2a7',
+        'tag_version': '30.1.2a7',
+        'tag_soversion': '30.1',
+        'tag_version_major': '30',
+        'tag_version_minor': '1',
+        'tag_version_patch': '2',
+        'tag_version_suffix': 'a7',
+        'tag_stable': False,
+        'tag_test': False,
+        'tag_dev': True,
+        'tag_release': True
+    }
+    assert parse_git_describe("15.13.11a9-10") == {
+        'describe': '15.13.11a9-10',
+        'tag': '15.13.11a9',
+        'tag_version': '15.13.11a9.post10',
+        'tag_soversion': '15.13',
+        'tag_version_major': '15',
+        'tag_version_minor': '13',
+        'tag_version_patch': '11',
+        'tag_version_suffix': 'a9.post10',
+        'tag_stable': False,
+        'tag_test': False,
+        'tag_dev': False,
+        'tag_release': False
+    }
+    assert parse_git_describe("1.0.30l") == {
+        'describe': '1.0.30l',
+        'tag': '1.0.30l',
+        'tag_version': '1.0.30l',
+        'tag_soversion': '1.0',
+        'tag_version_major': '1',
+        'tag_version_minor': '0',
+        'tag_version_patch': '30',
+        'tag_version_suffix': 'l',
+        'tag_stable': False,
+        'tag_test': False,
+        'tag_dev': False,
+        'tag_release': False
+    }
+    assert parse_git_describe("5.0.0") == {
+        'describe': '5.0.0',
+        'tag': '5.0.0',
+        'tag_version': '5.0.0',
+        'tag_soversion': '5.0',
+        'tag_version_major': '5',
+        'tag_version_minor': '0',
+        'tag_version_patch': '0',
+        'tag_version_suffix': '',
+        'tag_stable': True,
+        'tag_test': False,
+        'tag_dev': False,
+        'tag_release': True
+    }
+    assert parse_git_describe("2.7.0-3-foo") == {
+        'describe': '2.7.0-3-foo',
+        'tag': '2.7.0',
+        'tag_version': '2.7.0.post3',
+        'tag_soversion': '2.7',
+        'tag_version_major': '2',
+        'tag_version_minor': '7',
+        'tag_version_patch': '0',
+        'tag_version_suffix': '.post3',
+        'tag_stable': False,
+        'tag_test': False,
+        'tag_dev': False,
+        'tag_release': False
+    }
+    assert parse_git_describe("0.9.0a2") == {
+        'describe': '0.9.0a2',
+        'tag': '0.9.0a2',
+        'tag_version': '0.9.0a2',
+        'tag_soversion': '0.9',
+        'tag_version_major': '0',
+        'tag_version_minor': '9',
+        'tag_version_patch': '0',
+        'tag_version_suffix': 'a2',
+        'tag_stable': False,
+        'tag_test': False,
+        'tag_dev': True,
+        'tag_release': True
+    }
+    assert parse_git_describe("0.0.0-666-notag") == {
+        'describe': '0.0.0-666-notag',
+        'tag': '0.0.0',
+        'tag_version': '0.0.0.post666',
+        'tag_soversion': '0.0',
+        'tag_version_major': '0',
+        'tag_version_minor': '0',
+        'tag_version_patch': '0',
+        'tag_version_suffix': '.post666',
+        'tag_stable': False,
+        'tag_test': False,
+        'tag_dev': False,
+        'tag_release': False
+    }
