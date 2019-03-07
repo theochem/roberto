@@ -190,7 +190,30 @@ def install_requirements(ctx):
         print("To force install: rm {}".format(fn_skip))
 
 
-@task(install_requirements)
+@task(_finalize_config)
+def sanitize_git(ctx):
+    """Fetch required git branches when absent."""
+    branch = ctx.git.merge_branch
+
+    # Test if merge branch is present
+    try:
+        ctx.run("git rev-parse --verify {}".format(branch))
+        return
+    except Failure:
+        print("Merge branch \"{}\" not found.".format(branch))
+
+    # Try to create it without connection to origin
+    try:
+        ctx.run("git branch --track {0} origin/{0}".format(branch))
+        return
+    except Failure:
+        print("Local copy of remote merge branch \"{}\" not found.".format(branch))
+
+    # Last resort: fetch the merge branch
+    ctx.run("git fetch origin {0}:{0}".format(branch))
+
+
+@task(install_requirements, sanitize_git)
 def lint_static(ctx):
     """Run static linters."""
     if ctx.git.branch == "" or ctx.git.branch == ctx.git.merge_branch:
@@ -266,7 +289,7 @@ def test_inplace(ctx):
     run_tools(ctx, "test_inplace", env=ctx.project.inplace_env)
 
 
-@task(build_inplace)
+@task(build_inplace, sanitize_git)
 def lint_dynamic(ctx):
     """Run dynamic linters."""
     if ctx.git.branch == "" or ctx.git.branch == ctx.git.merge_branch:
