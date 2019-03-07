@@ -1,0 +1,154 @@
+matrix:
+  include:
+    - os: linux
+      dist: xenial
+      language: generic
+      env:
+        - ROBERTO_CONDA_PINNING="python 3.5"
+    - os: linux
+      dist: xenial
+      language: generic
+      env:
+        - ROBERTO_CONDA_PINNING="python 3.6"
+    - os: linux
+      dist: xenial
+      language: generic
+      env:
+        - ROBERTO_CONDA_PINNING="python 3.7"
+    - os: osx
+      language: generic
+      env:
+        - ROBERTO_CONDA_PINNING="python 3.6"
+    - os: osx
+      language: generic
+      env:
+        - ROBERTO_CONDA_PINNING="python 3.7"
+
+env:
+  global:
+    # Install conda in a *sub*directory of a directory cached by travis.
+    - ROBERTO_CONDA_INSTALL_PATH=$HOME/cache/miniconda3
+    # Instructions for (re)setting up a GITHUB_TOKEN, for theochem admins
+    #   0) Install the travis-ci command-line client.
+    #      https://github.com/travis-ci/travis.rb#installation
+    #   1) Login with the Roberto's account on github.com.
+    #   2) Go to profile settings. (https://github.com/settings/profile)
+    #   3) Select "Developer settings".
+    #   4) Select "Personal access tokens".
+    #   5) Create a new token "automatic releases for theochem/***" and
+    #      activate "public_repo", then save.
+    #   6) Copy the token. It is only shown once.
+    #   7) Encrypt the token on the command line
+    #      travis encrypt --pro GITHUB_TOKEN="[copy-paste-your-github-token]"
+    #      This command asks for a username and password. Roberto's account
+    #      must be used.
+    #   8) Copy-paste the encrypted line below
+    # GITHUB_TOKEN
+    - secure: AAA
+    # Instructions for (re)setting up ANACONDA_TOKEN, for theochem admins
+    #   0) Install travis-ci command-line client.
+    #   1) Login with Roberto's account on anaconda.org
+    #   2) Go to profile settings. (https://anaconda.org/theochem/settings/profile)
+    #   3) Select "Access".
+    #   4) Create a new token (all operations)
+    #   5) Copy the token.
+    #   6) Encrypt the token on the command line
+    #      travis encrypt --pro ANACONDA_TOKEN="[copy-paste-your-anaconda-token]"
+    #      This command asks for a username and password. Roberto's account
+    #      must be used.
+    #   7) Copy-paste the encrypted line below
+    # ANACONDA_TOKEN
+    - secure: BBB
+    # Instructions for (re)setting up PYPI_PASSWD, for theochem admins
+    #   0) Install travis-ci command-line client.
+    #   1) Encrypt Roberto's Pypo password on the command line
+    #      travis encrypt --pro PYPI_PASSWD="[copy-paste-pypi-password]"
+    #      This command asks for a username and password. Roberto's account
+    #      must be used.
+    #   2) Copy-paste the encrypted line below
+    # PYPI_PASSWD
+    - secure: CCC
+
+sudo: false
+
+cache:
+  directories:
+    - $HOME/cache
+
+before_cache:
+  - rm -rf ${ROBERTO_CONDA_INSTALL_PATH}/conda-bld
+  - rm -rf ${ROBERTO_CONDA_INSTALL_PATH}/locks
+  - rm -rf ${ROBERTO_CONDA_INSTALL_PATH}/pkgs
+  - rm -rf ${ROBERTO_CONDA_INSTALL_PATH}/var
+  - rm -rf ${ROBERTO_CONDA_INSTALL_PATH}/envs/*/conda-bld
+  - rm -rf ${ROBERTO_CONDA_INSTALL_PATH}/envs/*locks
+  - rm -rf ${ROBERTO_CONDA_INSTALL_PATH}/envs/*pkgs
+  - rm -rf ${ROBERTO_CONDA_INSTALL_PATH}/envs/*var
+
+install:
+  # Get a basic python 3 with pip to run roberto
+  - python3 --version
+  - wget --no-clobber -O ${HOME}/cache/get-pip.py https://bootstrap.pypa.io/get-pip.py || true
+  - python3 ${HOME}/cache/get-pip.py --user
+  # Normally roberto should be installed from pypi, but roberto can take a shortcut.
+  - python3 -m pip install . --user
+
+script:
+  # Instead of calling simply `rob -e`, we do something that always works on osx too.
+  - python3 -m roberto -e
+  - bash <(curl -s https://codecov.io/bash)
+
+before_deploy:
+  # More variables still need to be added to the export-deploy-vars task.
+  - python -m roberto export-deploy-vars
+  - source <(python -m roberto export-deploy-vars)
+
+# In deployment, the env var TRAVIS_TAG contains the name of the current version, if any.
+deploy:
+  - provider: releases
+    skip_cleanup: true
+    api_key: ${GITHUB_TOKEN}
+    file: dist/${PROJECT_NAME}-${TRAVIS_TAG}.tar.gz
+    on:
+      repo: ${GITHUB_REPO_NAME}
+      tags: true
+      condition: "$MYCONDAPY == 2.7 && $TRAVIS_OS_NAME == linux && $TRAVIS_TAG == *[ab]*"
+    prerelease: true
+
+  - provider: releases
+    skip_cleanup: true
+    api_key: ${GITHUB_TOKEN}
+    file: dist/${PROJECT_NAME}-${TRAVIS_TAG}.tar.gz
+    on:
+      repo: ${GITHUB_REPO_NAME}
+      tags: true
+      condition: "$MYCONDAPY == 2.7 && $TRAVIS_OS_NAME == linux && $TRAVIS_TAG != *[ab]*"
+    prerelease: false
+
+  - provider: script
+    skip_cleanup: true
+    script:
+      anaconda -t $ANACONDA_TOKEN upload --force -l ${ANACONDA_LABEL}
+      ${ROBERTO_CONDA_INSTAL_PATH}/conda-bld/*/${PROJECT_NAME}-*.tar.bz2
+    on:
+      repo: ${GITHUB_REPO_NAME}
+      tags: true
+
+  - provider: pypi
+    skip_cleanup: true
+    user: ${PYPI_LOGIN}
+    password: ${PYPI_PASSWD}
+    on:
+      repo: ${GITHUB_REPO_NAME}
+      tags: true
+      condition: "$TRAVIS_TAG != *[ab]* && $MYCONDAPY == 2.7 && $TRAVIS_OS_NAME == linux"
+
+  - provider: pages
+    skip_cleanup: true
+    github_token: ${GITHUB_TOKEN}
+    project_name: ${PROJECT_NAME}
+    local_dir: doc/_build/html
+    on:
+      repo: ${GITHUB_REPO_NAME}
+      condition: "-e doc && $TRAVIS_TAG != *[ab]* && $MYCONDAPY == 2.7 && $TRAVIS_OS_NAME == linux"
+      tags: true
