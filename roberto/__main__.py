@@ -121,7 +121,8 @@ class RobertoConfig(Config):
                 '__pip__': ['git+https://github.com/theochem/cardboardlint.git'
                             '@master#egg=cardboardlint'],
                 '__conda__': ['pycodestyle', 'pydocstyle', 'pylint', 'flake8',
-                              'conda-forge::cppcheck', 'conda-forge::cpplint'],
+                              'conda-forge::cppcheck', 'conda-forge::cpplint',
+                              'conda-forge::yamllint'],
                 'lint_static_master': ['cardboardlinter -f static'],
                 'lint_static_feature': ['cardboardlinter -r {config.git.merge_branch} '
                                         '-f static'],
@@ -159,3 +160,7 @@ program = Program(   # pylint: disable=invalid-name
     namespace=Collection.from_module(tasks),
     version=__version__
 )
+
+
+if __name__ == '__main__':
+    program.run()
