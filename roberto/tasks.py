@@ -56,10 +56,10 @@ def install_conda(ctx):
             raise Failure("Operating system {} not supported.".format(system))
 
         # Fix permissions of the conda installer.
-        os.chmod(dwnl, stat.S_IRUSR | stat.S_IXUSR)
+        os.chmod(dwnl, os.stat(dwnl).st_mode | stat.S_IXUSR)
 
-        print("Installing conda in {}.".format(dwnl))
-        ctx.run("./{} -b -p {}".format(dwnl, dest))
+        print("Installing conda in {}.".format(dest))
+        ctx.run("{} -b -p {}".format(dwnl, dest))
 
 
 @task
