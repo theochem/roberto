@@ -68,7 +68,7 @@ def _finalize_config(ctx):
     env_name = ctx.project.name + '-dev'
     if ctx.conda.pinning:
         env_name += '-' + '-'.join(ctx.conda.pinning.split())
-    print("Conda development environment: {}".format(env_name))
+    print("# Conda development environment: {}".format(env_name))
     base_path = ctx.conda.install_path
     env_path = os.path.join(base_path, 'envs', env_name)
     ctx.conda.base_path = base_path
@@ -304,6 +304,18 @@ def nuclear(ctx):
     """USE AT YOUR OWN RISK. Purge conda env and stale files in source tree."""
     ctx.run("conda uninstall -n {} --all -y".format(ctx.conda.env_name))
     ctx.run("git clean -fdx")
+
+
+@task(_finalize_config)
+def export_deploy_vars(ctx):
+    """Print export lines for deployment."""
+    if "a" in ctx.git.tag_version_patch:
+        anaconda_label = "dev"
+    elif "b" in ctx.git.tag_version_patch:
+        anaconda_label = "test"
+    else:
+        anaconda_label = "main"
+    print("export ANACONDA_LABEL={}".format(anaconda_label))
 
 
 @task(lint_static, test_inplace, lint_dynamic, build_source, build_conda,
