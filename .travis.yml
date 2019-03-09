@@ -43,7 +43,7 @@ matrix:
       language: generic
       env:
         - ROBERTO_CONDA_PINNING="python 3.7"
-        - MAKE_RELEASE=true
+        - ROBERTO_DEPLOY=true
     - os: osx
       osx_image: xcode9.4
       language: generic
@@ -130,10 +130,9 @@ install:
 
 script:
   # Instead of simply calling `rob -e`, we do something that always works on osx too.
-  - python3 -m roberto -e
-  # This will analyze the current tag and decide which deployments are appropriate.
-  # - if [[ -n ${MAKE_RELEASE} ]]; then python3 -m roberto -e deploy; fi
-  - if [[ -n ${MAKE_RELEASE} ]]; then python3 -m roberto -e deploy-conda; sleep 30; fi
+  # Adding sleep trick to avoid potential output truncation issues
+  #     See https://github.com/travis-ci/travis-ci/issues/6018
+  - python3 -m roberto -e && sleep 10
 
 before_cache:
   - rm -rf ${ROBERTO_CONDA_INSTALL_PATH}/conda-bld

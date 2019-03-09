@@ -69,7 +69,7 @@ class RobertoConfig(Config):
             'osx_url': 'https://repo.continuum.io/miniconda/Miniconda3-latest-MacOSX-x86_64.sh',
             'base_path': os.path.join(os.environ['HOME'], 'miniconda3'),
             'pinning': 'python 3.7',
-        }, 'project': {
+        }, 'deploy': False, 'project': {
             'packages': [
                 # Repeat as many as you like. order may matter.
                 # {
@@ -95,19 +95,22 @@ class RobertoConfig(Config):
                 'lint_dynamic_master': ['cardboardlinter -f dynamic'],
                 'lint_dynamic_feature': ['cardboardlinter -r {config.git.merge_branch} '
                                          '-f dynamic'],
-            }, 'pytest': {
+            },
+            'pytest': {
                 '__conda__': ['pytest', 'pytest-cov'],
                 'test_inplace': ["pytest {name} -v --cov={name} --cov-report xml "
                                  "--cov-report term-missing --cov-branch --color=yes"],
                 'test_inplace_ci': ["bash <(curl -s https://codecov.io/bash)"]
-            }, 'nose': {
+            },
+            'nose': {
                 '__conda__': ['nose', 'coverage'],
                 'test_inplace': ["rm -f .coverage",
                                  "nosetests {name} -v --detailed-errors "
                                  "--with-coverage --cover-package={name} "
                                  "--cover-tests --cover-inclusive --cover-branches",
                                  "coverage xml -i"],
-            }, 'maketest': {
+            },
+            'maketest': {
                 '__pip__': ['gcovr'],
                 'test_inplace': [
                     "cd build; find | grep '\\.gcda$' | xargs rm -vf"
@@ -119,8 +122,23 @@ class RobertoConfig(Config):
         return merge_dicts(their_defaults, my_defaults)
 
 
+class RobertoProgram(Program):
+    """Extend the default Program class with an execute method.
+
+    Code stolen from: https://github.com/pyinvoke/invoke/pull/613/files
+    """
+
+    def execute_task(self, context, task_name, **kwargs):
+        """Execute a task directly."""
+        executor = self.executor_class(
+            self.collection, config=context.config, core=self.core
+        )
+        results = executor.execute((task_name, kwargs))
+        return results[self.collection[task_name]]
+
+
 # The program instance provides a `run` method, which is the entrypoint.
-program = Program(   # pylint: disable=invalid-name
+program = RobertoProgram(   # pylint: disable=invalid-name
     config_class=RobertoConfig,
     namespace=Collection.from_module(tasks),
     version=__version__

@@ -460,8 +460,7 @@ def nuclear(ctx):
     ctx.run("git clean -fdx")
 
 
-@task(lint_static, test_inplace, lint_dynamic, build_source, build_conda,
-      default=True)
+@task(lint_static, test_inplace, lint_dynamic, build_source, build_conda)
 def test(ctx):  # pylint: disable=unused-argument
     """Run all testing tasks, including package builds."""
 
@@ -469,3 +468,18 @@ def test(ctx):  # pylint: disable=unused-argument
 @task(deploy_pypi, deploy_conda, deploy_github)
 def deploy(ctx):  # pylint: disable=unused-argument
     """Run all deployment tasks."""
+
+
+@task(test, deploy)
+def test_and_deploy(ctx):  # pylint: disable=unused-argument
+    """Run all tests and deploy."""
+
+
+@task(default=True)
+def robot(ctx):
+    """Run test or test_and_deploy, depending on config."""
+    from .__main__ import program
+    if ctx.deploy:
+        program.execute_task(ctx, "test_and_deploy")
+    else:
+        program.execute_task(ctx, "test")
