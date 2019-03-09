@@ -66,6 +66,6 @@ setup(
     package_dir={'roberto': 'roberto'},
     install_requires=['invoke', 'pyyaml'],
     entry_points={
-        'console_scripts': ['rob = roberto.__main__:program.run']
+        'console_scripts': ['rob = roberto.__main__:main']
     }
 )
