@@ -55,6 +55,31 @@ matrix:
       env:
         - ROBERTO_CONDA_PINNING="python 3.7"
 
+# Debugging issues with encrypted tokens and passwords can be very tricky.
+# Here are some hints to overcome the most common problems:
+# - When the en- or decryption has somehow failed, the corresponding variables
+#   are not set. You should be able to see this in the header of the build
+#   log (under the section "Setting environment variables from .travis.yml").
+#   It normally shows all veriables, with the encrypted ones masked as
+#   MEANINGFULL_NAME=[secure]. When it failed, you see something like
+#   wPKmdvIo2cOt6SH02fDd=[secure].
+# - The deployment scripts will fail if the necessary tokens or passwords are
+#   not found in the right environment variables. Twine and hub will start
+#   asking for login crediatials. Anaconda will fail without clear error
+#   message. Roberto checks these variables and will print for each one if it is
+#   unset, empty or non-empty.
+# - The order of the lines in the build log tends to get mixed up near the
+#   deployment scripts, so it may not be easy to follow what is going on.
+# - The simplest solution to try first, is a second attempt to encrypt the
+#   variables and to try again. If that does not work, try if something else
+#   is causing the problem by running the travis-ci image in a docker instance
+#   as explained on top of this file. In this docker instance, just use
+#   non-encrypted variables. It runs on your machine, so this is normally ok.
+# - We had some issues with encryption before on travis-ci.org that magically
+#   disappaered on travis-ci.com. The "--pro" argument mentioned in the
+#   instructions below is needed for travis-ci.com, not for travis-ci.org.
+#   Given that the .org is being fased out, the --pro option is included below.
+
 env:
   global:
     # Install conda in a *sub*directory of a directory cached by travis.
