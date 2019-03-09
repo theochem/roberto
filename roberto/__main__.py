@@ -67,7 +67,7 @@ class RobertoConfig(Config):
             'download_path': os.path.join(os.environ['HOME'], 'Downloads', 'miniconda.sh'),
             'linux_url': 'https://repo.continuum.io/miniconda/Miniconda3-latest-Linux-x86_64.sh',
             'osx_url': 'https://repo.continuum.io/miniconda/Miniconda3-latest-MacOSX-x86_64.sh',
-            'install_path': os.path.join(os.environ['HOME'], 'miniconda3'),
+            'base_path': os.path.join(os.environ['HOME'], 'miniconda3'),
             'pinning': 'python 3.7',
         }, 'project': {
             'packages': [

@@ -33,8 +33,8 @@ from typing import List
 from invoke import Context
 
 
-__all__ = ['update_env_command', 'compute_req_hash', 'run_tools', 'append_path',
-           'parse_git_describe']
+__all__ = ['conda_deactivate', 'conda_activate', 'update_env_command',
+           'compute_req_hash', 'run_tools', 'append_path', 'parse_git_describe']
 
 
 def update_env_command(ctx: Context, command: str) -> None:
@@ -56,6 +56,58 @@ def update_env_command(ctx: Context, command: str) -> None:
     removed_keys = [key for key in os.environ.keys() if key not in newenv]
     for key in removed_keys:
         del os.environ[key]
+
+
+def conda_deactivate(ctx, iterate=True):
+    """Deactivate the current conda environment, if any.
+
+    Parameters
+    ----------
+    ctx
+        A invoke.Context instance.
+    iterate
+        Normally, this function keeps deactivating until conda is totally
+        out of the environment variables. To get a single iteration, set this
+        argument to False
+
+    """
+    # If some conda environment is active, we need to (recursively) deactivate.
+    # For this, conda.sh needs to be sourced to define certain bash functions.
+    # This is ugly but there is (afaik) no simple way around it.
+
+    # 0) Return if no work needs to be done
+    if "CONDA_PREFIX" not in os.environ:
+        return
+
+    # 1) Get the base path of the currently loaded conda, could be different
+    #    from ours
+    conda_exe = os.path.normpath(os.environ["CONDA_EXE"])
+    conda_base_path = os.sep.join(conda_exe.split('/')[:-2])
+    command = ". {}/etc/profile.d/conda.sh; conda deactivate".format(conda_base_path)
+
+    # 2) Desactivate once or more
+    update_env_command(ctx, command)
+    if iterate:
+        while "CONDA_PREFIX" in os.environ:
+            update_env_command(ctx, command)
+
+
+def conda_activate(ctx, env):
+    """Activate the given conda environment.
+
+    Parameters
+    ----------
+    ctx
+        A invoke.Context instance.
+    env
+        The name of the environment to activate.
+
+    """
+    # Load the correct base environment. We need to source conda.sh as explained
+    # in the conda_deactivate function.
+    command = ". {}/etc/profile.d/conda.sh; conda activate {}".format(
+        ctx.conda.base_path, env)
+    update_env_command(ctx, command)
 
 
 def compute_req_hash(conda_packages: List[str], recipe_dirs: List[str],

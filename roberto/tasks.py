@@ -33,8 +33,8 @@ from invoke import task
 from invoke.exceptions import Failure
 import yaml
 
-from .utils import (update_env_command, compute_req_hash, run_tools,
-                    append_path, parse_git_describe)
+from .utils import (conda_deactivate, conda_activate, compute_req_hash,
+                    run_tools, append_path, parse_git_describe)
 
 
 @task
@@ -70,9 +70,7 @@ def _finalize_config(ctx):
     print("# Conda development environment: {}".format(env_name))
 
     # Package default options
-    base_path = ctx.conda.install_path
-    env_path = os.path.join(base_path, 'envs', env_name)
-    ctx.conda.base_path = base_path
+    env_path = os.path.join(ctx.conda.base_path, 'envs', env_name)
     ctx.conda.env_name = env_name
     ctx.conda.env_path = env_path
     for package in ctx.project.packages:
@@ -104,7 +102,7 @@ def _finalize_config(ctx):
 @task
 def install_conda(ctx):
     """Install miniconda if not present yet."""
-    dest = ctx.conda.install_path
+    dest = ctx.conda.base_path
     if not os.path.isdir(os.path.join(dest, 'bin')):
         # Prepare download location
         dwnl = ctx.conda.download_path
@@ -112,20 +110,36 @@ def install_conda(ctx):
         if not os.path.isdir(dwnldir):
             os.makedirs(dwnldir)
 
-        print("Downloading latest conda to {}.".format(dwnl))
-        system = platform.system()
-        if system == 'Darwin':
-            urllib.request.urlretrieve(ctx.conda.osx_url, dwnl)
-        elif system == 'Linux':
-            urllib.request.urlretrieve(ctx.conda.linux_url, dwnl)
+        if os.path.isfile(dwnl):
+            print("Conda install already present: {}".format(dwnl))
         else:
-            raise Failure("Operating system {} not supported.".format(system))
+            print("Downloading latest conda to {}.".format(dwnl))
+            system = platform.system()
+            if system == 'Darwin':
+                urllib.request.urlretrieve(ctx.conda.osx_url, dwnl)
+            elif system == 'Linux':
+                urllib.request.urlretrieve(ctx.conda.linux_url, dwnl)
+            else:
+                raise Failure("Operating system {} not supported.".format(system))
 
         # Fix permissions of the conda installer.
         os.chmod(dwnl, os.stat(dwnl).st_mode | stat.S_IXUSR)
 
+        # Unload any currently loaded conda environments.
+        conda_deactivate(ctx)
+
+        # Install
         print("Installing conda in {}.".format(dest))
         ctx.run("{} -b -p {}".format(dwnl, dest))
+
+        # Load our new conda environment
+        conda_activate(ctx, "base")
+
+        # Update to the latest conda. This is needed upfront because the conda
+        # version from the miniconda installer is easily outdated. However,
+        # latest versions might also have their issues. At the moment, updating
+        # is unavoidable becuase we are otherwise hitting bugs.
+        ctx.run("conda update -n base -c defaults conda -y")
 
 
 @task(install_conda, _finalize_config)
@@ -142,17 +156,9 @@ def setup_conda_env(ctx):
     pinned_reqs = ["{}={}".format(name, version) for name, version
                    in zip(pinned_words[::2], pinned_words[1::2])]
 
-    # If some conda environment is active, we need to (recursively) deactivate.
-    # conda.sh needs to be sourced, which is a bit ugly but there is no way
-    # around it. This source script defines bash functions needed for
-    # activation and deactivation. The same trick is used below a few times.
-    while "CONDA_PREFIX" in os.environ:
-        update_env_command(ctx, ". {}/etc/profile.d/conda.sh; conda deactivate".format(
-            ctx.conda.base_path))
-
-    # Load the correct base environment. Mind the ugly trick.
-    update_env_command(ctx, ". {}/etc/profile.d/conda.sh; conda activate base".format(
-        ctx.conda.base_path))
+    # Load the correct base environment.
+    conda_deactivate(ctx)
+    conda_activate(ctx, "base")
 
     # Check if the right environment exists, and make if needed.
     result = ctx.run("conda env list --json", hide=True)
@@ -163,8 +169,7 @@ def setup_conda_env(ctx):
                 f.write(pin + "\n")
 
     # Load the development environment.
-    update_env_command(ctx, ". {}/etc/profile.d/conda.sh; conda activate {}".format(
-        ctx.conda.base_path, ctx.conda.env_name))
+    conda_activate(ctx, ctx.conda.env_name)
 
 
 @task(setup_conda_env)
@@ -172,8 +177,8 @@ def install_requirements(ctx):
     """Install dependencies, linters and packaging tools."""
     # Collect all parameters determining the install commands, to good
     # approximation and turn them into a hash.
-    conda_packages = set(["conda-build", "anaconda-client", "conda-verify",
-                          "twine", "conda-forge::hub"])
+    conda_packages = set(["conda", "conda-build", "anaconda-client",
+                          "conda-verify", "twine", "conda-forge::hub"])
     pip_packages = set([])
     recipe_dirs = []
     for package in ctx.project.packages:
@@ -439,7 +444,7 @@ def deploy_conda(ctx):
         check_env_var('ANACONDA_API_TOKEN')
 
         # Call the uploader
-        ctx.run("anaconda upload --force -l {} {}".format(
+        ctx.run("anaconda -v upload --force -l {} {}".format(
             anaconda_label, " ".join(assets),
         ), warn=True)
     else:
@@ -449,8 +454,8 @@ def deploy_conda(ctx):
 @task(_finalize_config, setup_conda_env)
 def nuclear(ctx):
     """USE AT YOUR OWN RISK. Purge conda env and stale files in source tree."""
-    update_env_command(ctx, ". {}/etc/profile.d/conda.sh; conda deactivate".format(
-        ctx.conda.base_path))
+    # Go back to the base env before nuking the development env.
+    conda_deactivate(ctx, iterate=False)
     ctx.run("conda uninstall -n {} --all -y".format(ctx.conda.env_name))
     ctx.run("git clean -fdx")
 

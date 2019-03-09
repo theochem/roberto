@@ -64,7 +64,7 @@ env:
     - CONDA_BLD_PATH=$HOME/conda-bld
 
     # Debugging options
-    - HUB_VERBOSE=1
+    # - HUB_VERBOSE=1
 
     # Instructions for (re)setting up a GITHUB_TOKEN, for theochem admins
     #   0) Install the travis-ci command-line client.
@@ -132,7 +132,8 @@ script:
   # Instead of simply calling `rob -e`, we do something that always works on osx too.
   - python3 -m roberto -e
   # This will analyze the current tag and decide which deployments are appropriate.
-  - if [[ -n ${MAKE_RELEASE} ]]; then python3 -m roberto -e deploy; fi
+  # - if [[ -n ${MAKE_RELEASE} ]]; then python3 -m roberto -e deploy; fi
+  - if [[ -n ${MAKE_RELEASE} ]]; then python3 -m roberto -e deploy-conda; sleep 30; fi
 
 before_cache:
   - rm -rf ${ROBERTO_CONDA_INSTALL_PATH}/conda-bld
