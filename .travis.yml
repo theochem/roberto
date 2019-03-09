@@ -1,3 +1,31 @@
+# Pro tip: when all else fails, you can debug travis builds on your local machine.
+# 1) Install docker-ce: https://docs.docker.com/install/
+# 2) Get an up-to-date travis-ci docker image. For our linux builds, these can
+#    be found here: https://hub.docker.com/r/travisci/ci-sardonyx/tags
+#    Download as follows:
+#        docker pull travisci/ci-sardonyx:packer-1549881206-387f377
+#    You may want to use a newer tag than packer-1549881206-387f377.
+#    This will take a while (3GB download)
+# 3) Run the headless image:
+#        BUILDID="build-$RANDOM"
+#        docker run --name $BUILDID \
+#            travisci/ci-sardonyx:packer-1549881206-387f377 \
+#            /sbin/init
+#    where you may also need to change the tag to be consistent with step 2.
+# 4) In another terminal window, run the following, to get into the docker
+#    instance:
+#        docker exec -it $BUILDID bash -l
+#    (Note that tab completion can be useful, instead of using env vars.)
+# 5) Once in the image, switch first to the travis user:
+#        su - travis
+# 6) Then run all the commands you encounter in the travis log and debug.
+# 7) When done, log out of the instance (exit two times)
+# 8) Stop the instance
+#        docker stop $BUILDID
+# 9) Clean up
+#        docker rm $BUILDID
+#    This will clean up your experiments, but not the image you downloaded.
+
 matrix:
   include:
     - os: linux
