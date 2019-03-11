@@ -20,7 +20,7 @@
 """Roberto's entry point."""
 
 
-from .main import program
+from .program import program
 
 
 __all__ = ['main']

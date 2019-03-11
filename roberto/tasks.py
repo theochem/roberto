@@ -478,7 +478,7 @@ def test_and_deploy(ctx):  # pylint: disable=unused-argument
 @task(default=True)
 def robot(ctx):
     """Run test or test_and_deploy, depending on config."""
-    from .main import program
+    from .program import program
     if ctx.deploy:
         program.execute_task(ctx, "test_and_deploy")
     else:
