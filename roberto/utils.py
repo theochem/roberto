@@ -75,8 +75,18 @@ def conda_deactivate(ctx, iterate=True):
     # For this, conda.sh needs to be sourced to define certain bash functions.
     # This is ugly but there is (afaik) no simple way around it.
 
+    def clean_env():
+        """Get rid of lingering conda environment variables."""
+        # See https://github.com/conda/conda/issues/7031
+        if "HOST" in os.environ:
+            del os.environ['HOST']
+        for name, value in list(os.environ.items()):
+            if ("CONDA" in name or "conda" in value) and "ROBERTO" not in name:
+                del os.environ[name]
+
     # 0) Return if no work needs to be done
     if "CONDA_PREFIX" not in os.environ:
+        clean_env()
         return
 
     # 1) Get the base path of the currently loaded conda, could be different
@@ -85,11 +95,12 @@ def conda_deactivate(ctx, iterate=True):
     conda_base_path = os.sep.join(conda_exe.split('/')[:-2])
     command = ". {}/etc/profile.d/conda.sh; conda deactivate".format(conda_base_path)
 
-    # 2) Desactivate once or more
+    # 2) Deactivate until conda is gone.
     update_env_command(ctx, command)
     if iterate:
         while "CONDA_PREFIX" in os.environ:
             update_env_command(ctx, command)
+        clean_env()
 
 
 def conda_activate(ctx, env):

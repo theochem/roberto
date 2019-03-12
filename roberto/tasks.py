@@ -162,7 +162,10 @@ def install_requirements(ctx):
                 if f.read().strip() == req_hash:
                     skip_install = True
 
-    if not skip_install:
+    if skip_install:
+        print("Skipping install and update of packages in conda env.")
+        print("To force install: rm {}".format(fn_skip))
+    else:
         # Update and install dependencies
         ctx.run("conda install --update-deps -y {}".format(" ".join(conda_packages)))
 
@@ -193,9 +196,11 @@ def install_requirements(ctx):
         # Update the timestamp on the skip file.
         with open(fn_skip, 'w') as f:
             f.write(req_hash + '\n')
-    else:
-        print("Skipping install and update of packages in conda env.")
-        print("To force install: rm {}".format(fn_skip))
+
+        # Deactivate and activate conda again, because it set more environment
+        # variables after compilers have been installed.
+        conda_deactivate(ctx)
+        conda_activate(ctx, ctx.conda.env_name)
 
 
 @task()
