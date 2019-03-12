@@ -79,17 +79,19 @@ class RobertoConfig(Config):
             'merge_branch': 'master',
         }, 'tools': {
             'cardboardlint': {
-                '__pip__': ['git+https://github.com/theochem/cardboardlint.git'
-                            '@master#egg=cardboardlint'],
-                '__conda__': ['pycodestyle', 'pydocstyle', 'pylint', 'flake8',
-                              'conda-forge::cppcheck', 'conda-forge::cpplint',
-                              'conda-forge::yamllint'],
+                '__pip__':
+                    ['git+https://github.com/theochem/cardboardlint.git'
+                     '@master#egg=cardboardlint'],
+                'conda_requiremeents':
+                    ['pycodestyle', 'pydocstyle', 'pylint', 'flake8',
+                     'conda-forge::cppcheck', 'conda-forge::cpplint',
+                     'conda-forge::yamllint'],
                 'lint_static_master': ['cardboardlinter -f static'],
-                'lint_static_feature': ['cardboardlinter -r {config.git.merge_branch} '
-                                        '-f static'],
+                'lint_static_feature':
+                    ['cardboardlinter -r {config.git.merge_branch} -f static'],
                 'lint_dynamic_master': ['cardboardlinter -f dynamic'],
-                'lint_dynamic_feature': ['cardboardlinter -r {config.git.merge_branch} '
-                                         '-f dynamic'],
+                'lint_dynamic_feature':
+                    ['cardboardlinter -r {config.git.merge_branch} -f dynamic'],
             },
             'pytest': {
                 '__conda__': ['pytest', 'pytest-cov'],

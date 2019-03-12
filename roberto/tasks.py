@@ -291,7 +291,7 @@ def build_inplace(ctx):
     for package in ctx.project.packages:
         with ctx.cd(package['path']):
             if package['kind'] == "py":
-                # Build a debugging version of a Python package, possibly linking
+                # Build a debug version of a Python package, possibly linking
                 # with earlier packages in this project.
                 ctx.run("python setup.py build_ext -i -L $LD_LIBRARY_PATH "
                         "-I $CPATH --define CYTHON_TRACE_NOGIL",
@@ -301,14 +301,14 @@ def build_inplace(ctx):
             elif package['kind'] == "cpp":
                 # Build a debug version of a C++ packages, possibly linking with
                 # earlier packages in this project.
-                append_path(inplace_env, "CPATH", os.path.abspath(
-                    os.path.join(package['path'])))
                 ctx.run("mkdir -p build")
                 with ctx.cd("build"):
                     ctx.run("cmake .. -DCMAKE_BUILD_TYPE=debug", env=inplace_env)
                     ctx.run("make", env=inplace_env)
-                    append_path(inplace_env, "LD_LIBRARY_PATH", os.path.abspath(
-                        os.path.join(package['path'], package['name'])))
+                append_path(inplace_env, "CPATH", os.path.abspath(
+                    os.path.join(package['path'])))
+                append_path(inplace_env, "LD_LIBRARY_PATH", os.path.abspath(
+                    os.path.join(package['path'], package['name'])))
 
     ctx.project.inplace_env = inplace_env
 
