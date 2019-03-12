@@ -40,34 +40,39 @@ class RobertoConfig(Config):
     - The `roberto` prefix.
     - A project config file `.roberto.*` can be loaded from the current directory.
     - Default configuration.
+    - Config finalization, filling in some blanks with sensible defaults.
 
     """
 
     prefix = 'roberto'
 
-    def __init__(self, *args, **kwargs):
-        """Initialize Roberto Config instance, extend with loading local config.
+    def load_base_conf_files(self):
+        Config.load_base_conf_files(self)
+        # Always truy load the project config file.
+        self._load_file(prefix="project", merge=False)
 
-        See invoke.config.Config.__init__ for details.
+    def set_project_location(self, path):
         """
-        Config.__init__(self, *args, **kwargs)
-        # The following will let invoke pick up a local project's .roberto.yaml
-        # (or its alternative forms).
+        Set the directory path where a project-level config file may be found.
+
+        Does not do any file loading on its own; for that, see `load_project`.
+
+        .. versionadded:: 1.0
+        """
+        # Impose our own project location, config file prefixed with dot.
         self._set(_project_prefix=os.path.join(os.getcwd(), '.'))
         self._set(_project_path=None)
         self._set(_project_found=None)
         self._set(_project={})
-        if not kwargs.get("lazy", False):
-            self._load_file(prefix="project", merge=False)
-        # Once all is loaded, finalize the config, mostly for convenience:
+
+    def load_shell_env(self):
+        Config.load_shell_env(self)
+        # Once everything is loaded, including environment variables, finalize
+        # the config, mostly for convenience.
         self._finalize()
 
     def _finalize(self):
-        """Derive some config variables for convenience.
-
-        Note: nested mofications inside data proxy objects do not survive.
-        TODO: report this issue as bug and after fixed, set default tool config.
-        """
+        """Derive some config variables for convenience."""
         # Expand stuff in paths
         self.conda.download_path = os.path.expandvars(os.path.expanduser(self.conda.download_path))
         self.conda.base_path = os.path.expandvars(os.path.expanduser(self.conda.base_path))
