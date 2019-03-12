@@ -2,7 +2,6 @@ project:
   name: roberto
   packages:
     - conda_name: roberto
-      kind: py
       name: roberto
       path: .
-      tools: [cardboardlint, pytest, py_build_source]
+      tools: [write_py_version, cardboardlint, pytest, py_build_source]
