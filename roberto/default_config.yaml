@@ -126,7 +126,7 @@ tools:
           cd {package.name}; gcovr -r . --gcov-executable ${{HOST}}-gcov
           --object-directory ../build/{package.name}/CMakeFiles/{package.name}.dir
 
-  py_build_inplace:
+  build_py_inplace:
     config:
       build_inplace_paths:
         PYTHONPATH: '{package.path}/{package.name}'
@@ -136,7 +136,7 @@ tools:
           python setup.py build_ext -i -L $LD_LIBRARY_PATH
           -I $CPATH --define CYTHON_TRACE_NOGIL
 
-  cpp_build_inplace:
+  build_cmake_inplace:
     config:
       build_inplace_paths:
         CPATH: '{package.path}'
@@ -152,7 +152,7 @@ tools:
       build_packages:
         - python setup.py sdist
 
-  build_cpp_source:
+  build_cmake_source:
     commands:
       build_packages:
         - mkdir -p dist
