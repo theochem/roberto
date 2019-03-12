@@ -285,26 +285,26 @@ def build_inplace(ctx):
     """Build in-place."""
     inplace_env = {}
     for package in ctx.project.packages:
-        workdir = package['path']
-        if package['kind'] == "py":
-            # Build a debugging version of a Python package, possibly linking
-            # with earlier packages in this project.
-            ctx.run(("cd {}; python setup.py build_ext -i -L $LD_LIBRARY_PATH "
-                     "-I $CPATH --define CYTHON_TRACE_NOGIL").format(workdir),
-                    env=inplace_env)
-            append_path(inplace_env, "PYTHONPATH",
-                        os.path.join(os.getcwd(), workdir, package['name']))
-        elif package['kind'] == "cpp":
-            # Build a debug version of a C++ packages, possibly linking with
-            # earlier packages in this project.
-            append_path(inplace_env, "CPATH",
-                        os.path.join(os.getcwd(), workdir))
-            ctx.run("cd {}; mkdir -p build".format(workdir))
-            workdir = os.path.join(workdir, "build")
-            ctx.run("cd {}; cmake .. -DCMAKE_BUILD_TYPE=debug".format(workdir), env=inplace_env)
-            ctx.run("cd {}; make".format(workdir), env=inplace_env)
-            append_path(inplace_env, "LD_LIBRARY_PATH",
-                        os.path.join(os.getcwd(), workdir, package['name']))
+        with ctx.cd(package['path']):
+            if package['kind'] == "py":
+                # Build a debugging version of a Python package, possibly linking
+                # with earlier packages in this project.
+                ctx.run("python setup.py build_ext -i -L $LD_LIBRARY_PATH "
+                        "-I $CPATH --define CYTHON_TRACE_NOGIL",
+                        env=inplace_env)
+                append_path(inplace_env, "PYTHONPATH", os.path.abspath(
+                    os.path.join(package['path'], package['name'])))
+            elif package['kind'] == "cpp":
+                # Build a debug version of a C++ packages, possibly linking with
+                # earlier packages in this project.
+                append_path(inplace_env, "CPATH", os.path.abspath(
+                    os.path.join(package['path'])))
+                ctx.run("mkdir -p build")
+                with ctx.cd("build"):
+                    ctx.run("cmake .. -DCMAKE_BUILD_TYPE=debug", env=inplace_env)
+                    ctx.run("make", env=inplace_env)
+                    append_path(inplace_env, "LD_LIBRARY_PATH", os.path.abspath(
+                        os.path.join(package['path'], package['name'])))
 
     ctx.project.inplace_env = inplace_env
 
@@ -330,14 +330,14 @@ def lint_dynamic(ctx):
 def build_source(ctx):
     """Build the source package."""
     for package in ctx.project.packages:
-        workdir = package['path']
-        if package['kind'] == "py":
-            ctx.run("cd {}; python setup.py sdist".format(workdir))
-        elif package['kind'] == "cpp":
-            ctx.run("cd {}; mkdir -p dist".format(workdir))
-            workdir = os.path.join(workdir, "dist")
-            ctx.run("cd {}; cmake .. -DCMAKE_BUILD_TYPE=release".format(workdir))
-            ctx.run("cd {}; make sdist".format(workdir))
+        with ctx.cd(package['path']):
+            if package['kind'] == "py":
+                ctx.run("python setup.py sdist")
+            elif package['kind'] == "cpp":
+                ctx.run("mkdir -p dist")
+                with ctx.cd("dist"):
+                    ctx.run("cmake .. -DCMAKE_BUILD_TYPE=release")
+                    ctx.run("make sdist")
 
 
 @task(install_requirements, write_version)
@@ -345,9 +345,9 @@ def build_conda(ctx):
     """Build the Conda package."""
     ctx.run("conda build purge-all")
     for package in ctx.project.packages:
-        workdir = package['path']
         env = {'PROJECT_VERSION': ctx.git.tag_version}
-        ctx.run("cd {}; rm -rf build; conda build tools/conda.recipe".format(workdir), env=env)
+        with ctx.cd(package['path']):
+            ctx.run("rm -rf build; conda build tools/conda.recipe", env=env)
 
 
 def check_env_var(name):
