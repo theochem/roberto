@@ -158,21 +158,21 @@ def run_tools(ctx: Context, subtask: str, env=None, filter_commands=None):
         A function that modifies the list of commands before execution. It takes
         a toolname and a list of commands as arguments and it returns a
         (modified) list of commands. When not given, commands are just formatted
-        with arguments (ctx.config, **package).
+        with arguments (config=ctx.config, package=package).
 
     """
     if env is None:
         env = {}
     for package in ctx.project.packages:
-        with ctx.cd(package["path"]):
-            for toolname in package["tools"]:
+        with ctx.cd(package.path):
+            for toolname in package.tools:
                 tool = ctx.tools[toolname]
                 # Run the commands
                 commands = tool.commands.get(subtask, [])
                 if filter_commands is not None:
                     commands = filter_commands(toolname, package, commands)
                 else:
-                    commands = [command.format(config=ctx.config, **package)
+                    commands = [command.format(config=ctx.config, package=package)
                                 for command in commands]
                 for command in commands:
                     ctx.run(command, env=env)
@@ -180,7 +180,7 @@ def run_tools(ctx: Context, subtask: str, env=None, filter_commands=None):
                 tool_config = tool.get('config', {})
                 paths = tool_config.get('{}_paths'.format(subtask), {})
                 for name, dirname in paths.items():
-                    dirname = dirname.format(config=ctx.config, **package)
+                    dirname = dirname.format(config=ctx.config, package=package)
                     dirname = os.path.abspath(dirname)
                     if name in env:
                         env[name] += ':' + dirname

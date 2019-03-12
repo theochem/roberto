@@ -10,7 +10,7 @@ project:
   #   path: # root of the package relative to the project root defaults to '.'
   ]
 
-# Custom configuration of settings below this line will rarely be needed.
+# Custom configuration below this line should be rarely needed.
 
 run:
   echo: true
@@ -55,7 +55,7 @@ tools:
     commands:
       test_inplace:
         - >
-          pytest {name} -v --cov={name} --cov-report xml
+          pytest {package.name} -v --cov={package.name} --cov-report xml
           --cov-report term-missing --cov-branch --color=yes
   nose:
     config:
@@ -66,8 +66,8 @@ tools:
       test_inplace:
         - rm -f .coverage
         - >
-          nosetests {name} -v --detailed-errors --with-coverage
-          --cover-package={name} --cover-tests --cover-inclusive
+          nosetests {package.name} -v --detailed-errors --with-coverage
+          --cover-package={package.name} --cover-tests --cover-inclusive
           --cover-branches
         - coverage xml -i
 
@@ -80,13 +80,13 @@ tools:
         - cd build; find | grep '\\.gcda$' | xargs rm -vf
         - cd build; make test
         - >
-          cd {name}; gcovr -r . --gcov-executable ${{HOST}}-gcov
-          --object-directory ../build/{name}/CMakeFiles/{name}.dir
+          cd {package.name}; gcovr -r . --gcov-executable ${{HOST}}-gcov
+          --object-directory ../build/{package.name}/CMakeFiles/{package.name}.dir
 
   py_build_inplace:
     config:
       build_inplace_paths:
-        PYTHONPATH: '{path}/{name}'
+        PYTHONPATH: '{package.path}/{package.name}'
     commands:
       build_inplace:
         - >
@@ -96,8 +96,8 @@ tools:
   cpp_build_inplace:
     config:
       build_inplace_paths:
-        CPATH: '{path}'
-        LD_LIBRARY_PATH: '{path}/build/{name}'
+        CPATH: '{package.path}'
+        LD_LIBRARY_PATH: '{package.path}/build/{package.name}'
     commands:
       build_inplace:
         - mkdir -p build
@@ -121,7 +121,7 @@ tools:
       deploy_vars:
         - TWINE_USERNAME
         - TWINE_PASSWORD
-      asset_pattern: '{path}/dist/{name}-{ctx.tag_version}.*'
+      asset_pattern: '{package.path}/dist/{package.name}-{config.tag_version}.*'
       deploy_labels:
         - main
     commands:
@@ -132,7 +132,7 @@ tools:
     config:
       deploy_vars:
         - GITHUB_TOKEN
-      asset_pattern: '{path}/dist/{name}-{config.tag_version}.*'
+      asset_pattern: '{package.path}/dist/{package.name}-{config.tag_version}.*'
       deploy_labels:
         - main
     commands:
@@ -146,7 +146,7 @@ tools:
     config:
       deploy_vars:
         - ANACONDA_API_TOKEN
-      asset_pattern: '{config.conda.build_path}/*/{name}-{ctx.tag_version}-*.*'
+      asset_pattern: '{config.conda.build_path}/*/{package.name}-{config.tag_version}-*.*'
       deploy_labels:
         - main
         - test

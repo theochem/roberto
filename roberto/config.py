@@ -26,7 +26,7 @@ try:
 except ImportError:
     from importlib.resources import open_text
 
-from invoke.config import Config, merge_dicts
+from invoke.config import Config, merge_dicts, DataProxy
 import yaml
 
 from .utils import parse_git_describe
@@ -82,11 +82,13 @@ class RobertoConfig(Config):
         env_path = os.path.join(self.conda.base_path, 'envs', env_name)
         self.conda.env_name = env_name
         self.conda.env_path = env_path
+        self.project.packages = [
+            DataProxy.from_data(package) for package in self.project.packages]
         for package in self.project.packages:
             if 'path' not in package:
-                package['path'] = '.'
+                package.path = '.'
             if 'name' not in package:
-                package['name'] = self.project.name
+                package.name = self.project.name
 
         # Fix a problem with the conda build purge feature.
         # See https://github.com/conda/conda-build/issues/2592

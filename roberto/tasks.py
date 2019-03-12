@@ -142,11 +142,11 @@ def install_requirements(ctx):
     pip_packages = set([])
     recipe_dirs = []
     for package in ctx.project.packages:
-        for toolname in package['tools']:
+        for toolname in package.tools:
             config = ctx.tools[toolname].get('config', {})
             conda_packages.update(config.get('conda_requirements', []))
             pip_packages.update(config.get('pip_requirements', []))
-        recipe_dirs.append(os.path.join(package['path'], "tools", "conda.recipe"))
+        recipe_dirs.append(os.path.join(package.path, "tools", "conda.recipe"))
     conda_packages = sorted(conda_packages)
     pip_packages = sorted(pip_packages)
     recipe_dirs = sorted(recipe_dirs)
@@ -170,7 +170,7 @@ def install_requirements(ctx):
 
         # Render the conda package specs, extract and install dependencies.
         print("Rendering conda package and extracting dependencies.")
-        own_conda_packages = [package['conda_name'] for package in ctx.project.packages]
+        own_conda_packages = [package.conda_name for package in ctx.project.packages]
         conda_packages = set([])
         for recipe_dir in recipe_dirs:
             with tempfile.TemporaryDirectory() as tmpdir:
@@ -232,13 +232,13 @@ set(GIT_TAG_VERSION_PATCH "{config.git.tag_version_patch}")
 def write_version(ctx):
     """Derive the version files from git describe."""
     for package in ctx.project.packages:
-        if package['kind'] == "py":
-            fn_version = os.path.join(package['name'], "version.py")
-        elif package['kind'] == "cpp":
+        if package.kind == "py":
+            fn_version = os.path.join(package.name, "version.py")
+        elif package.kind == "cpp":
             fn_version = "CMakeListsVersion.txt.in"
-        fn_version = os.path.join(package['path'], fn_version)
+        fn_version = os.path.join(package.path, fn_version)
         with open(fn_version, "w") as f:
-            f.write(VERSION_TEMPLATES[package['kind']].format(config=ctx.config))
+            f.write(VERSION_TEMPLATES[package.kind].format(config=ctx.config))
 
 
 @task(install_requirements, write_version)
@@ -290,7 +290,7 @@ def build_conda(ctx):
     ctx.run("conda build purge-all")
     for package in ctx.project.packages:
         env = {'PROJECT_VERSION': ctx.git.tag_version}
-        with ctx.cd(package['path']):
+        with ctx.cd(package.path):
             ctx.run("conda build tools/conda.recipe", env=env)
 
 
@@ -319,7 +319,7 @@ def deploy(ctx):  # pylint: disable=unused-argument
     checked_deploy_vars = set([])
     assets = {}
     for package in ctx.project.packages:
-        for toolname in package['tools']:
+        for toolname in package.tools:
             tool = ctx.tools[toolname]
             if 'deploy' in ctx.tool.commands:
                 # Check if and how deployment vars are set
@@ -330,7 +330,7 @@ def deploy(ctx):  # pylint: disable=unused-argument
                 # Collect assets for each tool
                 tool_assets = assets.setdefault(toolname, [])
                 pattern = tool.config.asset_pattern.format(
-                    config=ctx.config, **package)
+                    config=ctx.config, package=package)
                 filenames = glob(pattern)
                 if not filenames:
                     raise Failure("Could not find release for {}: {}".format(
@@ -346,10 +346,10 @@ def deploy(ctx):  # pylint: disable=unused-argument
                 'hub_assets': ' '.join('-a {}'.format(asset) for asset in assets[toolname]),
                 'deploy_label': deploy_label,
             }
-            return [command.format(config=ctx.config, **package, **extra)
+            return [command.format(config=ctx.config, package=package, **extra)
                     for command in commands]
         print("Skipping {} for package {}, because of deploy label {}.".format(
-            toolname, package['name'], deploy_label))
+            toolname, package.name, deploy_label))
         return []
 
     run_tools(ctx, "deploy", filter_commands=filter_commands)
