@@ -19,10 +19,28 @@ conda:
   linux_url: 'https://repo.continuum.io/miniconda/Miniconda3-latest-Linux-x86_64.sh'
   osx_url: 'https://repo.continuum.io/miniconda/Miniconda3-latest-MacOSX-x86_64.sh'
   base_path: '${HOME}/miniconda3'
-  pinning: 'python 3.7'
+  pinning: 'python 3.7' # dependencies to be pinned during testing.
+  # The following are set automatically...
+  env_name: null  # The name of the conda development environment.
+  env_path: null  # The path of the conda development environment.
 deploy: false
 git:
+  # Name of the branch being merged into, may be same as git.branch, if not a PR.
   merge_branch: master
+  # The following are set automatically...
+  branch: null  # name of the current branch
+  describe: null  # output of git describe --tags
+  tag: null  # the most recent tag
+  tag_version: null  # version name derived from git describe, i.e. major.minor.patch{.post}
+  tag_soversion: null  # the so-version, i.e. major.minor
+  tag_version_major: null
+  tag_version_minor: null
+  tag_version_patch: null
+  tag_version_suffix: null
+  tag_stable: false  # is the current build a stable or main release?
+  tag_test: false  # is the current build a test or beta release?
+  tag_dev: false  # is the current build a development or alpha release?
+  tag_release: false  # is the current build a release
 
 tools:
   cardboardlint:
