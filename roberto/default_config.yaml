@@ -19,7 +19,7 @@ conda:
   linux_url: 'https://repo.continuum.io/miniconda/Miniconda3-latest-Linux-x86_64.sh'
   osx_url: 'https://repo.continuum.io/miniconda/Miniconda3-latest-MacOSX-x86_64.sh'
   base_path: '${HOME}/miniconda3'
-  pinning: 'python 3.7' # dependencies to be pinned during testing.
+  pinning: 'python 3.7'  # dependencies to be pinned during testing.
   # The following are set automatically...
   env_name: null  # The name of the conda development environment.
   env_path: null  # The path of the conda development environment.
@@ -136,6 +136,8 @@ tools:
 
   deploy_pypi:
     config:
+      conda_requirements:
+        - twine
       deploy_vars:
         - TWINE_USERNAME
         - TWINE_PASSWORD
@@ -148,6 +150,8 @@ tools:
 
   deploy_github:
     config:
+      conda_requirements:
+        - conda-forge::hub
       deploy_vars:
         - GITHUB_TOKEN
       asset_pattern: '{package.path}/dist/{package.name}-{config.tag_version}.*'
@@ -162,6 +166,8 @@ tools:
 
   deploy_conda:
     config:
+      conda_requirements:
+        - anaconda-client
       deploy_vars:
         - ANACONDA_API_TOKEN
       asset_pattern: '{config.conda.build_path}/*/{package.name}-{config.tag_version}-*.*'

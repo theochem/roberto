@@ -137,8 +137,7 @@ def install_requirements(ctx):
     """Install all dependencies, including tools used by roberto."""
     # Collect all parameters determining the install commands, to good
     # approximation and turn them into a hash.
-    conda_packages = set(["conda", "conda-build", "anaconda-client",
-                          "conda-verify", "twine", "conda-forge::hub"])
+    conda_packages = set(["conda", "conda-build", "conda-verify"])
     pip_packages = set([])
     recipe_dirs = []
     for package in ctx.project.packages:
