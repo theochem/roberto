@@ -134,7 +134,7 @@ def setup_conda_env(ctx):
 
 @task(setup_conda_env)
 def install_requirements(ctx):
-    """Install dependencies, linters and packaging tools."""
+    """Install all dependencies, including tools used by roberto."""
     # Collect all parameters determining the install commands, to good
     # approximation and turn them into a hash.
     conda_packages = set(["conda", "conda-build", "anaconda-client",
@@ -280,13 +280,13 @@ def lint_dynamic(ctx):
 
 @task(install_requirements, write_version)
 def build_source(ctx):
-    """Build the source package."""
+    """Build the source package(s)."""
     ctx.project.inplace_env.update(run_tools(ctx, "build_source"))
 
 
 @task(install_requirements, write_version)
 def build_conda(ctx):
-    """Build the Conda package."""
+    """Build the Conda package(s)."""
     ctx.run("conda build purge-all")
     for package in ctx.project.packages:
         env = {'PROJECT_VERSION': ctx.git.tag_version}
@@ -376,9 +376,9 @@ def nuclear(ctx):
 
 @task(lint_static, test_inplace, lint_dynamic)
 def test(ctx):  # pylint: disable=unused-argument
-    """Run all testing tasks, including package builds."""
+    """Run all quality assurance and testing tasks."""
 
 
 @task(test, deploy, default=True)
 def robot(ctx):  # pylint: disable=unused-argument
-    """Run test or test_and_deploy, depending on config."""
+    """Run all tasks."""
