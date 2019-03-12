@@ -59,10 +59,10 @@ class RobertoConfig(Config):
         my_defaults = {'run': {
             'echo': True,
         }, 'conda': {
-            'download_path': os.path.join(os.environ['HOME'], 'Downloads', 'miniconda.sh'),
+            'download_path': '${HOME}/Downloads/miniconda.sh',
             'linux_url': 'https://repo.continuum.io/miniconda/Miniconda3-latest-Linux-x86_64.sh',
             'osx_url': 'https://repo.continuum.io/miniconda/Miniconda3-latest-MacOSX-x86_64.sh',
-            'base_path': os.path.join(os.environ['HOME'], 'miniconda3'),
+            'base_path': '${HOME}/miniconda3',
             'pinning': 'python 3.7',
         }, 'deploy': False, 'project': {
             'packages': [

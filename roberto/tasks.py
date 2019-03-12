@@ -63,6 +63,10 @@ def sanitize_git(ctx):
 @task(sanitize_git)
 def _finalize_config(ctx):
     """Derive some config variables for convenience."""
+    # Expand stuff in paths
+    ctx.conda.download_path = os.path.expandvars(os.path.expanduser(ctx.conda.download_path))
+    ctx.conda.base_path = os.path.expandvars(os.path.expanduser(ctx.conda.base_path))
+
     # The conda environment
     env_name = ctx.project.name + '-dev'
     if ctx.conda.pinning:
@@ -99,7 +103,7 @@ def _finalize_config(ctx):
     ctx.git.branch = result.stdout.strip()
 
 
-@task
+@task(_finalize_config)
 def install_conda(ctx):
     """Install miniconda if not present yet."""
     dest = ctx.conda.base_path
