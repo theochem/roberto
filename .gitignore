@@ -1,4 +1,5 @@
 # Roberto workflow artifacts
+activate-inplace.sh
 roberto/version.py
 
 # Created by .ignore support plugin (hsz.mobi)

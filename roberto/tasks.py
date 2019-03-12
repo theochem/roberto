@@ -244,7 +244,21 @@ def write_version(ctx):
 @task(install_requirements, write_version)
 def build_inplace(ctx):
     """Build in-place."""
-    ctx.project.inplace_env.update(run_tools(ctx, "build_inplace"))
+    # First do all the building
+    ctx.project.inplace_env.update(run_tools(ctx, 'build_inplace'))
+    # Then also write a file, activate-inplace.sh, which can be sourced to
+    # activate the in-place build.
+    with open('activate-inplace.sh', 'w') as f:
+        f.write('[[ -n $CONDA_PREFIX_1 ]] && conda deactivate &> /dev/null\n')
+        f.write('[[ -n $CONDA_PREFIX ]] && conda deactivate &> /dev/null\n')
+        f.write('source {}/bin/activate\n'.format(ctx.conda.base_path))
+        f.write('conda activate {}\n'.format(ctx.conda.env_name))
+        for name, value in ctx.project.inplace_env.items():
+            if 'PATH' in name:
+                f.write('export {0}=${{{0}}}:{1}\n'.format(name, value))
+            else:
+                f.write('export {0}={1}\n'.format(name, value))
+        f.write('export PROJECT_VERSION={}\n'.format(ctx.git.tag_version))
 
 
 @task(build_inplace)
@@ -277,7 +291,7 @@ def build_conda(ctx):
     for package in ctx.project.packages:
         env = {'PROJECT_VERSION': ctx.git.tag_version}
         with ctx.cd(package['path']):
-            ctx.run("rm -rf build; conda build tools/conda.recipe", env=env)
+            ctx.run("conda build tools/conda.recipe", env=env)
 
 
 @task(install_requirements, build_source, build_conda)
