@@ -30,23 +30,8 @@ except ImportError:
     __version__ = '0.0.0'
 
 
-class RobertoProgram(Program):
-    """Extend the default Program class with an execute method.
-
-    Code stolen from: https://github.com/pyinvoke/invoke/pull/613/files
-    """
-
-    def execute_task(self, context, task_name, **kwargs):
-        """Execute a task directly."""
-        executor = self.executor_class(
-            self.collection, config=context.config, core=self.core
-        )
-        results = executor.execute((task_name, kwargs))
-        return results[self.collection[task_name]]
-
-
 # The program instance provides a `run` method, which is the entrypoint.
-program = RobertoProgram(   # pylint: disable=invalid-name
+program = Program(   # pylint: disable=invalid-name
     config_class=RobertoConfig,
     namespace=Collection.from_module(tasks),
     version=__version__
