@@ -368,12 +368,7 @@ def check_env_var(name):
 def deploy_pypi(ctx):
     """Upload source release to pypi (files must be present)."""
     if ctx.git.tag_stable:
-        # Sanity check on user and pass
-        check_env_var('TWINE_USERNAME')
-        check_env_var('TWINE_PASSWORD')
-
-        # Run twine on every separate package because it can hanle only one
-        # at a time.
+        assets = []
         for package in ctx.project.packages:
             if package['kind'] == 'py':
                 pattern = os.path.join(
@@ -383,7 +378,13 @@ def deploy_pypi(ctx):
                 filenames = glob(pattern)
                 if not filenames:
                     raise Failure("Could not find release for pattern: {}".format(pattern))
-                ctx.run("twine upload {}".format(' '.join(filenames)), warn=True)
+                assets.extend(filenames)
+
+        # Sanity check on user and pass
+        check_env_var('TWINE_USERNAME')
+        check_env_var('TWINE_PASSWORD')
+
+        ctx.run("twine upload {}".format(' '.join(filenames)), warn=True)
     else:
         print("No pypi release. This would require a stable version.")
 
