@@ -33,8 +33,7 @@ from invoke import task
 from invoke.exceptions import Failure
 import yaml
 
-from .utils import (conda_deactivate, conda_activate, compute_req_hash,
-                    run_tools, append_path, parse_git_describe)
+from .utils import conda_deactivate, conda_activate, compute_req_hash, run_tools
 
 
 @task
@@ -60,50 +59,7 @@ def sanitize_git(ctx):
     ctx.run("git fetch origin {0}:{0}".format(branch))
 
 
-@task(sanitize_git)
-def _finalize_config(ctx):
-    """Derive some config variables for convenience."""
-    # Expand stuff in paths
-    ctx.conda.download_path = os.path.expandvars(os.path.expanduser(ctx.conda.download_path))
-    ctx.conda.base_path = os.path.expandvars(os.path.expanduser(ctx.conda.base_path))
-
-    # The conda environment
-    env_name = ctx.project.name + '-dev'
-    if ctx.conda.pinning:
-        env_name += '-' + '-'.join(ctx.conda.pinning.split())
-    print("# Conda development environment: {}".format(env_name))
-
-    # Package default options
-    env_path = os.path.join(ctx.conda.base_path, 'envs', env_name)
-    ctx.conda.env_name = env_name
-    ctx.conda.env_path = env_path
-    for package in ctx.project.packages:
-        if 'path' not in package:
-            package['path'] = '.'
-        if 'name' not in package:
-            package['name'] = ctx.project.name
-
-    # Fix a problem with the conda build purge feature.
-    # See https://github.com/conda/conda-build/issues/2592
-    # CONDA_BLD_PATH should not be overwritten, to allow for customization.
-    if 'CONDA_BLD_PATH' not in os.environ:
-        os.environ['CONDA_BLD_PATH'] = os.path.join(ctx.conda.env_path, 'conda-bld')
-    ctx.conda.build_path = os.environ['CONDA_BLD_PATH']
-
-    # Git version and branch information
-    try:
-        git_describe = ctx.run('git describe --tags').stdout
-    except Failure:
-        # May fail, e.g. when there are no tags.
-        git_describe = '0.0.0-0-notag'
-    ctx.git.update(parse_git_describe(git_describe))
-    print('Version number {} derived from `git describe --tags` {}.'.format(
-        ctx.git.tag_version, ctx.git.describe))
-    result = ctx.run("git rev-parse --abbrev-ref HEAD")
-    ctx.git.branch = result.stdout.strip()
-
-
-@task(_finalize_config)
+@task()
 def install_conda(ctx):
     """Install miniconda if not present yet."""
     dest = ctx.conda.base_path
@@ -146,7 +102,7 @@ def install_conda(ctx):
         ctx.run("conda update -n base -c defaults conda -y")
 
 
-@task(install_conda, _finalize_config)
+@task(install_conda)
 def setup_conda_env(ctx):
     """Set up a conda testing environment."""
     # Check the sanity of the pinning configuration
@@ -186,9 +142,10 @@ def install_requirements(ctx):
     pip_packages = set([])
     recipe_dirs = []
     for package in ctx.project.packages:
-        for tool in package['tools']:
-            conda_packages.update(ctx.tools[tool].get('__conda__', []))
-            pip_packages.update(ctx.tools[tool].get('__pip__', []))
+        for toolname in package['tools']:
+            config = ctx.tools[toolname].get('config', {})
+            conda_packages.update(config.get('conda_requirements', []))
+            pip_packages.update(config.get('pip_requirements', []))
         recipe_dirs.append(os.path.join(package['path'], "tools", "conda.recipe"))
     conda_packages = sorted(conda_packages)
     pip_packages = sorted(pip_packages)
@@ -271,7 +228,7 @@ set(GIT_TAG_VERSION_PATCH "{config.git.tag_version_patch}")
 """}
 
 
-@task(_finalize_config)
+@task()
 def write_version(ctx):
     """Derive the version files from git describe."""
     for package in ctx.project.packages:
@@ -287,30 +244,7 @@ def write_version(ctx):
 @task(install_requirements, write_version)
 def build_inplace(ctx):
     """Build in-place."""
-    inplace_env = {}
-    for package in ctx.project.packages:
-        with ctx.cd(package['path']):
-            if package['kind'] == "py":
-                # Build a debug version of a Python package, possibly linking
-                # with earlier packages in this project.
-                ctx.run("python setup.py build_ext -i -L $LD_LIBRARY_PATH "
-                        "-I $CPATH --define CYTHON_TRACE_NOGIL",
-                        env=inplace_env)
-                append_path(inplace_env, "PYTHONPATH", os.path.abspath(
-                    os.path.join(package['path'], package['name'])))
-            elif package['kind'] == "cpp":
-                # Build a debug version of a C++ packages, possibly linking with
-                # earlier packages in this project.
-                ctx.run("mkdir -p build")
-                with ctx.cd("build"):
-                    ctx.run("cmake .. -DCMAKE_BUILD_TYPE=debug", env=inplace_env)
-                    ctx.run("make", env=inplace_env)
-                append_path(inplace_env, "CPATH", os.path.abspath(
-                    os.path.join(package['path'])))
-                append_path(inplace_env, "LD_LIBRARY_PATH", os.path.abspath(
-                    os.path.join(package['path'], package['name'])))
-
-    ctx.project.inplace_env = inplace_env
+    ctx.project.inplace_env.update(run_tools(ctx, "build_inplace"))
 
 
 @task(build_inplace)
@@ -364,7 +298,7 @@ def check_env_var(name):
         print('The environment variable {} is not empty.'.format(name))
 
 
-@task(_finalize_config, install_requirements)
+@task(install_requirements)
 def deploy_pypi(ctx):
     """Upload source release to pypi (files must be present)."""
     if ctx.git.tag_stable:
@@ -389,7 +323,7 @@ def deploy_pypi(ctx):
         print("No pypi release. This would require a stable version.")
 
 
-@task(_finalize_config, install_requirements)
+@task(install_requirements)
 def deploy_github(ctx):
     """Upload source release to github (files must be present)."""
     if ctx.git.tag_release:
@@ -419,7 +353,7 @@ def deploy_github(ctx):
         print("No github release. This would require a tagged commit.")
 
 
-@task(_finalize_config, install_requirements)
+@task(install_requirements)
 def deploy_conda(ctx):
     """Upload conda release to anaconda (files must be present)."""
     if ctx.git.tag_release:
@@ -456,7 +390,7 @@ def deploy_conda(ctx):
         print("No conda release. This would require a tagged commit.")
 
 
-@task(_finalize_config, setup_conda_env)
+@task(setup_conda_env)
 def nuclear(ctx):
     """USE AT YOUR OWN RISK. Purge conda env and stale files in source tree."""
     # Go back to the base env before nuking the development env.

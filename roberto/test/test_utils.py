@@ -23,8 +23,7 @@ import os
 
 from invoke import Context
 
-from ..utils import (update_env_command, compute_req_hash, append_path,
-                     parse_git_describe)
+from ..utils import update_env_command, compute_req_hash, parse_git_describe
 
 
 def test_update_env_command():
@@ -67,20 +66,6 @@ def test_req_hash(tmpdir):
     hash5 = compute_req_hash(conda_packages, recipe_dirs, pip_packages)
     assert len(hash5) == 64
     assert hash4 == hash5
-
-
-def test_append_path():
-    env = {}
-    append_path(env, "T", "aaa")
-    assert len(env) == 1
-    assert env["T"] == "aaa"
-    append_path(env, "T", "bbb")
-    assert len(env) == 1
-    assert env["T"] == "aaa:bbb"
-    append_path(env, "S", "ccc")
-    assert len(env) == 2
-    assert env["T"] == "aaa:bbb"
-    assert env["S"] == "ccc"
 
 
 def test_parse_git_describe():

@@ -34,7 +34,7 @@ from invoke import Context
 
 
 __all__ = ['conda_deactivate', 'conda_activate', 'update_env_command',
-           'compute_req_hash', 'run_tools', 'append_path', 'parse_git_describe']
+           'compute_req_hash', 'run_tools', 'parse_git_describe']
 
 
 def update_env_command(ctx: Context, command: str) -> None:
@@ -156,34 +156,28 @@ def run_tools(ctx: Context, subtask: str, env=None):
         Custom environment variables needed by the tools.
 
     """
+    if env is None:
+        env = {}
     for package in ctx.project.packages:
-        workdir = package["path"]
-        for toolname in package["tools"]:
-            commands = ctx.tools[toolname].get(subtask, [])
-            for cmd in commands:
-                # fill in all parameters and execute
-                mycmd = "cd {}; ".format(workdir)
-                mycmd += cmd.format(config=ctx.config, **package)
-                ctx.run(mycmd, env=env)
-
-
-def append_path(env: dict, name: str, newdir: str):
-    """Append a directory to a path environment variable.
-
-    Parameters
-    ----------
-    env
-        A dictionary with environment variables.
-    name
-        The name of the variable to update.
-    newdir
-        The name of the directory to add.
-
-    """
-    if name in env:
-        env[name] += ':' + newdir
-    else:
-        env[name] = newdir
+        with ctx.cd(package["path"]):
+            for toolname in package["tools"]:
+                tool = ctx.tools[toolname]
+                # Run the commands
+                commands = tool.commands.get(subtask, [])
+                for cmd in commands:
+                    mycmd = cmd.format(config=ctx.config, **package)
+                    ctx.run(mycmd, env=env)
+                # Update paths
+                tool_config = tool.get('config', {})
+                paths = tool_config.get('{}_paths'.format(subtask), {})
+                for name, dirname in paths.items():
+                    dirname = dirname.format(config=ctx.config, **package)
+                    dirname = os.path.abspath(dirname)
+                    if name in env:
+                        env[name] += ':' + dirname
+                    else:
+                        env[name] = dirname
+    return env
 
 
 class TagError(Exception):
