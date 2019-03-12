@@ -165,7 +165,7 @@ def setup_conda_env(ctx):
     conda_activate(ctx, "base")
 
     # Check if the right environment exists, and make if needed.
-    result = ctx.run("conda env list --json", hide=True)
+    result = ctx.run("conda env list --json")
     if ctx.conda.env_path not in json.loads(result.stdout)["envs"]:
         ctx.run("conda create -n {} {} -y".format(ctx.conda.env_name, " ".join(pinned_reqs)))
         with open(os.path.join(ctx.conda.env_path, "conda-meta", "pinning"), "w") as f:

@@ -49,7 +49,7 @@ def update_env_command(ctx: Context, command: str) -> None:
 
     """
     dump = 'python -c "import os, json; print(json.dumps(dict(os.environ)))"'
-    result = ctx.run('{} && {}'.format(command, dump), hide=True)
+    result = ctx.run('{} && {}'.format(command, dump), hide='out')
     newenv = json.loads(result.stdout)
     for key, value in newenv.items():
         os.environ[key] = value
