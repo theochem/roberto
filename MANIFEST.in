@@ -1,1 +1,3 @@
-robert/default_config.yaml
+include robert/default_config.yaml
+include LICENSE.txt
+include README.rst
