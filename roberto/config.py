@@ -76,12 +76,12 @@ class RobertoConfig(Config):
         env_name = self.project.name + '-dev'
         if self.conda.pinning:
             env_name += '-' + '-'.join(self.conda.pinning.split())
+        self.conda.env_name = env_name
+        env_path = os.path.join(self.conda.base_path, 'envs', env_name)
+        self.conda.env_path = env_path
         print("Conda development environment: {}".format(env_name))
 
         # Package default options
-        env_path = os.path.join(self.conda.base_path, 'envs', env_name)
-        self.conda.env_name = env_name
-        self.conda.env_path = env_path
         self.project.packages = [
             DataProxy.from_data(package) for package in self.project.packages]
         for package in self.project.packages:
