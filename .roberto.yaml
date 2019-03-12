@@ -4,4 +4,12 @@ project:
     - conda_name: roberto
       name: roberto
       path: .
-      tools: [write_py_version, cardboardlint, pytest, py_build_source]
+      tools:
+        - write_py_version
+        - cardboardlint
+        - pytest
+        - build_py_source
+        - build_conda
+        - deploy_conda
+        - deploy_github
+        - deploy_pypi

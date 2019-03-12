@@ -137,7 +137,7 @@ def install_requirements(ctx):
     """Install all dependencies, including tools used by roberto."""
     # Collect all parameters determining the install commands, to good
     # approximation and turn them into a hash.
-    conda_packages = set(["conda", "conda-build", "conda-verify"])
+    conda_packages = set(["conda", "conda-build"])
     pip_packages = set([])
     recipe_dirs = []
     for package in ctx.project.packages:
@@ -163,8 +163,7 @@ def install_requirements(ctx):
                     skip_install = True
 
     if not skip_install:
-        # Update and install conda build, anaconda client, conda verify and
-        # linting tools, if any.
+        # Update and install dependencies
         ctx.run("conda install --update-deps -y {}".format(" ".join(conda_packages)))
 
         # Render the conda package specs, extract and install dependencies.
@@ -259,22 +258,12 @@ def lint_dynamic(ctx):
 
 
 @task(install_requirements, write_version)
-def build_source(ctx):
+def build_packages(ctx):
     """Build the source package(s)."""
-    ctx.project.inplace_env.update(run_tools(ctx, "build_source"))
+    ctx.project.inplace_env.update(run_tools(ctx, "build_packages"))
 
 
-@task(install_requirements, write_version)
-def build_conda(ctx):
-    """Build the Conda package(s)."""
-    ctx.run("conda build purge-all")
-    for package in ctx.project.packages:
-        env = {'PROJECT_VERSION': ctx.git.tag_version}
-        with ctx.cd(package.path):
-            ctx.run("conda build tools/conda.recipe", env=env)
-
-
-@task(install_requirements, build_source, build_conda)
+@task(install_requirements, build_packages)
 def deploy(ctx):  # pylint: disable=unused-argument
     """Run all deployment tasks."""
     # Check if we need to deploy

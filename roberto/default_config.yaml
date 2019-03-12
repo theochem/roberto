@@ -147,17 +147,26 @@ tools:
         - cd build; cmake .. -DCMAKE_BUILD_TYPE=debug
         - cd build; make
 
-  py_build_source:
+  build_py_source:
     commands:
-      build_source:
+      build_packages:
         - python setup.py sdist
 
-  cpp_build_source:
+  build_cpp_source:
     commands:
-      build_source:
+      build_packages:
         - mkdir -p dist
         - cd dist; cmake .. -DCMAKE_BUILD_TYPE=release
         - cd dist; make sdist
+
+  build_conda:
+    config:
+      conda_requirements:
+        - conda-build
+        - conda-verify
+    commands:
+      build_packages:
+        - PROJECT_VERSION=ctx.git.tag_version conda build tools/conda.recipe
 
   deploy_pypi:
     config:
