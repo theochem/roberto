@@ -267,15 +267,7 @@ def lint_dynamic(ctx):
 @task(install_requirements, write_version)
 def build_source(ctx):
     """Build the source package."""
-    for package in ctx.project.packages:
-        with ctx.cd(package['path']):
-            if package['kind'] == "py":
-                ctx.run("python setup.py sdist")
-            elif package['kind'] == "cpp":
-                ctx.run("mkdir -p dist")
-                with ctx.cd("dist"):
-                    ctx.run("cmake .. -DCMAKE_BUILD_TYPE=release")
-                    ctx.run("make sdist")
+    ctx.project.inplace_env.update(run_tools(ctx, "build_source"))
 
 
 @task(install_requirements, write_version)

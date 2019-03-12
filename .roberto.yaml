@@ -5,4 +5,4 @@ project:
       kind: py
       name: roberto
       path: .
-      tools: [cardboardlint, pytest]
+      tools: [cardboardlint, pytest, py_build_source]

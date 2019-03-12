@@ -213,5 +213,18 @@ class RobertoConfig(Config):
                          'cd build; make']
                 },
             },
+            'py_build_source': {
+                'commands': {
+                    'build_source': ['python setup.py sdist'],
+                }
+            },
+            'cpp_build_source': {
+                'commands': {
+                    'build_inplace':
+                        ['mkdir -p dist',
+                         'cd dist; cmake .. -DCMAKE_BUILD_TYPE=release',
+                         'cd dist; make sdist']
+                },
+            },
         }}
         return merge_dicts(their_defaults, my_defaults)
