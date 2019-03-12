@@ -157,9 +157,14 @@ install:
 
 script:
   # Instead of simply calling `rob`, we do something that always works on osx too.
-  # Adding sleep trick to avoid potential output truncation issues
+  # Moreover, we add coverage to measure which parts got used, not just for
+  # unit tests.
+  # Adding sleep trick to avoid potential output truncation issues.
   #     See https://github.com/travis-ci/travis-ci/issues/6018
-  - python3 -m roberto && sleep 10
+  - python3 -m coverage run --branch --source=roberto -m roberto && sleep 10
+  # Report and upload also the additional coverage.
+  - coverage report -m
+  - bash <(curl -s https://codecov.io/bash)
 
 before_cache:
   - rm -rf ${ROBERTO_CONDA_INSTALL_PATH}/conda-bld
