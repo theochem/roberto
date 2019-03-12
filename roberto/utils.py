@@ -143,7 +143,7 @@ def compute_req_hash(conda_packages: List[str], recipe_dirs: List[str],
     return hasher.hexdigest()
 
 
-def run_tools(ctx: Context, subtask: str, env=None):
+def run_tools(ctx: Context, subtask: str, env=None, filter_commands=None):
     """Run a specific subtask from a list of tools for all packages.
 
     Parameters
@@ -154,6 +154,11 @@ def run_tools(ctx: Context, subtask: str, env=None):
         A subtask, defined by Roberto's (main) tasks.
     env
         Custom environment variables needed by the tools.
+    filter_commands
+        A function that modifies the list of commands before execution. It takes
+        a toolname and a list of commands as arguments and it returns a
+        (modified) list of commands. When not given, commands are just formatted
+        with arguments (ctx.config, **package).
 
     """
     if env is None:
@@ -164,9 +169,13 @@ def run_tools(ctx: Context, subtask: str, env=None):
                 tool = ctx.tools[toolname]
                 # Run the commands
                 commands = tool.commands.get(subtask, [])
-                for cmd in commands:
-                    mycmd = cmd.format(config=ctx.config, **package)
-                    ctx.run(mycmd, env=env)
+                if filter_commands is not None:
+                    commands = filter_commands(toolname, package, commands)
+                else:
+                    commands = [command.format(config=ctx.config, **package)
+                                for command in commands]
+                for command in commands:
+                    ctx.run(command, env=env)
                 # Update paths
                 tool_config = tool.get('config', {})
                 paths = tool_config.get('{}_paths'.format(subtask), {})

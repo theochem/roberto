@@ -280,6 +280,67 @@ def build_conda(ctx):
             ctx.run("rm -rf build; conda build tools/conda.recipe", env=env)
 
 
+@task(install_requirements, build_source, build_conda)
+def deploy(ctx):  # pylint: disable=unused-argument
+    """Run all deployment tasks."""
+    # Check if we need to deploy
+    if not ctx.deploy:
+        print("Deployment not requested in configuration.")
+        return
+
+    # Get the deployment label, or return if no release is to be made.
+    if ctx.git.tag_stable:
+        deploy_label = "main"
+    elif ctx.git.tag_test:
+        deploy_label = "test"
+    elif ctx.git.tag_dev:
+        deploy_label = "dev"
+    else:
+        print("No deployment because the version is not for release: {}".format(
+            ctx.git.tag_version))
+        return
+
+    # perform some checks on tasks with a deploy subtask
+    print("Performing checks before deployment")
+    checked_deploy_vars = set([])
+    assets = {}
+    for package in ctx.project.packages:
+        for toolname in package['tools']:
+            tool = ctx.tools[toolname]
+            if 'deploy' in ctx.tool.commands:
+                # Check if and how deployment vars are set
+                for deploy_var in tool.config.deploy_vars:
+                    if deploy_var not in checked_deploy_vars:
+                        check_env_var(deploy_var)
+                        checked_deploy_vars.add(deploy_var)
+                # Collect assets for each tool
+                tool_assets = assets.setdefault(toolname, [])
+                pattern = tool.config.asset_pattern.format(
+                    config=ctx.config, **package)
+                filenames = glob(pattern)
+                if not filenames:
+                    raise Failure("Could not find release for {}: {}".format(
+                        toolname, pattern))
+                tool_assets.extend(filenames)
+
+    # filter out assets for releases not planned
+    def filter_commands(toolname, package, commands):
+        tool = ctx.tools[toolname]
+        if deploy_label in tool.config.deploy_labels:
+            extra = {
+                'assets': ' '.join(assets[toolname]),
+                'hub_assets': ' '.join('-a {}'.format(asset) for asset in assets[toolname]),
+                'deploy_label': deploy_label,
+            }
+            return [command.format(config=ctx.config, **package, **extra)
+                    for command in commands]
+        print("Skipping {} for package {}, because of deploy label {}.".format(
+            toolname, package['name'], deploy_label))
+        return []
+
+    run_tools(ctx, "deploy", filter_commands=filter_commands)
+
+
 def check_env_var(name):
     """Check if an environment variable is set and non-empty."""
     if name not in os.environ:
@@ -288,98 +349,6 @@ def check_env_var(name):
         print('The environment variable {} is empty.'.format(name))
     else:
         print('The environment variable {} is not empty.'.format(name))
-
-
-@task(install_requirements)
-def deploy_pypi(ctx):
-    """Upload source release to pypi (files must be present)."""
-    if ctx.git.tag_stable:
-        assets = []
-        for package in ctx.project.packages:
-            if package['kind'] == 'py':
-                pattern = os.path.join(
-                    package['path'], 'dist',
-                    '{}-{}.*'.format(package['name'], ctx.git.tag_version)
-                )
-                filenames = glob(pattern)
-                if not filenames:
-                    raise Failure("Could not find release for pattern: {}".format(pattern))
-                assets.extend(filenames)
-
-        # Sanity check on user and pass
-        check_env_var('TWINE_USERNAME')
-        check_env_var('TWINE_PASSWORD')
-
-        ctx.run("twine upload {}".format(' '.join(filenames)), warn=True)
-    else:
-        print("No pypi release. This would require a stable version.")
-
-
-@task(install_requirements)
-def deploy_github(ctx):
-    """Upload source release to github (files must be present)."""
-    if ctx.git.tag_release:
-        # Collect assets
-        assets = []
-        for package in ctx.project.packages:
-            pattern = os.path.join(
-                package['path'], 'dist',
-                '{}-{}.*'.format(package['name'], ctx.git.tag_version)
-            )
-            filenames = glob(pattern)
-            if not filenames:
-                raise Failure("Could not find release for pattern: {}".format(pattern))
-            assets.extend(filenames)
-
-        # Sanity check on token
-        check_env_var('GITHUB_TOKEN')
-
-        # Upload to github
-        ctx.run("hub release create {} {} {} {}".format(
-            " ".join("-a {}".format(srf) for srf in assets),
-            '' if ctx.git.tag_stable else '-p',
-            '-m "Automic release of version {}"'.format(ctx.git.tag_version),
-            ctx.git.tag,
-        ), warn=True)
-    else:
-        print("No github release. This would require a tagged commit.")
-
-
-@task(install_requirements)
-def deploy_conda(ctx):
-    """Upload conda release to anaconda (files must be present)."""
-    if ctx.git.tag_release:
-        # Determine the label
-        if ctx.git.tag_stable:
-            anaconda_label = "main"
-        elif ctx.git.tag_test:
-            anaconda_label = "test"
-        elif ctx.git.tag_dev:
-            anaconda_label = "dev"
-        else:
-            raise NotImplementedError
-
-        # Determine the assets
-        assets = []
-        for package in ctx.project.packages:
-            pattern = os.path.join(
-                ctx.conda.build_path, '*',
-                '{}-{}-*.*'.format(package['name'], ctx.git.tag_version)
-            )
-            filenames = glob(pattern)
-            if not filenames:
-                raise Failure("Could not find release for pattern: {}".format(pattern))
-            assets.extend(filenames)
-
-        # Sanity check on token
-        check_env_var('ANACONDA_API_TOKEN')
-
-        # Call the uploader
-        ctx.run("anaconda -v upload --force -l {} {}".format(
-            anaconda_label, " ".join(assets),
-        ), warn=True)
-    else:
-        print("No conda release. This would require a tagged commit.")
 
 
 @task(setup_conda_env)
@@ -391,26 +360,11 @@ def nuclear(ctx):
     ctx.run("git clean -fdx")
 
 
-@task(lint_static, test_inplace, lint_dynamic, build_source, build_conda)
+@task(lint_static, test_inplace, lint_dynamic)
 def test(ctx):  # pylint: disable=unused-argument
     """Run all testing tasks, including package builds."""
 
 
-@task(deploy_pypi, deploy_conda, deploy_github)
-def deploy(ctx):  # pylint: disable=unused-argument
-    """Run all deployment tasks."""
-
-
-@task(test, deploy)
-def test_and_deploy(ctx):  # pylint: disable=unused-argument
-    """Run all tests and deploy."""
-
-
-@task(default=True)
-def robot(ctx):
+@task(test, deploy, default=True)
+def robot(ctx):  # pylint: disable=unused-argument
     """Run test or test_and_deploy, depending on config."""
-    from .program import program
-    if ctx.deploy:
-        program.execute_task(ctx, "test_and_deploy")
-    else:
-        program.execute_task(ctx, "test")

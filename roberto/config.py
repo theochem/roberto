@@ -226,5 +226,40 @@ class RobertoConfig(Config):
                          'cd dist; make sdist']
                 },
             },
+            'deploy_pypi': {
+                'config': {
+                    'deploy_vars': ['TWINE_USERNAME', 'TWINE_PASSWORD'],
+                    'asset_pattern': '{path}/dist/{name}-{ctx.tag_version}.*',
+                    'require_stable': ['main'],
+                },
+                'commands': {
+                    'deploy': ['twine upload {assets}'],
+                }
+            },
+            'deploy_github': {
+                'config': {
+                    'deploy_vars': ['GITHUB_TOKEN'],
+                    'asset_pattern': '{path}/dist/{name}-{config.tag_version}.*',
+                    'deploy_labels': ['main'],
+                },
+                'commands': {
+                    'deploy':
+                        ['hub release create {hub_assets} '
+                         '-m "Automatic release of version {config.git.tag_version}" '
+                         '{config.git.tag_version}'],
+                }
+            },
+            'deploy_conda': {
+                'config': {
+                    'deploy_vars': ['ANACONDA_API_TOKEN'],
+                    'asset_pattern': '{config.conda.build_path}/*/'
+                                     '{name}-{ctx.tag_version}-*.*',
+                    'deploy_labels': ['main', 'test', 'dev'],
+                },
+                'commands': {
+                    'deploy':
+                        ['anaconda -v upload --force -l {deploy_label} {assets}'],
+                }
+            },
         }}
         return merge_dicts(their_defaults, my_defaults)
