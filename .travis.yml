@@ -83,10 +83,12 @@ matrix:
 env:
   global:
     # Install conda in a *sub*directory of a directory cached by travis.
-    - ROBERTO_CONDA_INSTALL_PATH=$HOME/cache/miniconda3
+    - ROBERTO_CONDA_INSTALL_PATH=${HOME}/cache/miniconda3
     # Build conda packages outside the miniconda tree, to avoid caching.
     # This makes it possible to still deploy packages after cache cleaning.
-    - CONDA_BLD_PATH=$HOME/conda-bld
+    - CONDA_BLD_PATH=${HOME}/conda-bld
+    # Tell roberto which branch is being merged into, in case of a PR.
+    - ROBERTO_MERGE_BRANCH=$(TRAVIS_BRANCH)
 
     # Debugging options
     # - HUB_VERBOSE=1
