@@ -357,7 +357,7 @@ def check_env_var(name):
     elif os.environ[name] == "":
         print('The environment variable {} is empty.'.format(name))
     else:
-        print('The environment variable {} is non-empty.'.format(name))
+        print('The environment variable {} is not empty.'.format(name))
 
 
 @task(_finalize_config, install_requirements)

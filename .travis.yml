@@ -67,7 +67,7 @@ matrix:
 #   not found in the right environment variables. Twine and hub will start
 #   asking for login crediatials. Anaconda will fail without clear error
 #   message. Roberto checks these variables and will print for each one if it is
-#   unset, empty or non-empty.
+#   not set, empty or not empty.
 # - The order of the lines in the build log tends to get mixed up near the
 #   deployment scripts, so it may not be easy to follow what is going on.
 # - The simplest solution to try first, is a second attempt to encrypt the
