@@ -154,10 +154,10 @@ install:
   - python3 -m pip install . --user
 
 script:
-  # Instead of simply calling `rob -e`, we do something that always works on osx too.
+  # Instead of simply calling `rob`, we do something that always works on osx too.
   # Adding sleep trick to avoid potential output truncation issues
   #     See https://github.com/travis-ci/travis-ci/issues/6018
-  - python3 -m roberto -e && sleep 10
+  - python3 -m roberto && sleep 10
 
 before_cache:
   - rm -rf ${ROBERTO_CONDA_INSTALL_PATH}/conda-bld

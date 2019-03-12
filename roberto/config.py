@@ -56,7 +56,9 @@ class RobertoConfig(Config):
     def global_defaults() -> dict:
         """Set the global default configuration."""
         their_defaults = Config.global_defaults()
-        my_defaults = {'conda': {
+        my_defaults = {'run': {
+            'echo': True,
+        }, 'conda': {
             'download_path': os.path.join(os.environ['HOME'], 'Downloads', 'miniconda.sh'),
             'linux_url': 'https://repo.continuum.io/miniconda/Miniconda3-latest-Linux-x86_64.sh',
             'osx_url': 'https://repo.continuum.io/miniconda/Miniconda3-latest-MacOSX-x86_64.sh',
