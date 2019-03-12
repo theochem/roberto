@@ -111,7 +111,7 @@ tools:
 
   cpp_build_source:
     commands:
-      build_inplace:
+      build_source:
         - mkdir -p dist
         - cd dist; cmake .. -DCMAKE_BUILD_TYPE=release
         - cd dist; make sdist
