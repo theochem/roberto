@@ -1,0 +1,156 @@
+project:
+  inplace_env: {}
+  name: null
+  packages: [
+  # Repeat as many as you like. The order may matter.
+  # - conda_name: 'name of the conda package'
+  #   kind: '' # 'py' or 'cpp'
+  #   tools: [] # list, any of the tools defined below
+  #   name: '' # python or cpp name, defaults to project.name
+  #   path: # root of the package relative to the project root defaults to '.'
+  ]
+
+# Custom configuration of settings below this line will rarely be needed.
+
+run:
+  echo: true
+conda:
+  download_path: '${HOME}/Downloads/miniconda.sh'
+  linux_url: 'https://repo.continuum.io/miniconda/Miniconda3-latest-Linux-x86_64.sh'
+  osx_url: 'https://repo.continuum.io/miniconda/Miniconda3-latest-MacOSX-x86_64.sh'
+  base_path: '${HOME}/miniconda3'
+  pinning: 'python 3.7'
+deploy: false
+git:
+  merge_branch: master
+
+tools:
+  cardboardlint:
+    config:
+      pip_requirements:
+        - git+https://github.com/theochem/cardboardlint.git@master#egg=cardboardlint
+      conda_requirements:
+        - pycodestyle
+        - pydocstyle
+        - pylint
+        - flake8
+        - conda-forge::cppcheck
+        - conda-forge::cpplint
+        - conda-forge::yamllint
+    commands:
+      lint_static_master:
+        - cardboardlinter -f static
+      lint_static_feature:
+        - 'cardboardlinter -r {config.git.merge_branch} -f static'
+      lint_dynamic_master:
+        - cardboardlinter -f dynamic
+      lint_dynamic_feature:
+        - 'cardboardlinter -r {config.git.merge_branch} -f dynamic'
+
+  pytest:
+    config:
+      conda_requirements:
+        - pytest
+        - pytest-cov
+    commands:
+      test_inplace:
+        - >
+          pytest {name} -v --cov={name} --cov-report xml
+          --cov-report term-missing --cov-branch --color=yes
+  nose:
+    config:
+      conda_requirements:
+        - nose
+        - coverage
+    commands:
+      test_inplace:
+        - rm -f .coverage
+        - >
+          nosetests {name} -v --detailed-errors --with-coverage
+          --cover-package={name} --cover-tests --cover-inclusive
+          --cover-branches
+        - coverage xml -i
+
+  maketest:
+    config:
+      pip_requirements:
+        - gcovr
+    commands:
+      test_inplace:
+        - cd build; find | grep '\\.gcda$' | xargs rm -vf
+        - cd build; make test
+        - >
+          cd {name}; gcovr -r . --gcov-executable ${{HOST}}-gcov
+          --object-directory ../build/{name}/CMakeFiles/{name}.dir
+
+  py_build_inplace:
+    config:
+      build_inplace_paths:
+        PYTHONPATH: '{path}/{name}'
+    commands:
+      build_inplace:
+        - >
+          python setup.py build_ext -i -L $LD_LIBRARY_PATH
+          -I $CPATH --define CYTHON_TRACE_NOGIL
+
+  cpp_build_inplace:
+    config:
+      build_inplace_paths:
+        CPATH: '{path}'
+        LD_LIBRARY_PATH: '{path}/build/{name}'
+    commands:
+      build_inplace:
+        - mkdir -p build
+        - cd build; cmake .. -DCMAKE_BUILD_TYPE=debug
+        - cd build; make
+
+  py_build_source:
+    commands:
+      build_source:
+        - python setup.py sdist
+
+  cpp_build_source:
+    commands:
+      build_inplace:
+        - mkdir -p dist
+        - cd dist; cmake .. -DCMAKE_BUILD_TYPE=release
+        - cd dist; make sdist
+
+  deploy_pypi:
+    config:
+      deploy_vars:
+        - TWINE_USERNAME
+        - TWINE_PASSWORD
+      asset_pattern: '{path}/dist/{name}-{ctx.tag_version}.*'
+      deploy_labels:
+        - main
+    commands:
+      deploy:
+        - twine upload {assets}
+
+  deploy_github:
+    config:
+      deploy_vars:
+        - GITHUB_TOKEN
+      asset_pattern: '{path}/dist/{name}-{config.tag_version}.*'
+      deploy_labels:
+        - main
+    commands:
+      deploy:
+        - >
+          hub release create {hub_assets}
+          -m "Automatic release of version {config.git.tag_version}"
+          {config.git.tag_version}
+
+  deploy_conda:
+    config:
+      deploy_vars:
+        - ANACONDA_API_TOKEN
+      asset_pattern: '{config.conda.build_path}/*/{name}-{ctx.tag_version}-*.*'
+      deploy_labels:
+        - main
+        - test
+        - dev
+    commands:
+      deploy:
+        - 'anaconda -v upload --force -l {deploy_label} {assets}'

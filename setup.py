@@ -64,6 +64,7 @@ setup(
     url='https://github.com/theochem/roberto',
     packages=['roberto', 'roberto.test'],
     package_dir={'roberto': 'roberto'},
+    include_package_data=True,
     install_requires=['invoke', 'pyyaml'],
     entry_points={
         'console_scripts': ['rob = roberto.__main__:main']
