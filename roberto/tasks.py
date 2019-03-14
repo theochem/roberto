@@ -423,6 +423,6 @@ def quality(ctx):  # pylint: disable=unused-argument
     """Run all quality assurance tasks: linting and in-place testing."""
 
 
-@task(quality, deploy, upload_docs_git, default=True)
+@task(quality, upload_docs_git, deploy, default=True)
 def robot(ctx):  # pylint: disable=unused-argument
     """Run all tasks, except nuclear."""
