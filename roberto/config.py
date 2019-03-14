@@ -92,6 +92,12 @@ class RobertoConfig(Config):
                 package.path = '.'
             if 'name' not in package:
                 package.name = self.project.name
+            if 'tools' not in package:
+                package.tools = []
+            # Check if all tools exist
+            for toolname in package.tools:
+                if toolname not in self.tools:
+                    raise ValueError("Unknown Roberto tool: {}".format(toolname))
 
         # CONDA_BLD_PATH should not be overwritten, to allow for customization.
         if 'CONDA_BLD_PATH' in os.environ:
