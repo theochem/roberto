@@ -34,7 +34,7 @@ from invoke import Context
 
 
 __all__ = ['conda_deactivate', 'conda_activate', 'update_env_command',
-           'compute_req_hash', 'run_tools', 'parse_git_describe']
+           'compute_req_hash', 'iter_packages_tools', 'parse_git_describe']
 
 
 def update_env_command(ctx: Context, command: str) -> None:
@@ -157,52 +157,33 @@ def compute_req_hash(conda_packages: List[str], recipe_dirs: List[str],
     return hasher.hexdigest()
 
 
-def run_tools(ctx: Context, subtask: str, env=None, filter_commands=None):
-    """Run a specific subtask from a list of tools for all packages.
+def iter_packages_tools(ctx: Context, task: str):
+    """Iterate over all tools for all packages.
 
     Parameters
     ----------
     ctx
         The context object with which to execute the commands.
-    subtask
-        A subtask, defined by Roberto's (main) tasks.
-    env
-        Custom environment variables needed by the tools.
-    filter_commands
-        A function that modifies the list of commands before execution. It takes
-        a toolname and a list of commands as arguments and it returns a
-        (modified) list of commands. When not given, commands are just formatted
-        with arguments (config=ctx.config, package=package).
+    task
+        A task name, defined by Roberto's (main) tasks.
+
+    Yields
+    ------
+    tool : DataProxy
+        The part of the config file describing the tool, with tool.name added.
+    package: DataProxy
+        The part of the config file describing the package.
+    fmtkargs: dict
+        Formatting arguments for strings from the config file.
 
     """
-    if env is None:
-        env = {}
     for package in ctx.project.packages:
-        with ctx.cd(package.path):
-            for toolname in package.tools:
-                tool = ctx.tools[toolname]
-                # Run the commands
-                if subtask not in tool.commands:
-                    continue
-                commands = tool.commands.get(subtask)
-                if filter_commands is not None:
-                    commands = filter_commands(toolname, package, commands)
-                else:
-                    commands = [command.format(config=ctx.config, package=package)
-                                for command in commands]
-                for command in commands:
-                    ctx.run(command, env=env)
-                # Update paths
-                tool_config = tool.get('config', {})
-                paths = tool_config.get('{}_paths'.format(subtask), {})
-                for name, dirname in paths.items():
-                    dirname = dirname.format(config=ctx.config, package=package)
-                    dirname = os.path.abspath(dirname)
-                    if name in env:
-                        env[name] += ':' + dirname
-                    else:
-                        env[name] = dirname
-    return env
+        for toolname in package.tools:
+            tool = ctx.tools[toolname]
+            tool.name = toolname
+            if tool.task == task:
+                fmtkargs = {'config': ctx.config, 'package': package}
+                yield tool, package, fmtkargs
 
 
 class TagError(Exception):

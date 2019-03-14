@@ -5,11 +5,12 @@ project:
       name: roberto
       path: .
       tools:
-        - write_py_version
-        - cardboardlint
+        - write-py-version
+        - cardboardlint-static
+        - cardboardlint-dynamic
         - pytest
-        - build_py_source
-        - build_conda
-        - deploy_pypi
-        - deploy_conda
-        - deploy_github
+        - build-py-source
+        - build-conda
+        - deploy-pypi
+        - deploy-conda
+        - deploy-github

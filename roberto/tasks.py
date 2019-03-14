@@ -33,7 +33,8 @@ from invoke import task
 from invoke.exceptions import Failure
 import yaml
 
-from .utils import conda_deactivate, conda_activate, compute_req_hash, run_tools
+from .utils import (conda_deactivate, conda_activate, compute_req_hash,
+                    iter_packages_tools)
 
 
 @task
@@ -212,66 +213,87 @@ def install_requirements(ctx):
 @task()
 def write_version(ctx):
     """Derive the version files from git describe."""
-    for package in ctx.project.packages:
-        for toolname in package.tools:
-            tool = ctx.tools[toolname]
-            if 'write_version' in tool.commands:
-                fn_version = tool.config.destination.format(config=ctx.config, package=package)
-                content = tool.config.template.format(config=ctx.config, package=package)
-                with open(fn_version, 'w') as f:
-                    f.write(content)
+    for tool, package, fmtkargs in iter_packages_tools(ctx, "write-version"):
+        fn_version = tool.destination.format(**fmtkargs)
+        content = tool.template.format(**fmtkargs)
+        with open(os.path.join(package.path, fn_version), 'w') as f:
+            f.write(content)
 
 
 @task(install_requirements, sanitize_git, write_version)
 def lint_static(ctx):
     """Run static linters."""
-    if ctx.git.branch == "" or ctx.git.branch == ctx.git.merge_branch:
-        run_tools(ctx, "lint_static_master")
-    else:
-        run_tools(ctx, "lint_static_feature")
+    for tool, package, fmtkargs in iter_packages_tools(ctx, "lint-static"):
+        with ctx.cd(package.path):
+            if ctx.git.branch == "" or ctx.git.branch == ctx.git.merge_branch:
+                for command in tool.commands_master:
+                    ctx.run(command.format(**fmtkargs))
+            else:
+                for command in tool.commands_feature:
+                    ctx.run(command.format(**fmtkargs))
 
 
 @task(install_requirements, sanitize_git, write_version)
 def build_inplace(ctx):
     """Build in-place."""
     # First do all the building
-    ctx.project.inplace_env.update(run_tools(ctx, 'build_inplace'))
-    # Then also write a file, activate-inplace.sh, which can be sourced to
+    inplace_env = {}
+    for tool, package, fmtkargs in iter_packages_tools(ctx, "build-inplace"):
+        with ctx.cd(package.path):
+            for command in tool.commands:
+                ctx.run(command.format(**fmtkargs), env=inplace_env)
+                paths = tool.get('paths', {})
+                for name, dirname in paths.items():
+                    dirname = dirname.format(**fmtkargs)
+                    dirname = os.path.abspath(dirname)
+                    if name in inplace_env:
+                        inplace_env[name] += ':' + dirname
+                    else:
+                        inplace_env[name] = dirname
+    ctx.project.inplace_env = inplace_env
+    # Then also write a file, activate-*.sh, which can be sourced to
     # activate the in-place build.
     with open('activate-{}.sh'.format(ctx.conda.env_name), 'w') as f:
         f.write('[[ -n $CONDA_PREFIX_1 ]] && conda deactivate &> /dev/null\n')
         f.write('[[ -n $CONDA_PREFIX ]] && conda deactivate &> /dev/null\n')
         f.write('source {}/bin/activate\n'.format(ctx.conda.base_path))
         f.write('conda activate {}\n'.format(ctx.conda.env_name))
-        for name, value in ctx.project.inplace_env.items():
-            if 'PATH' in name:
-                f.write('export {0}=${{{0}}}:{1}\n'.format(name, value))
-            else:
-                f.write('export {0}={1}\n'.format(name, value))
+        for name, value in inplace_env.items():
+            f.write('export {0}=${{{0}}}:{1}\n'.format(name, value))
         f.write('export PROJECT_VERSION={}\n'.format(ctx.git.tag_version))
 
 
 @task(build_inplace)
 def test_inplace(ctx):
-    """Run tests in-place."""
-    run_tools(ctx, "test_inplace", env=ctx.project.inplace_env)
-    if "CONTINUOUS_INTEGRATION" in os.environ:
+    """Run tests in-place and upload coverage if requested."""
+    for tool, package, fmtkargs in iter_packages_tools(ctx, "test-inplace"):
+        with ctx.cd(package.path):
+            for command in tool.commands:
+                ctx.run(command.format(**fmtkargs), env=ctx.project.inplace_env)
+    if ctx.upload_coverage:
         ctx.run("bash <(curl -s https://codecov.io/bash)")
 
 
 @task(build_inplace)
 def lint_dynamic(ctx):
     """Run dynamic linters."""
-    if ctx.git.branch == "" or ctx.git.branch == ctx.git.merge_branch:
-        run_tools(ctx, "lint_dynamic_master", env=ctx.project.inplace_env)
-    else:
-        run_tools(ctx, "lint_dynamic_feature", env=ctx.project.inplace_env)
+    for tool, package, fmtkargs in iter_packages_tools(ctx, "lint-dynamic"):
+        with ctx.cd(package.path):
+            if ctx.git.branch == "" or ctx.git.branch == ctx.git.merge_branch:
+                for command in tool.commands_master:
+                    ctx.run(command.format(**fmtkargs))
+            else:
+                for command in tool.commands_feature:
+                    ctx.run(command.format(**fmtkargs))
 
 
 @task(install_requirements, write_version)
 def build_packages(ctx):
     """Build the source package(s)."""
-    ctx.project.inplace_env.update(run_tools(ctx, "build_packages"))
+    for tool, package, fmtkargs in iter_packages_tools(ctx, "build-packages"):
+        with ctx.cd(package.path):
+            for command in tool.commands:
+                ctx.run(command.format(**fmtkargs))
 
 
 @task(install_requirements, build_packages)
@@ -294,45 +316,32 @@ def deploy(ctx):  # pylint: disable=unused-argument
             ctx.git.tag_version))
         return
 
-    # perform some checks on tasks with a deploy subtask
-    print("Performing checks before deployment")
     checked_deploy_vars = set([])
-    assets = {}
-    for package in ctx.project.packages:
-        for toolname in package.tools:
-            tool = ctx.tools[toolname]
-            if 'deploy' in tool.commands:
-                # Check if and how deployment vars are set
-                for deploy_var in tool.config.deploy_vars:
-                    if deploy_var not in checked_deploy_vars:
-                        check_env_var(deploy_var)
-                        checked_deploy_vars.add(deploy_var)
-                # Collect assets for each tool
-                tool_assets = assets.setdefault(toolname, [])
-                pattern = tool.config.asset_pattern.format(
-                    config=ctx.config, package=package)
-                filenames = glob(pattern)
-                if not filenames:
-                    raise Failure("Could not find release for {}: {}".format(
-                        toolname, pattern))
-                tool_assets.extend(filenames)
-
-    # filter out assets for releases not planned
-    def filter_commands(toolname, package, commands):
-        tool = ctx.tools[toolname]
-        if deploy_label in tool.config.deploy_labels:
-            extra = {
-                'assets': ' '.join(assets[toolname]),
-                'hub_assets': ' '.join('-a {}'.format(asset) for asset in assets[toolname]),
-                'deploy_label': deploy_label,
-            }
-            return [command.format(config=ctx.config, package=package, **extra)
-                    for command in commands]
-        print("Skipping {} for package {}, because of deploy label {}.".format(
-            toolname, package.name, deploy_label))
-        return []
-
-    run_tools(ctx, "deploy", filter_commands=filter_commands)
+    for tool, package, fmtkargs in iter_packages_tools(ctx, "deploy"):
+        # Check if and how deployment vars are set.
+        for deploy_var in tool.deploy_vars:
+            if deploy_var not in checked_deploy_vars:
+                check_env_var(deploy_var)
+                checked_deploy_vars.add(deploy_var)
+        # Collect assets for each tool
+        pattern = tool.asset_pattern.format(**fmtkargs)
+        assets = glob(pattern)
+        if not assets:
+            raise Failure("Could not find assets for {}: {}".format(tool.name, pattern))
+        # Check if needed.
+        if deploy_label not in tool.deploy_labels:
+            print("Skipping {} for package {}, because of deploy label {}.".format(
+                tool.name, package.name, deploy_label))
+            continue
+        # Set extra formatting variables
+        fmtkargs.update({
+            'assets': ' '.join(assets),
+            'hub_assets': ' '.join('-a {}'.format(asset) for asset in assets),
+            'deploy_label': deploy_label,
+        })
+        # Run deployment commands
+        for command in tool.commands:
+            ctx.run(command.format(**fmtkargs))
 
 
 def check_env_var(name):

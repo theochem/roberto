@@ -22,8 +22,10 @@
 import os
 
 from invoke import Context
+from invoke.config import DataProxy
 
-from ..utils import update_env_command, compute_req_hash, parse_git_describe
+from ..utils import (update_env_command, compute_req_hash, parse_git_describe,
+                     iter_packages_tools)
 
 
 def test_update_env_command():
@@ -196,3 +198,30 @@ def test_parse_git_describe():
         'tag_dev': False,
         'tag_release': False
     }
+
+
+def test_iter_packages_tools():
+    pk1 = DataProxy.from_data({"tools": ['a', 'b', 'c']})
+    pk2 = DataProxy.from_data({"tools": ['a', 'c']})
+    ctx = DataProxy.from_data({
+        'project': {'packages': [pk1, pk2]},
+        'tools': {
+            'a': {'task': 'first', 'option1': 5, 'foo': 'bar'},
+            'b': {'task': 'first', },
+            'c': {'task': 'second', 'option2': 'egg'},
+        },
+        'config': None
+    })
+    ctx.config = ctx
+    assert list(iter_packages_tools(ctx, 'first')) == \
+        [({'task': 'first', 'option1': 5, 'foo': 'bar', 'name': 'a'},
+          pk1, {'config': ctx.config, 'package': pk1}),
+         ({'task': 'first', 'name': 'b'},
+          pk1, {'config': ctx.config, 'package': pk1}),
+         ({'task': 'first', 'option1': 5, 'foo': 'bar', 'name': 'a'},
+          pk2, {'config': ctx.config, 'package': pk2})]
+    assert list(iter_packages_tools(ctx, 'second')) == \
+        [({'task': 'second', 'option2': 'egg', 'name': 'c'},
+          pk1, {'config': ctx.config, 'package': pk1}),
+         ({'task': 'second', 'option2': 'egg', 'name': 'c'},
+          pk2, {'config': ctx.config, 'package': pk2})]

@@ -84,6 +84,8 @@ env:
   global:
     # Install conda in a *sub*directory of a directory cached by travis.
     - ROBERTO_CONDA_INSTALL_PATH=${HOME}/cache/miniconda3
+    # Tell Roberto to upload coverage results
+    - ROBERTO_UPLOAD_COVERAGE=1
     # Build conda packages outside the miniconda tree, to avoid caching.
     # This makes it possible to still deploy packages after cache cleaning.
     - CONDA_BLD_PATH=${HOME}/conda-bld
