@@ -150,9 +150,9 @@ def install_requirements(ctx):
     recipe_dirs = []
     for package in ctx.project.packages:
         for toolname in package.tools:
-            config = ctx.tools[toolname].get('config', {})
-            conda_packages.update(config.get('conda_requirements', []))
-            pip_packages.update(config.get('pip_requirements', []))
+            tool = ctx.tools[toolname]
+            conda_packages.update(tool.get('conda_requirements', []))
+            pip_packages.update(tool.get('pip_requirements', []))
         recipe_dirs.append(os.path.join(package.path, "tools", "conda.recipe"))
     conda_packages = sorted(conda_packages)
     pip_packages = sorted(pip_packages)
