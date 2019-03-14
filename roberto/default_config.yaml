@@ -229,7 +229,7 @@ tools:
       - test
       - dev
     commands:
-      - 'anaconda -v upload --force -l {ctx.git.deploy_label} {assets}'
+      - 'anaconda -v upload --force -l {config.git.deploy_label} {assets}'
 
   upload-docs-gh:
     task: upload-docs-git
