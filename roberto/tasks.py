@@ -29,8 +29,7 @@ import tempfile
 import time
 import urllib.request
 
-from invoke import task
-from invoke.exceptions import Failure
+from invoke import task, Failure
 import yaml
 
 from .utils import (conda_deactivate, conda_activate, compute_req_hash,
@@ -72,7 +71,7 @@ def install_conda(ctx):
             os.makedirs(dwnldir)
 
         if os.path.isfile(dwnl):
-            print("Conda install already present: {}".format(dwnl))
+            print("Conda installer already present: {}".format(dwnl))
         else:
             print("Downloading latest conda to {}.".format(dwnl))
             system = platform.system()
@@ -143,7 +142,7 @@ def setup_conda_env(ctx):
 
 @task(setup_conda_env)
 def install_requirements(ctx):
-    """Install all dependencies, including tools used by roberto."""
+    """Install all requirements, including tools used by Roberto."""
     # Collect all parameters determining the install commands, to good
     # approximation and turn them into a hash.
     conda_packages = set(["conda", "conda-build"])
@@ -172,22 +171,23 @@ def install_requirements(ctx):
                     skip_install = True
 
     if skip_install:
-        print("Skipping install and update of packages in conda env.")
-        print("To force install: rm {}".format(fn_skip))
+        print("Skipping install+update of packages in conda env.")
+        print("To force install+update: rm {}".format(fn_skip))
     else:
-        # Update and install dependencies
+        # Update and install requirements for Roberto
         ctx.run("conda install --update-deps -y {}".format(" ".join(conda_packages)))
 
-        # Render the conda package specs, extract and install dependencies.
-        print("Rendering conda package and extracting dependencies.")
+        print("Rendering conda package, extracting requirements, which will be installed.")
         own_conda_packages = [package.conda_name for package in ctx.project.packages]
         for recipe_dir in recipe_dirs:
+            # Send the output of conda render to a temporary directory.
             with tempfile.TemporaryDirectory() as tmpdir:
                 rendered_path = os.path.join(tmpdir, "rendered.yml")
                 ctx.run("conda render -f {} {}".format(rendered_path, recipe_dir),
                         env={"PROJECT_VERSION": ctx.git.tag_version})
                 with open(rendered_path) as f:
                     rendered = yaml.load(f)
+            # Build a (simplified) list of requirements and install.
             requirements = set([])
             for reqtype in 'build', 'host', 'run':
                 for requirement in rendered.get("requirements", {}).get(reqtype, []):
@@ -196,7 +196,7 @@ def install_requirements(ctx):
                         requirements.add("'" + " ".join(words[:2]) + "'")
             ctx.run("conda install --update-deps -y {}".format(" ".join(requirements)))
 
-        # Update and install linting tools from pip, if any
+        # Update and install requirements for Roberto from pip, if any.
         if pip_packages:
             ctx.run("pip install --upgrade {}".format(" ".join(pip_packages)))
 
@@ -204,8 +204,9 @@ def install_requirements(ctx):
         with open(fn_skip, 'w') as f:
             f.write(req_hash + '\n')
 
-        # Deactivate and activate conda again, because it set more environment
-        # variables after compilers have been installed.
+        # Deactivate and activate conda again, because more environment
+        # variables need to be set by the activation script after compilers
+        # have been installed.
         conda_deactivate(ctx)
         conda_activate(ctx, ctx.conda.env_name)
 
@@ -236,12 +237,13 @@ def lint_static(ctx):
 @task(install_requirements, sanitize_git, write_version)
 def build_inplace(ctx):
     """Build in-place."""
-    # First do all the building
+    # First do all the building.
     inplace_env = {}
     for tool, package, fmtkargs in iter_packages_tools(ctx, "build-inplace"):
         with ctx.cd(package.path):
             for command in tool.commands:
                 ctx.run(command.format(**fmtkargs), env=inplace_env)
+                # Update *PATH variables in environment for subsequent paclages.
                 paths = tool.get('paths', {})
                 for name, dirname in paths.items():
                     dirname = dirname.format(**fmtkargs)
@@ -269,6 +271,8 @@ def test_inplace(ctx):
     for tool, package, fmtkargs in iter_packages_tools(ctx, "test-inplace"):
         with ctx.cd(package.path):
             for command in tool.commands:
+                # In-place tests need the environment variable changes
+                # from the in-place build.
                 ctx.run(command.format(**fmtkargs), env=ctx.project.inplace_env)
     if ctx.upload_coverage:
         ctx.run("bash <(curl -s https://codecov.io/bash)")
@@ -289,7 +293,7 @@ def lint_dynamic(ctx):
 
 @task(install_requirements, write_version)
 def build_packages(ctx):
-    """Build the source package(s)."""
+    """Build software package(s)."""
     for tool, package, fmtkargs in iter_packages_tools(ctx, "build-packages"):
         with ctx.cd(package.path):
             for command in tool.commands:
@@ -297,9 +301,9 @@ def build_packages(ctx):
 
 
 @task(install_requirements, build_packages)
-def deploy(ctx):  # pylint: disable=unused-argument
+def deploy(ctx):
     """Run all deployment tasks."""
-    # Check if we need to deploy
+    # Check if we need to deploy.
     if not ctx.deploy:
         print("Deployment not requested in configuration.")
         return
@@ -323,23 +327,23 @@ def deploy(ctx):  # pylint: disable=unused-argument
             if deploy_var not in checked_deploy_vars:
                 check_env_var(deploy_var)
                 checked_deploy_vars.add(deploy_var)
-        # Collect assets for each tool
+        # Collect assets for each tool.
         pattern = tool.asset_pattern.format(**fmtkargs)
         assets = glob(pattern)
         if not assets:
             raise Failure("Could not find assets for {}: {}".format(tool.name, pattern))
-        # Check if needed.
+        # Check if deployment is needed with deploy_label.
         if deploy_label not in tool.deploy_labels:
             print("Skipping {} for package {}, because of deploy label {}.".format(
                 tool.name, package.name, deploy_label))
             continue
-        # Set extra formatting variables
+        # Set extra formatting variables.
         fmtkargs.update({
             'assets': ' '.join(assets),
             'hub_assets': ' '.join('-a {}'.format(asset) for asset in assets),
             'deploy_label': deploy_label,
         })
-        # Run deployment commands
+        # Run deployment commands.
         for command in tool.commands:
             ctx.run(command.format(**fmtkargs))
 

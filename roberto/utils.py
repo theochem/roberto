@@ -40,6 +40,8 @@ __all__ = ['conda_deactivate', 'conda_activate', 'update_env_command',
 def update_env_command(ctx: Context, command: str) -> None:
     """Update the environment variables with a bash command.
 
+    The command should not produce any output.
+
     Parameters
     ----------
     ctx
@@ -71,10 +73,6 @@ def conda_deactivate(ctx, iterate=True):
         argument to False
 
     """
-    # If some conda environment is active, we need to (recursively) deactivate.
-    # For this, conda.sh needs to be sourced to define certain bash functions.
-    # This is ugly but there is (afaik) no simple way around it.
-
     def clean_env():
         """Get rid of lingering conda environment variables."""
         # See https://github.com/conda/conda/issues/7031
@@ -114,8 +112,7 @@ def conda_activate(ctx, env):
         The name of the environment to activate.
 
     """
-    # Load the correct base environment. We need to source conda.sh as explained
-    # in the conda_deactivate function. These commands define bash functions
+    # Load the correct base environment. These commands define bash functions
     # which are not exported, but we need them for future conda commands to
     # work, hence "set -a" to export all variables and functions, also those not
     # marked for export.
