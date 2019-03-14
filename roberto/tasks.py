@@ -180,7 +180,6 @@ def install_requirements(ctx):
         # Render the conda package specs, extract and install dependencies.
         print("Rendering conda package and extracting dependencies.")
         own_conda_packages = [package.conda_name for package in ctx.project.packages]
-        conda_packages = set([])
         for recipe_dir in recipe_dirs:
             with tempfile.TemporaryDirectory() as tmpdir:
                 rendered_path = os.path.join(tmpdir, "rendered.yml")
@@ -188,14 +187,13 @@ def install_requirements(ctx):
                         env={"PROJECT_VERSION": ctx.git.tag_version})
                 with open(rendered_path) as f:
                     rendered = yaml.load(f)
-            requirements = []
+            requirements = set([])
             for reqtype in 'build', 'host', 'run':
-                requirements.extend(rendered.get("requirements", {}).get(reqtype, []))
-            for requirement in requirements:
-                words = requirement.split()
-                if words[0] not in own_conda_packages:
-                    conda_packages.add("'" + " ".join(words[:2]) + "'")
-        ctx.run("conda install --update-deps -y {}".format(" ".join(conda_packages)))
+                for requirement in rendered.get("requirements", {}).get(reqtype, []):
+                    words = requirement.split()
+                    if words[0] not in own_conda_packages:
+                        requirements.add("'" + " ".join(words[:2]) + "'")
+            ctx.run("conda install --update-deps -y {}".format(" ".join(requirements)))
 
         # Update and install linting tools from pip, if any
         if pip_packages:
