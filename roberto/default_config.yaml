@@ -167,9 +167,13 @@ tools:
         - conda-verify
     commands:
       build_packages:
+        # CONDA_BUILD_PATH must be set because otherwise local dependencies
+        # cannot be found when working in any other environment than base.
+        # See https://github.com/conda/conda-build/issues/2592
         - >-
-          PROJECT_VERSION={config.git.tag_version} conda build tools/conda.recipe
-          --override-channel
+          CONDA_BUILD_PATH={config.conda.build_path}
+          PROJECT_VERSION={config.git.tag_version}
+          conda build tools/conda.recipe --override-channel
 
   deploy_pypi:
     config:

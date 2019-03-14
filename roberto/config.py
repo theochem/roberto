@@ -48,7 +48,7 @@ class RobertoConfig(Config):
 
     def load_base_conf_files(self):
         Config.load_base_conf_files(self)
-        # Always truy load the project config file.
+        # Always try to load the project config file.
         self._load_file(prefix="project", merge=False)
 
     def set_project_location(self, path):
@@ -77,13 +77,12 @@ class RobertoConfig(Config):
         self.conda.download_path = os.path.expandvars(os.path.expanduser(self.conda.download_path))
         self.conda.base_path = os.path.expandvars(os.path.expanduser(self.conda.base_path))
 
-        # The conda environment
+        # Derive the name for the conda environment.
         env_name = self.project.name + '-dev'
         if self.conda.pinning:
             env_name += '-' + '-'.join(self.conda.pinning.split())
         self.conda.env_name = env_name
-        env_path = os.path.join(self.conda.base_path, 'envs', env_name)
-        self.conda.env_path = env_path
+        self.conda.env_path = os.path.join(self.conda.base_path, 'envs', env_name)
 
         # Package default options
         self.project.packages = [
@@ -94,12 +93,20 @@ class RobertoConfig(Config):
             if 'name' not in package:
                 package.name = self.project.name
 
-        # Fix a problem with the conda build purge feature.
-        # See https://github.com/conda/conda-build/issues/2592
         # CONDA_BLD_PATH should not be overwritten, to allow for customization.
-        if 'CONDA_BLD_PATH' not in os.environ:
-            os.environ['CONDA_BLD_PATH'] = os.path.join(self.conda.env_path, 'conda-bld')
-        self.conda.build_path = os.environ['CONDA_BLD_PATH']
+        if 'CONDA_BLD_PATH' in os.environ:
+            self.conda.build_path = os.environ['CONDA_BLD_PATH']
+        else:
+            self.conda.build_path = os.path.join(self.conda.env_path, 'conda-bld')
+
+    @staticmethod
+    def global_defaults() -> dict:
+        """Set the global default configuration."""
+        defaults = Config.global_defaults()
+
+        # Load default configuration
+        with open_text('roberto', 'default_config.yaml') as f:
+            defaults = merge_dicts(defaults, yaml.load(f))
 
         # Git version and branch information
         try:
@@ -110,15 +117,9 @@ class RobertoConfig(Config):
         except subprocess.CalledProcessError:
             # May fail, e.g. when there are no tags.
             git_describe = '0.0.0-0-notag'
-        self.git.update(parse_git_describe(git_describe))
-        self.git.branch = subprocess.run(
+        defaults['git'].update(parse_git_describe(git_describe))
+        defaults['git']['branch'] = subprocess.run(
             ["git", "rev-parse", "--abbrev-ref", "HEAD"],
             stdout=subprocess.PIPE, check=True).stdout.decode('utf-8').strip()
 
-    @staticmethod
-    def global_defaults() -> dict:
-        """Set the global default configuration."""
-        their_defaults = Config.global_defaults()
-        with open_text('roberto', 'default_config.yaml') as f:
-            my_defaults = yaml.load(f)
-        return merge_dicts(their_defaults, my_defaults)
+        return defaults
