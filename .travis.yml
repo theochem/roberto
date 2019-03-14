@@ -151,7 +151,7 @@ cache:
 
 install:
   # Disable deployment when TRAVIS_TAG is not set. This avoids duplicate deployments.
-  - if [[ -z $TRAVIS_TAG ]]; then ROBERTO_DEPLOY=0 foo; fi
+  - if [[ -z $TRAVIS_TAG ]]; then export ROBERTO_DEPLOY=0; fi
   # Get a basic python 3 with pip to run roberto
   - python3 --version
   - wget --no-clobber -O ${HOME}/cache/get-pip.py https://bootstrap.pypa.io/get-pip.py || true
