@@ -153,6 +153,7 @@ install:
   - wget --no-clobber -O ${HOME}/cache/get-pip.py https://bootstrap.pypa.io/get-pip.py || true
   - python3 ${HOME}/cache/get-pip.py --user
   # Normally roberto should be installed from pypi, but roberto can take a shortcut.
+  # We also need to install coverage because of cov analysis on the whole self test.
   - python3 -m pip install . coverage --user
 
 script:

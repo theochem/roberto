@@ -65,7 +65,9 @@ setup(
     packages=['roberto', 'roberto.test'],
     package_dir={'roberto': 'roberto'},
     include_package_data=True,
-    install_requires=['invoke', 'pyyaml'],
+    install_requires=[
+        'invoke', 'pyyaml', 'importlib_resources; python_version < "3.7"'],
+    python_requires='>=3.5',
     entry_points={
         'console_scripts': ['rob = roberto.__main__:main']
     }
