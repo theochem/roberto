@@ -10,6 +10,6 @@ project:
         - pytest
         - build_py_source
         - build_conda
+        - deploy_pypi
         - deploy_conda
         - deploy_github
-        - deploy_pypi

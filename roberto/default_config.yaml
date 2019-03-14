@@ -178,7 +178,7 @@ tools:
       deploy_vars:
         - TWINE_USERNAME
         - TWINE_PASSWORD
-      asset_pattern: '{package.path}/dist/{package.name}-{config.tag_version}.*'
+      asset_pattern: '{package.path}/dist/{package.name}-{config.git.tag_version}.*'
       deploy_labels:
         - main
     commands:
@@ -191,7 +191,7 @@ tools:
         - hub
       deploy_vars:
         - GITHUB_TOKEN
-      asset_pattern: '{package.path}/dist/{package.name}-{config.tag_version}.*'
+      asset_pattern: '{package.path}/dist/{package.name}-{config.git.tag_version}.*'
       deploy_labels:
         - main
     commands:
@@ -207,7 +207,7 @@ tools:
         - anaconda-client
       deploy_vars:
         - ANACONDA_API_TOKEN
-      asset_pattern: '{config.conda.build_path}/*/{package.name}-{config.tag_version}-*.*'
+      asset_pattern: '{config.conda.build_path}/*/{package.name}-{config.git.tag_version}-*.*'
       deploy_labels:
         - main
         - test

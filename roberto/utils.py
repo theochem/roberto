@@ -81,7 +81,9 @@ def conda_deactivate(ctx, iterate=True):
         if "HOST" in os.environ:
             del os.environ['HOST']
         for name, value in list(os.environ.items()):
-            if ("CONDA" in name or "conda" in value) and "ROBERTO" not in name:
+            if ("CONDA_" in name
+                and not ("ROBERTO" in name or "ANACONDA" in name)):
+                print("Unsetting environment variable {}".format(name))
                 del os.environ[name]
 
     # 0) Return if no work needs to be done
@@ -182,7 +184,9 @@ def run_tools(ctx: Context, subtask: str, env=None, filter_commands=None):
             for toolname in package.tools:
                 tool = ctx.tools[toolname]
                 # Run the commands
-                commands = tool.commands.get(subtask, [])
+                if subtask not in tool.commands:
+                    continue
+                commands = tool.commands.get(subtask)
                 if filter_commands is not None:
                     commands = filter_commands(toolname, package, commands)
                 else:

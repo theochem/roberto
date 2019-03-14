@@ -303,7 +303,7 @@ def deploy(ctx):  # pylint: disable=unused-argument
     for package in ctx.project.packages:
         for toolname in package.tools:
             tool = ctx.tools[toolname]
-            if 'deploy' in ctx.tool.commands:
+            if 'deploy' in tool.commands:
                 # Check if and how deployment vars are set
                 for deploy_var in tool.config.deploy_vars:
                     if deploy_var not in checked_deploy_vars:
