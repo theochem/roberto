@@ -124,8 +124,22 @@ class RobertoConfig(Config):
             # May fail, e.g. when there are no tags.
             git_describe = '0.0.0-0-notag'
         defaults['git'].update(parse_git_describe(git_describe))
-        defaults['git']['branch'] = subprocess.run(
+
+        # First try to get a decent branch name
+        branch = subprocess.run(
             ["git", "rev-parse", "--abbrev-ref", "HEAD"],
             stdout=subprocess.PIPE, check=True).stdout.decode('utf-8').strip()
+        # If that failed, try to get the tag
+        if branch == 'HEAD':
+            try:
+                branch = subprocess.run(
+                    ["git", "describe", "--tags", "--exact-match"],
+                    stdout=subprocess.PIPE, check=True).stdout.decode('utf-8').strip()
+            except subprocess.CalledProcessError:
+                # Final attempt, just the sha, should always work.
+                branch = subprocess.run(
+                    ["git", "rev-parse", "HEAD"],
+                    stdout=subprocess.PIPE, check=True).stdout.decode('utf-8').strip()
+        defaults['git']['branch'] = branch
 
         return defaults

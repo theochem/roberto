@@ -349,7 +349,7 @@ def deploy(ctx):
         # Run deployment commands.
         with ctx.cd(package.path):
             for command in tool.commands:
-                ctx.run(command.format(**fmtkargs))
+                ctx.run(command.format(**fmtkargs), warn=True)
 
 
 @task(install_requirements, build_docs)
@@ -361,13 +361,12 @@ def upload_docs_git(ctx):
     # Try to get a git username and author argument for the doc commit.
     if 'GITHUB_TOKEN' in os.environ:
         # First get user info from the owner of the token
-        url = ('curl -H "Authorization: token {}" '
-               'https://api.github.com/user').format(os.environ['GITHUB_TOKEN'])
-        with urllib.request.urlopen(url) as f:
-            info = json.load(f)
-        author_arg = '--author="{0} <{0}@users.noreply.github.com>"'.format(info['login'])
-    else:
-        author_arg = ''
+        req = urllib.request.Request('https://api.github.com/user')
+        req.add_header('Authorization', 'token {}'.format(os.environ['GITHUB_TOKEN']))
+        with urllib.request.urlopen(req) as f:
+            info = json.loads(f.read().decode('utf-8'))
+        ctx.run('git config --global user.email "{}@users.noreply.github.com"'.format(info["login"]))
+        ctx.run('git config --global user.name "{}"'.format(info["login"]))
 
     for tool, package, fmtkargs in iter_packages_tools(ctx, "upload-docs-git"):
         # Check if deployment is needed with deploy_label.
@@ -392,18 +391,19 @@ def upload_docs_git(ctx):
                     fullfn = os.path.join(root, filename)[len(docroot)+1:]
                     ctx.run("git add {}".format(fullfn))
             # Commit, push and go back to the original branch
-            ctx.run("git commit -a -m 'Automatic documentation update' --amend "
-                    + author_arg)
+            ctx.run("git commit -a -m 'Automatic documentation update' --amend ")
             ctx.run("git checkout {}".format(ctx.git.branch))
             if 'GITHUB_TOKEN' in os.environ:
                 # Get the remote url
                 giturl = ctx.run("git config --get remote.origin.url").stdout.strip()
+                # Derive the slug, works for both ssh and https
+                slug = '/'.join(giturl.replace(':', '/').split('/')[-2:])
                 # Push with github token magic. Taken from
                 # https://gist.github.com/willprice/e07efd73fb7f13f917ea
-                ctx.run("git remote add origin-pages https://{}@{}".format(
-                    os.environ['GITHUB_TOKEN'], giturl.split("@")[1]
-                ), hide=True, echo=False)
-                ctx.run("git push -f origin-pages {0}/{0}".format(tool.docbranch))
+                ctx.run("git remote add origin-pages https://{}@github.com/{}".format(
+                    os.environ['GITHUB_TOKEN'], slug
+                ), hide=True, echo=False, warn=True)
+                ctx.run("git push --quiet -f origin-pages {0}:{0}".format(tool.docbranch))
             else:
                 # Fallback for local doc updates.
                 ctx.run("git push -f {0} {1}:{1}".format(tool.docremote, tool.docbranch))
