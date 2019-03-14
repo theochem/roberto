@@ -106,7 +106,7 @@ class RobertoConfig(Config):
         try:
             git_describe = subprocess.run(
                 ['git', 'describe', '--tags'],
-                capture_output=True, check=True).stdout.decode('utf-8')
+                stdout=subprocess.PIPE, check=True).stdout.decode('utf-8')
         except subprocess.CalledProcessError:
             # May fail, e.g. when there are no tags.
             git_describe = '0.0.0-0-notag'
@@ -116,7 +116,7 @@ class RobertoConfig(Config):
 
         self.git.branch = subprocess.run(
             ["git", "rev-parse", "--abbrev-ref", "HEAD"],
-            capture_output=True, check=True).stdout.decode('utf-8').strip()
+            stdout=subprocess.PIPE, check=True).stdout.decode('utf-8').strip()
 
     @staticmethod
     def global_defaults() -> dict:
