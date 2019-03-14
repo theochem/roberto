@@ -358,6 +358,17 @@ def upload_docs_git(ctx):
     if not need_deployment(ctx, "Doc upload"):
         return
 
+    # Try to get a git username and author argument for the doc commit.
+    if 'GITHUB_TOKEN' in os.environ:
+        # First get user info from the owner of the token
+        url = ('curl -H "Authorization: token {}" '
+               'https://api.github.com/user').format(os.environ['GITHUB_TOKEN'])
+        with urllib.request.urlopen(url) as f:
+            info = json.load(f)
+        author_arg = '--author="{0} <{0}@users.noreply.github.com>"'.format(info['login'])
+    else:
+        author_arg = ''
+
     for tool, package, fmtkargs in iter_packages_tools(ctx, "upload-docs-git"):
         # Check if deployment is needed with deploy_label.
         if ctx.git.deploy_label not in tool.deploy_labels:
@@ -381,9 +392,21 @@ def upload_docs_git(ctx):
                     fullfn = os.path.join(root, filename)[len(docroot)+1:]
                     ctx.run("git add {}".format(fullfn))
             # Commit, push and go back to the original branch
-            ctx.run("git commit -a -m 'Automatic documentation update' --amend")
+            ctx.run("git commit -a -m 'Automatic documentation update' --amend "
+                    + author_arg)
             ctx.run("git checkout {}".format(ctx.git.branch))
-            ctx.run("git push -f {0} {1}:{1}".format(tool.docremote, tool.docbranch))
+            if 'GITHUB_TOKEN' in os.environ:
+                # Get the remote url
+                giturl = ctx.run("git config --get remote.origin.url").stdout.strip()
+                # Push with github token magic. Taken from
+                # https://gist.github.com/willprice/e07efd73fb7f13f917ea
+                ctx.run("git remote add origin-pages https://{}@{}".format(
+                    os.environ['GITHUB_TOKEN'], giturl.split("@")[1]
+                ), hide=True, echo=False)
+                ctx.run("git push -f origin-pages {0}/{0}".format(tool.docbranch))
+            else:
+                # Fallback for local doc updates.
+                ctx.run("git push -f {0} {1}:{1}".format(tool.docremote, tool.docbranch))
 
 
 @task(setup_conda_env)
