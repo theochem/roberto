@@ -34,7 +34,8 @@ from invoke import Context
 
 
 __all__ = ['conda_deactivate', 'conda_activate', 'update_env_command',
-           'compute_req_hash', 'iter_packages_tools', 'parse_git_describe']
+           'compute_req_hash', 'iter_packages_tools', 'run_all_commands',
+           'parse_git_describe']
 
 
 def update_env_command(ctx: Context, command: str) -> None:
@@ -181,6 +182,28 @@ def iter_packages_tools(ctx: Context, task: str):
             if tool.task == task:
                 fmtkargs = {'config': ctx.config, 'package': package}
                 yield tool, package, fmtkargs
+
+
+def run_all_commands(ctx: Context, task: str, commands_name='commands', env=None):
+    """Run a specific subtask from a list of tools for all packages.
+
+    Parameters
+    ----------
+    ctx
+        The context object with which to execute the commands.
+    subtask
+        A subtask, defined by Roberto's (main) tasks.
+    commands_name
+        The name of the commands field in the tool to use.
+    env
+        Custom environment variables needed by the tools.
+
+    """
+    for tool, package, fmtkargs in iter_packages_tools(ctx, task):
+        with ctx.cd(package.path):
+            commands = tool.get(commands_name, [])
+            for command in commands:
+                ctx.run(command.format(**fmtkargs))
 
 
 class TagError(Exception):

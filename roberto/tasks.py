@@ -33,7 +33,7 @@ from invoke import task, Failure
 import yaml
 
 from .utils import (conda_deactivate, conda_activate, compute_req_hash,
-                    iter_packages_tools)
+                    iter_packages_tools, run_all_commands)
 
 
 @task
@@ -224,14 +224,10 @@ def write_version(ctx):
 @task(install_requirements, sanitize_git, write_version)
 def lint_static(ctx):
     """Run static linters."""
-    for tool, package, fmtkargs in iter_packages_tools(ctx, "lint-static"):
-        with ctx.cd(package.path):
-            if ctx.git.branch == "" or ctx.git.branch == ctx.git.merge_branch:
-                for command in tool.commands_master:
-                    ctx.run(command.format(**fmtkargs))
-            else:
-                for command in tool.commands_feature:
-                    ctx.run(command.format(**fmtkargs))
+    if ctx.git.branch == "" or ctx.git.branch == ctx.git.merge_branch:
+        run_all_commands(ctx, "lint-static", 'commands_master')
+    else:
+        run_all_commands(ctx, "lint-static", 'commands_feature')
 
 
 @task(install_requirements, sanitize_git, write_version)
@@ -268,12 +264,8 @@ def build_inplace(ctx):
 @task(build_inplace)
 def test_inplace(ctx):
     """Run tests in-place and upload coverage if requested."""
-    for tool, package, fmtkargs in iter_packages_tools(ctx, "test-inplace"):
-        with ctx.cd(package.path):
-            for command in tool.commands:
-                # In-place tests need the environment variable changes
-                # from the in-place build.
-                ctx.run(command.format(**fmtkargs), env=ctx.project.inplace_env)
+    # In-place tests need the environment variable changes from the in-place build.
+    run_all_commands(ctx, "test-inplace", env=ctx.project.inplace_env)
     if ctx.upload_coverage:
         ctx.run("bash <(curl -s https://codecov.io/bash)")
 
@@ -281,32 +273,22 @@ def test_inplace(ctx):
 @task(build_inplace)
 def lint_dynamic(ctx):
     """Run dynamic linters."""
-    for tool, package, fmtkargs in iter_packages_tools(ctx, "lint-dynamic"):
-        with ctx.cd(package.path):
-            if ctx.git.branch == "" or ctx.git.branch == ctx.git.merge_branch:
-                for command in tool.commands_master:
-                    ctx.run(command.format(**fmtkargs))
-            else:
-                for command in tool.commands_feature:
-                    ctx.run(command.format(**fmtkargs))
+    if ctx.git.branch == "" or ctx.git.branch == ctx.git.merge_branch:
+        run_all_commands(ctx, "lint-dynamic", 'commands_master')
+    else:
+        run_all_commands(ctx, "lint-dynamic", 'commands_feature')
 
 
 @task(install_requirements, write_version)
 def build_packages(ctx):
     """Build software package(s)."""
-    for tool, package, fmtkargs in iter_packages_tools(ctx, "build-packages"):
-        with ctx.cd(package.path):
-            for command in tool.commands:
-                ctx.run(command.format(**fmtkargs))
+    run_all_commands(ctx, "build-packages")
 
 
 @task(install_requirements, write_version)
 def build_docs(ctx):
     """Build documentation."""
-    for tool, package, fmtkargs in iter_packages_tools(ctx, "build-docs"):
-        with ctx.cd(package.path):
-            for command in tool.commands:
-                ctx.run(command.format(**fmtkargs))
+    run_all_commands(ctx, "build-docs")
 
 
 def need_deployment(ctx, prefix):
