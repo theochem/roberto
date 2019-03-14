@@ -203,7 +203,7 @@ def run_all_commands(ctx: Context, task: str, commands_name='commands', env=None
         with ctx.cd(package.path):
             commands = tool.get(commands_name, [])
             for command in commands:
-                ctx.run(command.format(**fmtkargs))
+                ctx.run(command.format(**fmtkargs), env=env)
 
 
 class TagError(Exception):

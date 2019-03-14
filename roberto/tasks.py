@@ -36,11 +36,8 @@ from .utils import (conda_deactivate, conda_activate, compute_req_hash,
                     iter_packages_tools, run_all_commands)
 
 
-@task
-def sanitize_git(ctx):
-    """Fetch required git branches when absent."""
-    branch = ctx.git.merge_branch
-
+def sanitize_branch(ctx, branch):
+    """Take some basic steps to reasonably assure the presence of a branch."""
     # Test if merge branch is present
     try:
         ctx.run("git rev-parse --verify {}".format(branch))
@@ -57,6 +54,12 @@ def sanitize_git(ctx):
 
     # Last resort: fetch the merge branch
     ctx.run("git fetch origin {0}:{0}".format(branch))
+
+
+@task
+def sanitize_git(ctx):
+    """Fetch required git branches when absent."""
+    sanitize_branch(ctx, ctx.git.merge_branch)
 
 
 @task()
@@ -327,10 +330,12 @@ def deploy(ctx):
                 check_env_var(deploy_var)
                 checked_deploy_vars.add(deploy_var)
         # Collect assets for each tool.
-        pattern = tool.asset_pattern.format(**fmtkargs)
-        assets = glob(pattern)
+        assets = set([])
+        for pattern in tool.asset_patterns:
+            assets.update(glob(pattern.format(**fmtkargs)))
         if not assets:
-            raise Failure("Could not find assets for {}: {}".format(tool.name, pattern))
+            raise Failure("Could not find assets for {}: {}".format(
+                tool.name, ' '.join(tool.asset_patterns)))
         # Check if deployment is needed with deploy_label.
         if ctx.git.deploy_label not in tool.deploy_labels:
             print("Skipping {} for package {}, because of deploy label {}.".format(
@@ -364,6 +369,7 @@ def upload_docs_git(ctx):
             # Switch to a docu branch and remove everything that was present in
             # the previous commit. It is assumed that the doc branch is an
             # orphan branch made previously.
+            sanitize_branch(ctx, tool.docbranch)
             ctx.run("git checkout {}".format(tool.docbranch))
             ctx.run("git ls-tree HEAD -r --name-only | xargs rm")
             # Copy the documentation to the repo root.
