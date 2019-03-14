@@ -176,7 +176,7 @@ tools:
         conda build tools/conda.recipe --override-channel
 
   build-sphinx-doc:
-    task: build-packages
+    task: build-docs
     conda_requirements:
       - sphinx
     pip_requirements:
@@ -190,11 +190,12 @@ tools:
     task: deploy
     conda_requirements:
       - twine
-    deploy-vars:
+    deploy_vars:
       - TWINE_USERNAME
       - TWINE_PASSWORD
-    asset_pattern: '{package.path}/dist/{package.name}-{config.git.tag_version}.*'
-    deploy-labels:
+    asset_patterns:
+      - '{package.path}/dist/{package.name}-{config.git.tag_version}.*'
+    deploy_labels:
       - main
     commands:
       - twine upload {assets}
@@ -203,10 +204,11 @@ tools:
     task: deploy
     conda_requirements:
       - hub
-    deploy-vars:
+    deploy_vars:
       - GITHUB_TOKEN
-    asset_pattern: '{package.path}/dist/{package.name}-{config.git.tag_version}.*'
-    deploy-labels:
+    asset_patterns:
+      - '{package.path}/dist/{package.name}-{config.git.tag_version}.*'
+    deploy_labels:
       - main
     commands:
       - >-
@@ -218,12 +220,21 @@ tools:
     task: deploy
     conda_requirements:
       - anaconda-client
-    deploy-vars:
+    deploy_vars:
       - ANACONDA_API_TOKEN
-    asset_pattern: '{config.conda.build_path}/*/{package.name}-{config.git.tag_version}-*.*'
-    deploy-labels:
+    asset_patterns:
+      - '{config.conda.build_path}/*/{package.name}-{config.git.tag_version}-*.*'
+    deploy_labels:
       - main
       - test
       - dev
     commands:
-      - 'anaconda -v upload --force -l {deploy-label} {assets}'
+      - 'anaconda -v upload --force -l {ctx.git.deploy_label} {assets}'
+
+  upload-docs-gh:
+    task: upload-docs-git
+    docroot: '{package.path}/doc/_build/html'
+    docbranch: gh-pages
+    docremote: origin
+    deploy_labels:
+      - main

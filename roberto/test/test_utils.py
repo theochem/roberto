@@ -84,7 +84,8 @@ def test_parse_git_describe():
         'tag_stable': True,
         'tag_test': False,
         'tag_dev': False,
-        'tag_release': True
+        'tag_release': True,
+        'deploy_label': 'main',
     }
     assert parse_git_describe("0.18.1b1") == {
         'describe': '0.18.1b1',
@@ -98,7 +99,8 @@ def test_parse_git_describe():
         'tag_stable': False,
         'tag_test': True,
         'tag_dev': False,
-        'tag_release': True
+        'tag_release': True,
+        'deploy_label': 'test',
     }
     assert parse_git_describe("30.1.2a7") == {
         'describe': '30.1.2a7',
@@ -112,7 +114,8 @@ def test_parse_git_describe():
         'tag_stable': False,
         'tag_test': False,
         'tag_dev': True,
-        'tag_release': True
+        'tag_release': True,
+        'deploy_label': 'dev',
     }
     assert parse_git_describe("15.13.11a9-10") == {
         'describe': '15.13.11a9-10',
@@ -126,7 +129,8 @@ def test_parse_git_describe():
         'tag_stable': False,
         'tag_test': False,
         'tag_dev': False,
-        'tag_release': False
+        'tag_release': False,
+        'deploy_label': None,
     }
     assert parse_git_describe("1.0.30l") == {
         'describe': '1.0.30l',
@@ -140,7 +144,8 @@ def test_parse_git_describe():
         'tag_stable': False,
         'tag_test': False,
         'tag_dev': False,
-        'tag_release': False
+        'tag_release': False,
+        'deploy_label': None,
     }
     assert parse_git_describe("5.0.0") == {
         'describe': '5.0.0',
@@ -154,7 +159,8 @@ def test_parse_git_describe():
         'tag_stable': True,
         'tag_test': False,
         'tag_dev': False,
-        'tag_release': True
+        'tag_release': True,
+        'deploy_label': 'main',
     }
     assert parse_git_describe("2.7.0-3-foo") == {
         'describe': '2.7.0-3-foo',
@@ -168,7 +174,8 @@ def test_parse_git_describe():
         'tag_stable': False,
         'tag_test': False,
         'tag_dev': False,
-        'tag_release': False
+        'tag_release': False,
+        'deploy_label': None,
     }
     assert parse_git_describe("0.9.0a2") == {
         'describe': '0.9.0a2',
@@ -182,7 +189,8 @@ def test_parse_git_describe():
         'tag_stable': False,
         'tag_test': False,
         'tag_dev': True,
-        'tag_release': True
+        'tag_release': True,
+        'deploy_label': 'dev',
     }
     assert parse_git_describe("0.0.0-666-notag") == {
         'describe': '0.0.0-666-notag',
@@ -196,7 +204,8 @@ def test_parse_git_describe():
         'tag_stable': False,
         'tag_test': False,
         'tag_dev': False,
-        'tag_release': False
+        'tag_release': False,
+        'deploy_label': None,
     }
 
 

@@ -300,24 +300,41 @@ def build_packages(ctx):
                 ctx.run(command.format(**fmtkargs))
 
 
+@task(install_requirements, write_version)
+def build_docs(ctx):
+    """Build documentation."""
+    for tool, package, fmtkargs in iter_packages_tools(ctx, "build-docs"):
+        with ctx.cd(package.path):
+            for command in tool.commands:
+                ctx.run(command.format(**fmtkargs))
+
+
+def need_deployment(ctx, prefix):
+    """Return True if deployment is needed, globally speaking."""
+    if not ctx.deploy:
+        print("{} not requested in configuration.".format(prefix))
+        return False
+    if ctx.git.deploy_label is None:
+        print("{} skipped because the version is not for release: {}".format(
+            prefix, ctx.git.tag_version))
+        return False
+    return True
+
+
+def check_env_var(name):
+    """Check if an environment variable is set and non-empty."""
+    if name not in os.environ:
+        print('The environment variable {} is not set.'.format(name))
+    elif os.environ[name] == "":
+        print('The environment variable {} is empty.'.format(name))
+    else:
+        print('The environment variable {} is not empty.'.format(name))
+
+
 @task(install_requirements, build_packages)
 def deploy(ctx):
     """Run all deployment tasks."""
-    # Check if we need to deploy.
-    if not ctx.deploy:
-        print("Deployment not requested in configuration.")
-        return
-
-    # Get the deployment label, or return if no release is to be made.
-    if ctx.git.tag_stable:
-        deploy_label = "main"
-    elif ctx.git.tag_test:
-        deploy_label = "test"
-    elif ctx.git.tag_dev:
-        deploy_label = "dev"
-    else:
-        print("No deployment because the version is not for release: {}".format(
-            ctx.git.tag_version))
+    if not need_deployment(ctx, "Deployment"):
         return
 
     checked_deploy_vars = set([])
@@ -333,29 +350,52 @@ def deploy(ctx):
         if not assets:
             raise Failure("Could not find assets for {}: {}".format(tool.name, pattern))
         # Check if deployment is needed with deploy_label.
-        if deploy_label not in tool.deploy_labels:
+        if ctx.git.deploy_label not in tool.deploy_labels:
             print("Skipping {} for package {}, because of deploy label {}.".format(
-                tool.name, package.name, deploy_label))
+                tool.name, package.name, ctx.git.deploy_label))
             continue
         # Set extra formatting variables.
         fmtkargs.update({
             'assets': ' '.join(assets),
             'hub_assets': ' '.join('-a {}'.format(asset) for asset in assets),
-            'deploy_label': deploy_label,
         })
         # Run deployment commands.
-        for command in tool.commands:
-            ctx.run(command.format(**fmtkargs))
+        with ctx.cd(package.path):
+            for command in tool.commands:
+                ctx.run(command.format(**fmtkargs))
 
 
-def check_env_var(name):
-    """Check if an environment variable is set and non-empty."""
-    if name not in os.environ:
-        print('The environment variable {} is not set.'.format(name))
-    elif os.environ[name] == "":
-        print('The environment variable {} is empty.'.format(name))
-    else:
-        print('The environment variable {} is not empty.'.format(name))
+@task(install_requirements, build_docs)
+def upload_docs_git(ctx):
+    """Squash-push documentation to a git branch."""
+    if not need_deployment(ctx, "Doc upload"):
+        return
+
+    for tool, package, fmtkargs in iter_packages_tools(ctx, "upload-docs-git"):
+        # Check if deployment is needed with deploy_label.
+        if ctx.git.deploy_label not in tool.deploy_labels:
+            print("Skipping {} for package {}, because of deploy label {}.".format(
+                tool.name, package.name, ctx.git.deploy_label))
+            continue
+
+        with ctx.cd(package.path):
+            # Switch to a docu branch and remove everything that was present in
+            # the previous commit. It is assumed that the doc branch is an
+            # orphan branch made previously.
+            ctx.run("git checkout {}".format(tool.docbranch))
+            ctx.run("git ls-tree HEAD -r --name-only | xargs rm")
+            # Copy the documentation to the repo root.
+            docroot = tool.docroot.format(**fmtkargs)
+            ctx.run("GLOBIGNORE='.:..'; cp -rv {}/* .".format(docroot))
+            # Add all files
+            for root, _dirs, filenames in os.walk(docroot):
+                for filename in filenames:
+                    fullfn = os.path.join(root, filename)[len(docroot)+1:]
+                    ctx.run("git add {}".format(fullfn))
+            # Commit, push and go back to the original branch
+            ctx.run("git commit -a -m 'Automatic documentation update' --amend")
+            ctx.run("git push -f {0} {1}:{1}".format(tool.docremote, tool.docbranch))
+            ctx.run("git checkout {}".format(ctx.git.branch))
 
 
 @task(setup_conda_env)
@@ -372,6 +412,6 @@ def quality(ctx):  # pylint: disable=unused-argument
     """Run all quality assurance tasks: linting and in-place testing."""
 
 
-@task(quality, deploy, default=True)
+@task(quality, deploy, upload_docs_git, default=True)
 def robot(ctx):  # pylint: disable=unused-argument
     """Run all tasks, except nuclear."""

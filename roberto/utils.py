@@ -248,4 +248,12 @@ def parse_git_describe(git_describe: str) -> dict:
         version_info['tag_stable']
         or version_info['tag_test']
         or version_info['tag_dev'])
+    if version_info['tag_stable']:
+        version_info['deploy_label'] = 'main'
+    elif version_info['tag_test']:
+        version_info['deploy_label'] = "test"
+    elif version_info['tag_dev']:
+        version_info['deploy_label'] = "dev"
+    else:
+        version_info['deploy_label'] = None
     return version_info
