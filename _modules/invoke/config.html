@@ -1,0 +1,1425 @@
+
+<!DOCTYPE html>
+
+<html>
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>invoke.config &#8212; Roberto 1.11.0 documentation</title>
+    <link rel="stylesheet" href="../../_static/alabaster.css" type="text/css" />
+    <link rel="stylesheet" href="../../_static/pygments.css" type="text/css" />
+    <script id="documentation_options" data-url_root="../../" src="../../_static/documentation_options.js"></script>
+    <script src="../../_static/jquery.js"></script>
+    <script src="../../_static/underscore.js"></script>
+    <script src="../../_static/doctools.js"></script>
+    <script src="../../_static/language_data.js"></script>
+    <link rel="index" title="Index" href="../../genindex.html" />
+    <link rel="search" title="Search" href="../../search.html" />
+   
+  <link rel="stylesheet" href="../../_static/custom.css" type="text/css" />
+  
+  
+  <meta name="viewport" content="width=device-width, initial-scale=0.9, maximum-scale=0.9" />
+
+  </head><body>
+  
+
+    <div class="document">
+      <div class="documentwrapper">
+        <div class="bodywrapper">
+          
+
+          <div class="body" role="main">
+            
+  <h1>Source code for invoke.config</h1><div class="highlight"><pre>
+<span></span><span class="kn">import</span> <span class="nn">copy</span>
+<span class="kn">import</span> <span class="nn">json</span>
+<span class="kn">import</span> <span class="nn">os</span>
+<span class="kn">import</span> <span class="nn">types</span>
+<span class="kn">from</span> <span class="nn">os.path</span> <span class="kn">import</span> <span class="n">join</span><span class="p">,</span> <span class="n">splitext</span><span class="p">,</span> <span class="n">expanduser</span>
+
+<span class="kn">from</span> <span class="nn">.env</span> <span class="kn">import</span> <span class="n">Environment</span>
+<span class="kn">from</span> <span class="nn">.exceptions</span> <span class="kn">import</span> <span class="n">UnknownFileType</span><span class="p">,</span> <span class="n">UnpicklableConfigMember</span>
+<span class="kn">from</span> <span class="nn">.runners</span> <span class="kn">import</span> <span class="n">Local</span>
+<span class="kn">from</span> <span class="nn">.terminals</span> <span class="kn">import</span> <span class="n">WINDOWS</span>
+<span class="kn">from</span> <span class="nn">.util</span> <span class="kn">import</span> <span class="n">debug</span><span class="p">,</span> <span class="n">six</span><span class="p">,</span> <span class="n">yaml</span>
+
+
+<span class="k">if</span> <span class="n">six</span><span class="o">.</span><span class="n">PY3</span><span class="p">:</span>
+    <span class="k">try</span><span class="p">:</span>
+        <span class="kn">from</span> <span class="nn">importlib.machinery</span> <span class="kn">import</span> <span class="n">SourceFileLoader</span>
+    <span class="k">except</span> <span class="ne">ImportError</span><span class="p">:</span>  <span class="c1"># PyPy3</span>
+        <span class="kn">from</span> <span class="nn">importlib._bootstrap</span> <span class="kn">import</span> <span class="n">_SourceFileLoader</span> <span class="k">as</span> <span class="n">SourceFileLoader</span>
+
+    <span class="k">def</span> <span class="nf">load_source</span><span class="p">(</span><span class="n">name</span><span class="p">,</span> <span class="n">path</span><span class="p">):</span>
+        <span class="k">if</span> <span class="ow">not</span> <span class="n">os</span><span class="o">.</span><span class="n">path</span><span class="o">.</span><span class="n">exists</span><span class="p">(</span><span class="n">path</span><span class="p">):</span>
+            <span class="k">return</span> <span class="p">{}</span>
+        <span class="k">return</span> <span class="nb">vars</span><span class="p">(</span><span class="n">SourceFileLoader</span><span class="p">(</span><span class="s2">&quot;mod&quot;</span><span class="p">,</span> <span class="n">path</span><span class="p">)</span><span class="o">.</span><span class="n">load_module</span><span class="p">())</span>
+
+
+<span class="k">else</span><span class="p">:</span>
+    <span class="kn">import</span> <span class="nn">imp</span>
+
+    <span class="k">def</span> <span class="nf">load_source</span><span class="p">(</span><span class="n">name</span><span class="p">,</span> <span class="n">path</span><span class="p">):</span>
+        <span class="k">if</span> <span class="ow">not</span> <span class="n">os</span><span class="o">.</span><span class="n">path</span><span class="o">.</span><span class="n">exists</span><span class="p">(</span><span class="n">path</span><span class="p">):</span>
+            <span class="k">return</span> <span class="p">{}</span>
+        <span class="k">return</span> <span class="nb">vars</span><span class="p">(</span><span class="n">imp</span><span class="o">.</span><span class="n">load_source</span><span class="p">(</span><span class="s2">&quot;mod&quot;</span><span class="p">,</span> <span class="n">path</span><span class="p">))</span>
+
+
+<span class="k">class</span> <span class="nc">DataProxy</span><span class="p">(</span><span class="nb">object</span><span class="p">):</span>
+    <span class="sd">&quot;&quot;&quot;</span>
+<span class="sd">    Helper class implementing nested dict+attr access for `.Config`.</span>
+
+<span class="sd">    Specifically, is used both for `.Config` itself, and to wrap any other</span>
+<span class="sd">    dicts assigned as config values (recursively).</span>
+
+<span class="sd">    .. warning::</span>
+<span class="sd">        All methods (of this object or in subclasses) must take care to</span>
+<span class="sd">        initialize new attributes via ``self._set(name=&#39;value&#39;)``, or they&#39;ll</span>
+<span class="sd">        run into recursion errors!</span>
+
+<span class="sd">    .. versionadded:: 1.0</span>
+<span class="sd">    &quot;&quot;&quot;</span>
+
+    <span class="c1"># Attributes which get proxied through to inner merged-dict config obj.</span>
+    <span class="n">_proxies</span> <span class="o">=</span> <span class="p">(</span>
+        <span class="nb">tuple</span><span class="p">(</span>
+            <span class="sd">&quot;&quot;&quot;</span>
+<span class="sd">        get</span>
+<span class="sd">        has_key</span>
+<span class="sd">        items</span>
+<span class="sd">        iteritems</span>
+<span class="sd">        iterkeys</span>
+<span class="sd">        itervalues</span>
+<span class="sd">        keys</span>
+<span class="sd">        values</span>
+<span class="sd">    &quot;&quot;&quot;</span><span class="o">.</span><span class="n">split</span><span class="p">()</span>
+        <span class="p">)</span>
+        <span class="o">+</span> <span class="nb">tuple</span><span class="p">(</span>
+            <span class="s2">&quot;__</span><span class="si">{}</span><span class="s2">__&quot;</span><span class="o">.</span><span class="n">format</span><span class="p">(</span><span class="n">x</span><span class="p">)</span>
+            <span class="k">for</span> <span class="n">x</span> <span class="ow">in</span> <span class="s2">&quot;&quot;&quot;</span>
+<span class="s2">        cmp</span>
+<span class="s2">        contains</span>
+<span class="s2">        iter</span>
+<span class="s2">        sizeof</span>
+<span class="s2">    &quot;&quot;&quot;</span><span class="o">.</span><span class="n">split</span><span class="p">()</span>
+        <span class="p">)</span>
+    <span class="p">)</span>
+
+    <span class="nd">@classmethod</span>
+    <span class="k">def</span> <span class="nf">from_data</span><span class="p">(</span><span class="bp">cls</span><span class="p">,</span> <span class="n">data</span><span class="p">,</span> <span class="n">root</span><span class="o">=</span><span class="kc">None</span><span class="p">,</span> <span class="n">keypath</span><span class="o">=</span><span class="nb">tuple</span><span class="p">()):</span>
+        <span class="sd">&quot;&quot;&quot;</span>
+<span class="sd">        Alternate constructor for &#39;baby&#39; DataProxies used as sub-dict values.</span>
+
+<span class="sd">        Allows creating standalone DataProxy objects while also letting</span>
+<span class="sd">        subclasses like `.Config` define their own ``__init__`` without</span>
+<span class="sd">        muddling the two.</span>
+
+<span class="sd">        :param dict data:</span>
+<span class="sd">            This particular DataProxy&#39;s personal data. Required, it&#39;s the Data</span>
+<span class="sd">            being Proxied.</span>
+
+<span class="sd">        :param root:</span>
+<span class="sd">            Optional handle on a root DataProxy/Config which needs notification</span>
+<span class="sd">            on data updates.</span>
+
+<span class="sd">        :param tuple keypath:</span>
+<span class="sd">            Optional tuple describing the path of keys leading to this</span>
+<span class="sd">            DataProxy&#39;s location inside the ``root`` structure. Required if</span>
+<span class="sd">            ``root`` was given (and vice versa.)</span>
+
+<span class="sd">        .. versionadded:: 1.0</span>
+<span class="sd">        &quot;&quot;&quot;</span>
+        <span class="n">obj</span> <span class="o">=</span> <span class="bp">cls</span><span class="p">()</span>
+        <span class="n">obj</span><span class="o">.</span><span class="n">_set</span><span class="p">(</span><span class="n">_config</span><span class="o">=</span><span class="n">data</span><span class="p">)</span>
+        <span class="n">obj</span><span class="o">.</span><span class="n">_set</span><span class="p">(</span><span class="n">_root</span><span class="o">=</span><span class="n">root</span><span class="p">)</span>
+        <span class="n">obj</span><span class="o">.</span><span class="n">_set</span><span class="p">(</span><span class="n">_keypath</span><span class="o">=</span><span class="n">keypath</span><span class="p">)</span>
+        <span class="k">return</span> <span class="n">obj</span>
+
+    <span class="k">def</span> <span class="fm">__getattr__</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">key</span><span class="p">):</span>
+        <span class="c1"># NOTE: due to default Python attribute-lookup semantics, &quot;real&quot;</span>
+        <span class="c1"># attributes will always be yielded on attribute access and this method</span>
+        <span class="c1"># is skipped. That behavior is good for us (it&#39;s more intuitive than</span>
+        <span class="c1"># having a config key accidentally shadow a real attribute or method).</span>
+        <span class="k">try</span><span class="p">:</span>
+            <span class="k">return</span> <span class="bp">self</span><span class="o">.</span><span class="n">_get</span><span class="p">(</span><span class="n">key</span><span class="p">)</span>
+        <span class="k">except</span> <span class="ne">KeyError</span><span class="p">:</span>
+            <span class="c1"># Proxy most special vars to config for dict procotol.</span>
+            <span class="k">if</span> <span class="n">key</span> <span class="ow">in</span> <span class="bp">self</span><span class="o">.</span><span class="n">_proxies</span><span class="p">:</span>
+                <span class="k">return</span> <span class="nb">getattr</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">_config</span><span class="p">,</span> <span class="n">key</span><span class="p">)</span>
+            <span class="c1"># Otherwise, raise useful AttributeError to follow getattr proto.</span>
+            <span class="n">err</span> <span class="o">=</span> <span class="s2">&quot;No attribute or config key found for </span><span class="si">{!r}</span><span class="s2">&quot;</span><span class="o">.</span><span class="n">format</span><span class="p">(</span><span class="n">key</span><span class="p">)</span>
+            <span class="n">attrs</span> <span class="o">=</span> <span class="p">[</span><span class="n">x</span> <span class="k">for</span> <span class="n">x</span> <span class="ow">in</span> <span class="nb">dir</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="vm">__class__</span><span class="p">)</span> <span class="k">if</span> <span class="ow">not</span> <span class="n">x</span><span class="o">.</span><span class="n">startswith</span><span class="p">(</span><span class="s2">&quot;_&quot;</span><span class="p">)]</span>
+            <span class="n">err</span> <span class="o">+=</span> <span class="s2">&quot;</span><span class="se">\n\n</span><span class="s2">Valid keys: </span><span class="si">{!r}</span><span class="s2">&quot;</span><span class="o">.</span><span class="n">format</span><span class="p">(</span>
+                <span class="nb">sorted</span><span class="p">(</span><span class="nb">list</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">_config</span><span class="o">.</span><span class="n">keys</span><span class="p">()))</span>
+            <span class="p">)</span>
+            <span class="n">err</span> <span class="o">+=</span> <span class="s2">&quot;</span><span class="se">\n\n</span><span class="s2">Valid real attributes: </span><span class="si">{!r}</span><span class="s2">&quot;</span><span class="o">.</span><span class="n">format</span><span class="p">(</span><span class="n">attrs</span><span class="p">)</span>
+            <span class="k">raise</span> <span class="ne">AttributeError</span><span class="p">(</span><span class="n">err</span><span class="p">)</span>
+
+    <span class="k">def</span> <span class="fm">__setattr__</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">key</span><span class="p">,</span> <span class="n">value</span><span class="p">):</span>
+        <span class="c1"># Turn attribute-sets into config updates anytime we don&#39;t have a real</span>
+        <span class="c1"># attribute with the given name/key.</span>
+        <span class="n">has_real_attr</span> <span class="o">=</span> <span class="n">key</span> <span class="ow">in</span> <span class="nb">dir</span><span class="p">(</span><span class="bp">self</span><span class="p">)</span>
+        <span class="k">if</span> <span class="ow">not</span> <span class="n">has_real_attr</span><span class="p">:</span>
+            <span class="c1"># Make sure to trigger our own __setitem__ instead of going direct</span>
+            <span class="c1"># to our internal dict/cache</span>
+            <span class="bp">self</span><span class="p">[</span><span class="n">key</span><span class="p">]</span> <span class="o">=</span> <span class="n">value</span>
+        <span class="k">else</span><span class="p">:</span>
+            <span class="nb">super</span><span class="p">(</span><span class="n">DataProxy</span><span class="p">,</span> <span class="bp">self</span><span class="p">)</span><span class="o">.</span><span class="fm">__setattr__</span><span class="p">(</span><span class="n">key</span><span class="p">,</span> <span class="n">value</span><span class="p">)</span>
+
+    <span class="k">def</span> <span class="fm">__iter__</span><span class="p">(</span><span class="bp">self</span><span class="p">):</span>
+        <span class="c1"># For some reason Python is ignoring our __hasattr__ when determining</span>
+        <span class="c1"># whether we support __iter__. BOO</span>
+        <span class="k">return</span> <span class="nb">iter</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">_config</span><span class="p">)</span>
+
+    <span class="k">def</span> <span class="fm">__eq__</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">other</span><span class="p">):</span>
+        <span class="c1"># NOTE: Can&#39;t proxy __eq__ because the RHS will always be an obj of the</span>
+        <span class="c1"># current class, not the proxied-to class, and that causes</span>
+        <span class="c1"># NotImplemented.</span>
+        <span class="c1"># Try comparing to other objects like ourselves, falling back to a not</span>
+        <span class="c1"># very comparable value (None) so comparison fails.</span>
+        <span class="n">other_val</span> <span class="o">=</span> <span class="nb">getattr</span><span class="p">(</span><span class="n">other</span><span class="p">,</span> <span class="s2">&quot;_config&quot;</span><span class="p">,</span> <span class="kc">None</span><span class="p">)</span>
+        <span class="c1"># But we can compare to vanilla dicts just fine, since our _config is</span>
+        <span class="c1"># itself just a dict.</span>
+        <span class="k">if</span> <span class="nb">isinstance</span><span class="p">(</span><span class="n">other</span><span class="p">,</span> <span class="nb">dict</span><span class="p">):</span>
+            <span class="n">other_val</span> <span class="o">=</span> <span class="n">other</span>
+        <span class="k">return</span> <span class="bp">self</span><span class="o">.</span><span class="n">_config</span> <span class="o">==</span> <span class="n">other_val</span>
+
+    <span class="c1"># Make unhashable, because our entire raison d&#39;etre is to be somewhat</span>
+    <span class="c1"># mutable. Subclasses with mutable attributes may override this.</span>
+    <span class="c1"># NOTE: this is mostly a concession to Python 2, v3 does it automatically.</span>
+    <span class="fm">__hash__</span> <span class="o">=</span> <span class="kc">None</span>
+
+    <span class="k">def</span> <span class="fm">__len__</span><span class="p">(</span><span class="bp">self</span><span class="p">):</span>
+        <span class="k">return</span> <span class="nb">len</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">_config</span><span class="p">)</span>
+
+    <span class="k">def</span> <span class="fm">__setitem__</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">key</span><span class="p">,</span> <span class="n">value</span><span class="p">):</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">_config</span><span class="p">[</span><span class="n">key</span><span class="p">]</span> <span class="o">=</span> <span class="n">value</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">_track_modification_of</span><span class="p">(</span><span class="n">key</span><span class="p">,</span> <span class="n">value</span><span class="p">)</span>
+
+    <span class="k">def</span> <span class="fm">__getitem__</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">key</span><span class="p">):</span>
+        <span class="k">return</span> <span class="bp">self</span><span class="o">.</span><span class="n">_get</span><span class="p">(</span><span class="n">key</span><span class="p">)</span>
+
+    <span class="k">def</span> <span class="nf">_get</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">key</span><span class="p">):</span>
+        <span class="c1"># Short-circuit if pickling/copying mechanisms are asking if we&#39;ve got</span>
+        <span class="c1"># __setstate__ etc; they&#39;ll ask this w/o calling our __init__ first, so</span>
+        <span class="c1"># we&#39;d be in a RecursionError-causing catch-22 otherwise.</span>
+        <span class="k">if</span> <span class="n">key</span> <span class="ow">in</span> <span class="p">(</span><span class="s2">&quot;__setstate__&quot;</span><span class="p">,):</span>
+            <span class="k">raise</span> <span class="ne">AttributeError</span><span class="p">(</span><span class="n">key</span><span class="p">)</span>
+        <span class="c1"># At this point we should be able to assume a self._config...</span>
+        <span class="n">value</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">_config</span><span class="p">[</span><span class="n">key</span><span class="p">]</span>
+        <span class="k">if</span> <span class="nb">isinstance</span><span class="p">(</span><span class="n">value</span><span class="p">,</span> <span class="nb">dict</span><span class="p">):</span>
+            <span class="c1"># New object&#39;s keypath is simply the key, prepended with our own</span>
+            <span class="c1"># keypath if we&#39;ve got one.</span>
+            <span class="n">keypath</span> <span class="o">=</span> <span class="p">(</span><span class="n">key</span><span class="p">,)</span>
+            <span class="k">if</span> <span class="nb">hasattr</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="s2">&quot;_keypath&quot;</span><span class="p">):</span>
+                <span class="n">keypath</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">_keypath</span> <span class="o">+</span> <span class="n">keypath</span>
+            <span class="c1"># If we have no _root, we must be the root, so it&#39;s us. Otherwise,</span>
+            <span class="c1"># pass along our handle on the root.</span>
+            <span class="n">root</span> <span class="o">=</span> <span class="nb">getattr</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="s2">&quot;_root&quot;</span><span class="p">,</span> <span class="bp">self</span><span class="p">)</span>
+            <span class="n">value</span> <span class="o">=</span> <span class="n">DataProxy</span><span class="o">.</span><span class="n">from_data</span><span class="p">(</span><span class="n">data</span><span class="o">=</span><span class="n">value</span><span class="p">,</span> <span class="n">root</span><span class="o">=</span><span class="n">root</span><span class="p">,</span> <span class="n">keypath</span><span class="o">=</span><span class="n">keypath</span><span class="p">)</span>
+        <span class="k">return</span> <span class="n">value</span>
+
+    <span class="k">def</span> <span class="nf">_set</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="o">*</span><span class="n">args</span><span class="p">,</span> <span class="o">**</span><span class="n">kwargs</span><span class="p">):</span>
+        <span class="sd">&quot;&quot;&quot;</span>
+<span class="sd">        Convenience workaround of default &#39;attrs are config keys&#39; behavior.</span>
+
+<span class="sd">        Uses `object.__setattr__` to work around the class&#39; normal proxying</span>
+<span class="sd">        behavior, but is less verbose than using that directly.</span>
+
+<span class="sd">        Has two modes (which may be combined if you really want):</span>
+
+<span class="sd">        - ``self._set(&#39;attrname&#39;, value)``, just like ``__setattr__``</span>
+<span class="sd">        - ``self._set(attname=value)`` (i.e. kwargs), even less typing.</span>
+<span class="sd">        &quot;&quot;&quot;</span>
+        <span class="k">if</span> <span class="n">args</span><span class="p">:</span>
+            <span class="nb">object</span><span class="o">.</span><span class="fm">__setattr__</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="o">*</span><span class="n">args</span><span class="p">)</span>
+        <span class="k">for</span> <span class="n">key</span><span class="p">,</span> <span class="n">value</span> <span class="ow">in</span> <span class="n">six</span><span class="o">.</span><span class="n">iteritems</span><span class="p">(</span><span class="n">kwargs</span><span class="p">):</span>
+            <span class="nb">object</span><span class="o">.</span><span class="fm">__setattr__</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">key</span><span class="p">,</span> <span class="n">value</span><span class="p">)</span>
+
+    <span class="k">def</span> <span class="fm">__repr__</span><span class="p">(</span><span class="bp">self</span><span class="p">):</span>
+        <span class="k">return</span> <span class="s2">&quot;&lt;</span><span class="si">{}</span><span class="s2">: </span><span class="si">{}</span><span class="s2">&gt;&quot;</span><span class="o">.</span><span class="n">format</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="vm">__class__</span><span class="o">.</span><span class="vm">__name__</span><span class="p">,</span> <span class="bp">self</span><span class="o">.</span><span class="n">_config</span><span class="p">)</span>
+
+    <span class="k">def</span> <span class="fm">__contains__</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">key</span><span class="p">):</span>
+        <span class="k">return</span> <span class="n">key</span> <span class="ow">in</span> <span class="bp">self</span><span class="o">.</span><span class="n">_config</span>
+
+    <span class="nd">@property</span>
+    <span class="k">def</span> <span class="nf">_is_leaf</span><span class="p">(</span><span class="bp">self</span><span class="p">):</span>
+        <span class="k">return</span> <span class="nb">hasattr</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="s2">&quot;_root&quot;</span><span class="p">)</span>
+
+    <span class="nd">@property</span>
+    <span class="k">def</span> <span class="nf">_is_root</span><span class="p">(</span><span class="bp">self</span><span class="p">):</span>
+        <span class="k">return</span> <span class="nb">hasattr</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="s2">&quot;_modify&quot;</span><span class="p">)</span>
+
+    <span class="k">def</span> <span class="nf">_track_removal_of</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">key</span><span class="p">):</span>
+        <span class="c1"># Grab the root object responsible for tracking removals; either the</span>
+        <span class="c1"># referenced root (if we&#39;re a leaf) or ourselves (if we&#39;re not).</span>
+        <span class="c1"># (Intermediate nodes never have anything but __getitem__ called on</span>
+        <span class="c1"># them, otherwise they&#39;re by definition being treated as a leaf.)</span>
+        <span class="n">target</span> <span class="o">=</span> <span class="kc">None</span>
+        <span class="k">if</span> <span class="bp">self</span><span class="o">.</span><span class="n">_is_leaf</span><span class="p">:</span>
+            <span class="n">target</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">_root</span>
+        <span class="k">elif</span> <span class="bp">self</span><span class="o">.</span><span class="n">_is_root</span><span class="p">:</span>
+            <span class="n">target</span> <span class="o">=</span> <span class="bp">self</span>
+        <span class="k">if</span> <span class="n">target</span> <span class="ow">is</span> <span class="ow">not</span> <span class="kc">None</span><span class="p">:</span>
+            <span class="n">target</span><span class="o">.</span><span class="n">_remove</span><span class="p">(</span><span class="nb">getattr</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="s2">&quot;_keypath&quot;</span><span class="p">,</span> <span class="nb">tuple</span><span class="p">()),</span> <span class="n">key</span><span class="p">)</span>
+
+    <span class="k">def</span> <span class="nf">_track_modification_of</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">key</span><span class="p">,</span> <span class="n">value</span><span class="p">):</span>
+        <span class="n">target</span> <span class="o">=</span> <span class="kc">None</span>
+        <span class="k">if</span> <span class="bp">self</span><span class="o">.</span><span class="n">_is_leaf</span><span class="p">:</span>
+            <span class="n">target</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">_root</span>
+        <span class="k">elif</span> <span class="bp">self</span><span class="o">.</span><span class="n">_is_root</span><span class="p">:</span>
+            <span class="n">target</span> <span class="o">=</span> <span class="bp">self</span>
+        <span class="k">if</span> <span class="n">target</span> <span class="ow">is</span> <span class="ow">not</span> <span class="kc">None</span><span class="p">:</span>
+            <span class="n">target</span><span class="o">.</span><span class="n">_modify</span><span class="p">(</span><span class="nb">getattr</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="s2">&quot;_keypath&quot;</span><span class="p">,</span> <span class="nb">tuple</span><span class="p">()),</span> <span class="n">key</span><span class="p">,</span> <span class="n">value</span><span class="p">)</span>
+
+    <span class="k">def</span> <span class="fm">__delitem__</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">key</span><span class="p">):</span>
+        <span class="k">del</span> <span class="bp">self</span><span class="o">.</span><span class="n">_config</span><span class="p">[</span><span class="n">key</span><span class="p">]</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">_track_removal_of</span><span class="p">(</span><span class="n">key</span><span class="p">)</span>
+
+    <span class="k">def</span> <span class="fm">__delattr__</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">name</span><span class="p">):</span>
+        <span class="c1"># Make sure we don&#39;t screw up true attribute deletion for the</span>
+        <span class="c1"># situations that actually want it. (Uncommon, but not rare.)</span>
+        <span class="k">if</span> <span class="n">name</span> <span class="ow">in</span> <span class="bp">self</span><span class="p">:</span>
+            <span class="k">del</span> <span class="bp">self</span><span class="p">[</span><span class="n">name</span><span class="p">]</span>
+        <span class="k">else</span><span class="p">:</span>
+            <span class="nb">object</span><span class="o">.</span><span class="fm">__delattr__</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">name</span><span class="p">)</span>
+
+    <span class="k">def</span> <span class="nf">clear</span><span class="p">(</span><span class="bp">self</span><span class="p">):</span>
+        <span class="n">keys</span> <span class="o">=</span> <span class="nb">list</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">keys</span><span class="p">())</span>
+        <span class="k">for</span> <span class="n">key</span> <span class="ow">in</span> <span class="n">keys</span><span class="p">:</span>
+            <span class="k">del</span> <span class="bp">self</span><span class="p">[</span><span class="n">key</span><span class="p">]</span>
+
+    <span class="k">def</span> <span class="nf">pop</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="o">*</span><span class="n">args</span><span class="p">):</span>
+        <span class="c1"># Must test this up front before (possibly) mutating self._config</span>
+        <span class="n">key_existed</span> <span class="o">=</span> <span class="n">args</span> <span class="ow">and</span> <span class="n">args</span><span class="p">[</span><span class="mi">0</span><span class="p">]</span> <span class="ow">in</span> <span class="bp">self</span><span class="o">.</span><span class="n">_config</span>
+        <span class="c1"># We always have a _config (whether it&#39;s a real dict or a cache of</span>
+        <span class="c1"># merged levels) so we can fall back to it for all the corner case</span>
+        <span class="c1"># handling re: args (arity, handling a default, raising KeyError, etc)</span>
+        <span class="n">ret</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">_config</span><span class="o">.</span><span class="n">pop</span><span class="p">(</span><span class="o">*</span><span class="n">args</span><span class="p">)</span>
+        <span class="c1"># If it looks like no popping occurred (key wasn&#39;t there), presumably</span>
+        <span class="c1"># user gave default, so we can short-circuit return here - no need to</span>
+        <span class="c1"># track a deletion that did not happen.</span>
+        <span class="k">if</span> <span class="ow">not</span> <span class="n">key_existed</span><span class="p">:</span>
+            <span class="k">return</span> <span class="n">ret</span>
+        <span class="c1"># Here, we can assume at least the 1st posarg (key) existed.</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">_track_removal_of</span><span class="p">(</span><span class="n">args</span><span class="p">[</span><span class="mi">0</span><span class="p">])</span>
+        <span class="c1"># In all cases, return the popped value.</span>
+        <span class="k">return</span> <span class="n">ret</span>
+
+    <span class="k">def</span> <span class="nf">popitem</span><span class="p">(</span><span class="bp">self</span><span class="p">):</span>
+        <span class="n">ret</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">_config</span><span class="o">.</span><span class="n">popitem</span><span class="p">()</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">_track_removal_of</span><span class="p">(</span><span class="n">ret</span><span class="p">[</span><span class="mi">0</span><span class="p">])</span>
+        <span class="k">return</span> <span class="n">ret</span>
+
+    <span class="k">def</span> <span class="nf">setdefault</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="o">*</span><span class="n">args</span><span class="p">):</span>
+        <span class="c1"># Must test up front whether the key existed beforehand</span>
+        <span class="n">key_existed</span> <span class="o">=</span> <span class="n">args</span> <span class="ow">and</span> <span class="n">args</span><span class="p">[</span><span class="mi">0</span><span class="p">]</span> <span class="ow">in</span> <span class="bp">self</span><span class="o">.</span><span class="n">_config</span>
+        <span class="c1"># Run locally</span>
+        <span class="n">ret</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">_config</span><span class="o">.</span><span class="n">setdefault</span><span class="p">(</span><span class="o">*</span><span class="n">args</span><span class="p">)</span>
+        <span class="c1"># Key already existed -&gt; nothing was mutated, short-circuit</span>
+        <span class="k">if</span> <span class="n">key_existed</span><span class="p">:</span>
+            <span class="k">return</span> <span class="n">ret</span>
+        <span class="c1"># Here, we can assume the key did not exist and thus user must have</span>
+        <span class="c1"># supplied a &#39;default&#39; (if they did not, the real setdefault() above</span>
+        <span class="c1"># would have excepted.)</span>
+        <span class="n">key</span><span class="p">,</span> <span class="n">default</span> <span class="o">=</span> <span class="n">args</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">_track_modification_of</span><span class="p">(</span><span class="n">key</span><span class="p">,</span> <span class="n">default</span><span class="p">)</span>
+        <span class="k">return</span> <span class="n">ret</span>
+
+    <span class="k">def</span> <span class="nf">update</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="o">*</span><span class="n">args</span><span class="p">,</span> <span class="o">**</span><span class="n">kwargs</span><span class="p">):</span>
+        <span class="k">if</span> <span class="n">kwargs</span><span class="p">:</span>
+            <span class="k">for</span> <span class="n">key</span><span class="p">,</span> <span class="n">value</span> <span class="ow">in</span> <span class="n">six</span><span class="o">.</span><span class="n">iteritems</span><span class="p">(</span><span class="n">kwargs</span><span class="p">):</span>
+                <span class="bp">self</span><span class="p">[</span><span class="n">key</span><span class="p">]</span> <span class="o">=</span> <span class="n">value</span>
+        <span class="k">elif</span> <span class="n">args</span><span class="p">:</span>
+            <span class="c1"># TODO: complain if arity&gt;1</span>
+            <span class="n">arg</span> <span class="o">=</span> <span class="n">args</span><span class="p">[</span><span class="mi">0</span><span class="p">]</span>
+            <span class="k">if</span> <span class="nb">isinstance</span><span class="p">(</span><span class="n">arg</span><span class="p">,</span> <span class="nb">dict</span><span class="p">):</span>
+                <span class="k">for</span> <span class="n">key</span> <span class="ow">in</span> <span class="n">arg</span><span class="p">:</span>
+                    <span class="bp">self</span><span class="p">[</span><span class="n">key</span><span class="p">]</span> <span class="o">=</span> <span class="n">arg</span><span class="p">[</span><span class="n">key</span><span class="p">]</span>
+            <span class="k">else</span><span class="p">:</span>
+                <span class="c1"># TODO: be stricter about input in this case</span>
+                <span class="k">for</span> <span class="n">pair</span> <span class="ow">in</span> <span class="n">arg</span><span class="p">:</span>
+                    <span class="bp">self</span><span class="p">[</span><span class="n">pair</span><span class="p">[</span><span class="mi">0</span><span class="p">]]</span> <span class="o">=</span> <span class="n">pair</span><span class="p">[</span><span class="mi">1</span><span class="p">]</span>
+
+
+<span class="k">class</span> <span class="nc">Config</span><span class="p">(</span><span class="n">DataProxy</span><span class="p">):</span>
+    <span class="sd">&quot;&quot;&quot;</span>
+<span class="sd">    Invoke&#39;s primary configuration handling class.</span>
+
+<span class="sd">    See :doc:`/concepts/configuration` for details on the configuration system</span>
+<span class="sd">    this class implements, including the :ref:`configuration hierarchy</span>
+<span class="sd">    &lt;config-hierarchy&gt;`. The rest of this class&#39; documentation assumes</span>
+<span class="sd">    familiarity with that document.</span>
+
+<span class="sd">    **Access**</span>
+
+<span class="sd">    Configuration values may be accessed and/or updated using dict syntax::</span>
+
+<span class="sd">        config[&#39;foo&#39;]</span>
+
+<span class="sd">    or attribute syntax::</span>
+
+<span class="sd">        config.foo</span>
+
+<span class="sd">    Nesting works the same way - dict config values are turned into objects</span>
+<span class="sd">    which honor both the dictionary protocol and the attribute-access method::</span>
+
+<span class="sd">       config[&#39;foo&#39;][&#39;bar&#39;]</span>
+<span class="sd">       config.foo.bar</span>
+
+<span class="sd">    **A note about attribute access and methods**</span>
+
+<span class="sd">    This class implements the entire dictionary protocol: methods such as</span>
+<span class="sd">    ``keys``, ``values``, ``items``, ``pop`` and so forth should all function</span>
+<span class="sd">    as they do on regular dicts. It also implements new config-specific methods</span>
+<span class="sd">    such as `load_system`, `load_collection`, `merge`, `clone`, etc.</span>
+
+<span class="sd">    .. warning::</span>
+<span class="sd">        Accordingly, this means that if you have configuration options sharing</span>
+<span class="sd">        names with these methods, you **must** use dictionary syntax (e.g.</span>
+<span class="sd">        ``myconfig[&#39;keys&#39;]``) to access the configuration data.</span>
+
+<span class="sd">    **Lifecycle**</span>
+
+<span class="sd">    At initialization time, `.Config`:</span>
+
+<span class="sd">    - creates per-level data structures;</span>
+<span class="sd">    - stores any levels supplied to `__init__`, such as defaults or overrides,</span>
+<span class="sd">      as well as the various config file paths/filename patterns;</span>
+<span class="sd">    - and loads config files, if found (though typically this just means system</span>
+<span class="sd">      and user-level files, as project and runtime files need more info before</span>
+<span class="sd">      they can be found and loaded.)</span>
+
+<span class="sd">        - This step can be skipped by specifying ``lazy=True``.</span>
+
+<span class="sd">    At this point, `.Config` is fully usable - and because it pre-emptively</span>
+<span class="sd">    loads some config files, those config files can affect anything that</span>
+<span class="sd">    comes after, like CLI parsing or loading of task collections.</span>
+
+<span class="sd">    In the CLI use case, further processing is done after instantiation, using</span>
+<span class="sd">    the ``load_*`` methods such as `load_overrides`, `load_project`, etc:</span>
+
+<span class="sd">    - the result of argument/option parsing is applied to the overrides level;</span>
+<span class="sd">    - a project-level config file is loaded, as it&#39;s dependent on a loaded</span>
+<span class="sd">      tasks collection;</span>
+<span class="sd">    - a runtime config file is loaded, if its flag was supplied;</span>
+<span class="sd">    - then, for each task being executed:</span>
+
+<span class="sd">        - per-collection data is loaded (only possible now that we have</span>
+<span class="sd">          collection &amp; task in hand);</span>
+<span class="sd">        - shell environment data is loaded (must be done at end of process due</span>
+<span class="sd">          to using the rest of the config as a guide for interpreting env var</span>
+<span class="sd">          names.)</span>
+
+<span class="sd">    At this point, the config object is handed to the task being executed, as</span>
+<span class="sd">    part of its execution `.Context`.</span>
+
+<span class="sd">    Any modifications made directly to the `.Config` itself after this point</span>
+<span class="sd">    end up stored in their own (topmost) config level, making it easier to</span>
+<span class="sd">    debug final values.</span>
+
+<span class="sd">    Finally, any *deletions* made to the `.Config` (e.g. applications of</span>
+<span class="sd">    dict-style mutators like ``pop``, ``clear`` etc) are also tracked in their</span>
+<span class="sd">    own structure, allowing the config object to honor such method calls</span>
+<span class="sd">    without mutating the underlying source data.</span>
+
+<span class="sd">    **Special class attributes**</span>
+
+<span class="sd">    The following class-level attributes are used for low-level configuration</span>
+<span class="sd">    of the config system itself, such as which file paths to load. They are</span>
+<span class="sd">    primarily intended for overriding by subclasses.</span>
+
+<span class="sd">    - ``prefix``: Supplies the default value for ``file_prefix`` (directly) and</span>
+<span class="sd">      ``env_prefix`` (uppercased). See their descriptions for details. Its</span>
+<span class="sd">      default value is ``&quot;invoke&quot;``.</span>
+<span class="sd">    - ``file_prefix``: The config file &#39;basename&#39; default (though it is not a</span>
+<span class="sd">      literal basename; it can contain path parts if desired) which is appended</span>
+<span class="sd">      to the configured values of ``system_prefix``, ``user_prefix``, etc, to</span>
+<span class="sd">      arrive at the final (pre-extension) file paths.</span>
+
+<span class="sd">      Thus, by default, a system-level config file path concatenates the</span>
+<span class="sd">      ``system_prefix`` of ``/etc/`` with the ``file_prefix`` of ``invoke`` to</span>
+<span class="sd">      arrive at paths like ``/etc/invoke.json``.</span>
+
+<span class="sd">      Defaults to ``None``, meaning to use the value of ``prefix``.</span>
+
+<span class="sd">    - ``env_prefix``: A prefix used (along with a joining underscore) to</span>
+<span class="sd">      determine which environment variables are loaded as the env var</span>
+<span class="sd">      configuration level. Since its default is the value of ``prefix``</span>
+<span class="sd">      capitalized, this means env vars like ``INVOKE_RUN_ECHO`` are sought by</span>
+<span class="sd">      default.</span>
+
+<span class="sd">      Defaults to ``None``, meaning to use the value of ``prefix``.</span>
+
+<span class="sd">    .. versionadded:: 1.0</span>
+<span class="sd">    &quot;&quot;&quot;</span>
+
+    <span class="n">prefix</span> <span class="o">=</span> <span class="s2">&quot;invoke&quot;</span>
+    <span class="n">file_prefix</span> <span class="o">=</span> <span class="kc">None</span>
+    <span class="n">env_prefix</span> <span class="o">=</span> <span class="kc">None</span>
+
+    <span class="nd">@staticmethod</span>
+    <span class="k">def</span> <span class="nf">global_defaults</span><span class="p">():</span>
+        <span class="sd">&quot;&quot;&quot;</span>
+<span class="sd">        Return the core default settings for Invoke.</span>
+
+<span class="sd">        Generally only for use by `.Config` internals. For descriptions of</span>
+<span class="sd">        these values, see :ref:`default-values`.</span>
+
+<span class="sd">        Subclasses may choose to override this method, calling</span>
+<span class="sd">        ``Config.global_defaults`` and applying `.merge_dicts` to the result,</span>
+<span class="sd">        to add to or modify these values.</span>
+
+<span class="sd">        .. versionadded:: 1.0</span>
+<span class="sd">        &quot;&quot;&quot;</span>
+        <span class="c1"># On Windows, which won&#39;t have /bin/bash, check for a set COMSPEC env</span>
+        <span class="c1"># var (https://en.wikipedia.org/wiki/COMSPEC) or fallback to an</span>
+        <span class="c1"># unqualified cmd.exe otherwise.</span>
+        <span class="k">if</span> <span class="n">WINDOWS</span><span class="p">:</span>
+            <span class="n">shell</span> <span class="o">=</span> <span class="n">os</span><span class="o">.</span><span class="n">environ</span><span class="o">.</span><span class="n">get</span><span class="p">(</span><span class="s2">&quot;COMSPEC&quot;</span><span class="p">,</span> <span class="s2">&quot;cmd.exe&quot;</span><span class="p">)</span>
+        <span class="c1"># Else, assume Unix, most distros of which have /bin/bash available.</span>
+        <span class="c1"># TODO: consider an automatic fallback to /bin/sh for systems lacking</span>
+        <span class="c1"># /bin/bash; however users may configure run.shell quite easily, so...</span>
+        <span class="k">else</span><span class="p">:</span>
+            <span class="n">shell</span> <span class="o">=</span> <span class="s2">&quot;/bin/bash&quot;</span>
+
+        <span class="k">return</span> <span class="p">{</span>
+            <span class="c1"># TODO: we document &#39;debug&#39; but it&#39;s not truly implemented outside</span>
+            <span class="c1"># of env var and CLI flag. If we honor it, we have to go around and</span>
+            <span class="c1"># figure out at what points we might want to call</span>
+            <span class="c1"># `util.enable_logging`:</span>
+            <span class="c1"># - just using it as a fallback default for arg parsing isn&#39;t much</span>
+            <span class="c1"># use, as at that point the config holds nothing but defaults &amp; CLI</span>
+            <span class="c1"># flag values</span>
+            <span class="c1"># - doing it at file load time might be somewhat useful, though</span>
+            <span class="c1"># where this happens may be subject to change soon</span>
+            <span class="c1"># - doing it at env var load time seems a bit silly given the</span>
+            <span class="c1"># existing support for at-startup testing for INVOKE_DEBUG</span>
+            <span class="c1"># &#39;debug&#39;: False,</span>
+            <span class="c1"># TODO: I feel like we want these to be more consistent re: default</span>
+            <span class="c1"># values stored here vs &#39;stored&#39; as logic where they are</span>
+            <span class="c1"># referenced, there are probably some bits that are all &quot;if None -&gt;</span>
+            <span class="c1"># default&quot; that could go here. Alternately, make _more_ of these</span>
+            <span class="c1"># default to None?</span>
+            <span class="s2">&quot;run&quot;</span><span class="p">:</span> <span class="p">{</span>
+                <span class="s2">&quot;asynchronous&quot;</span><span class="p">:</span> <span class="kc">False</span><span class="p">,</span>
+                <span class="s2">&quot;disown&quot;</span><span class="p">:</span> <span class="kc">False</span><span class="p">,</span>
+                <span class="s2">&quot;dry&quot;</span><span class="p">:</span> <span class="kc">False</span><span class="p">,</span>
+                <span class="s2">&quot;echo&quot;</span><span class="p">:</span> <span class="kc">False</span><span class="p">,</span>
+                <span class="s2">&quot;echo_stdin&quot;</span><span class="p">:</span> <span class="kc">None</span><span class="p">,</span>
+                <span class="s2">&quot;encoding&quot;</span><span class="p">:</span> <span class="kc">None</span><span class="p">,</span>
+                <span class="s2">&quot;env&quot;</span><span class="p">:</span> <span class="p">{},</span>
+                <span class="s2">&quot;err_stream&quot;</span><span class="p">:</span> <span class="kc">None</span><span class="p">,</span>
+                <span class="s2">&quot;fallback&quot;</span><span class="p">:</span> <span class="kc">True</span><span class="p">,</span>
+                <span class="s2">&quot;hide&quot;</span><span class="p">:</span> <span class="kc">None</span><span class="p">,</span>
+                <span class="s2">&quot;in_stream&quot;</span><span class="p">:</span> <span class="kc">None</span><span class="p">,</span>
+                <span class="s2">&quot;out_stream&quot;</span><span class="p">:</span> <span class="kc">None</span><span class="p">,</span>
+                <span class="s2">&quot;pty&quot;</span><span class="p">:</span> <span class="kc">False</span><span class="p">,</span>
+                <span class="s2">&quot;replace_env&quot;</span><span class="p">:</span> <span class="kc">False</span><span class="p">,</span>
+                <span class="s2">&quot;shell&quot;</span><span class="p">:</span> <span class="n">shell</span><span class="p">,</span>
+                <span class="s2">&quot;warn&quot;</span><span class="p">:</span> <span class="kc">False</span><span class="p">,</span>
+                <span class="s2">&quot;watchers&quot;</span><span class="p">:</span> <span class="p">[],</span>
+            <span class="p">},</span>
+            <span class="c1"># This doesn&#39;t live inside the &#39;run&#39; tree; otherwise it&#39;d make it</span>
+            <span class="c1"># somewhat harder to extend/override in Fabric 2 which has a split</span>
+            <span class="c1"># local/remote runner situation.</span>
+            <span class="s2">&quot;runners&quot;</span><span class="p">:</span> <span class="p">{</span><span class="s2">&quot;local&quot;</span><span class="p">:</span> <span class="n">Local</span><span class="p">},</span>
+            <span class="s2">&quot;sudo&quot;</span><span class="p">:</span> <span class="p">{</span>
+                <span class="s2">&quot;password&quot;</span><span class="p">:</span> <span class="kc">None</span><span class="p">,</span>
+                <span class="s2">&quot;prompt&quot;</span><span class="p">:</span> <span class="s2">&quot;[sudo] password: &quot;</span><span class="p">,</span>
+                <span class="s2">&quot;user&quot;</span><span class="p">:</span> <span class="kc">None</span><span class="p">,</span>
+            <span class="p">},</span>
+            <span class="s2">&quot;tasks&quot;</span><span class="p">:</span> <span class="p">{</span>
+                <span class="s2">&quot;auto_dash_names&quot;</span><span class="p">:</span> <span class="kc">True</span><span class="p">,</span>
+                <span class="s2">&quot;collection_name&quot;</span><span class="p">:</span> <span class="s2">&quot;tasks&quot;</span><span class="p">,</span>
+                <span class="s2">&quot;dedupe&quot;</span><span class="p">:</span> <span class="kc">True</span><span class="p">,</span>
+                <span class="s2">&quot;executor_class&quot;</span><span class="p">:</span> <span class="kc">None</span><span class="p">,</span>
+                <span class="s2">&quot;search_root&quot;</span><span class="p">:</span> <span class="kc">None</span><span class="p">,</span>
+            <span class="p">},</span>
+            <span class="s2">&quot;timeouts&quot;</span><span class="p">:</span> <span class="p">{</span><span class="s2">&quot;command&quot;</span><span class="p">:</span> <span class="kc">None</span><span class="p">},</span>
+        <span class="p">}</span>
+
+    <span class="k">def</span> <span class="fm">__init__</span><span class="p">(</span>
+        <span class="bp">self</span><span class="p">,</span>
+        <span class="n">overrides</span><span class="o">=</span><span class="kc">None</span><span class="p">,</span>
+        <span class="n">defaults</span><span class="o">=</span><span class="kc">None</span><span class="p">,</span>
+        <span class="n">system_prefix</span><span class="o">=</span><span class="kc">None</span><span class="p">,</span>
+        <span class="n">user_prefix</span><span class="o">=</span><span class="kc">None</span><span class="p">,</span>
+        <span class="n">project_location</span><span class="o">=</span><span class="kc">None</span><span class="p">,</span>
+        <span class="n">runtime_path</span><span class="o">=</span><span class="kc">None</span><span class="p">,</span>
+        <span class="n">lazy</span><span class="o">=</span><span class="kc">False</span><span class="p">,</span>
+    <span class="p">):</span>
+        <span class="sd">&quot;&quot;&quot;</span>
+<span class="sd">        Creates a new config object.</span>
+
+<span class="sd">        :param dict defaults:</span>
+<span class="sd">            A dict containing default (lowest level) config data. Default:</span>
+<span class="sd">            `global_defaults`.</span>
+
+<span class="sd">        :param dict overrides:</span>
+<span class="sd">            A dict containing override-level config data. Default: ``{}``.</span>
+
+<span class="sd">        :param str system_prefix:</span>
+<span class="sd">            Base path for the global config file location; combined with the</span>
+<span class="sd">            prefix and file suffixes to arrive at final file path candidates.</span>
+
+<span class="sd">            Default: ``/etc/`` (thus e.g. ``/etc/invoke.yaml`` or</span>
+<span class="sd">            ``/etc/invoke.json``).</span>
+
+<span class="sd">        :param str user_prefix:</span>
+<span class="sd">            Like ``system_prefix`` but for the per-user config file. These</span>
+<span class="sd">            variables are joined as strings, not via path-style joins, so they</span>
+<span class="sd">            may contain partial file paths; for the per-user config file this</span>
+<span class="sd">            often means a leading dot, to make the final result a hidden file</span>
+<span class="sd">            on most systems.</span>
+
+<span class="sd">            Default: ``~/.`` (e.g. ``~/.invoke.yaml``).</span>
+
+<span class="sd">        :param str project_location:</span>
+<span class="sd">            Optional directory path of the currently loaded `.Collection` (as</span>
+<span class="sd">            loaded by `.Loader`). When non-empty, will trigger seeking of</span>
+<span class="sd">            per-project config files in this directory.</span>
+
+<span class="sd">        :param str runtime_path:</span>
+<span class="sd">            Optional file path to a runtime configuration file.</span>
+
+<span class="sd">            Used to fill the penultimate slot in the config hierarchy. Should</span>
+<span class="sd">            be a full file path to an existing file, not a directory path or a</span>
+<span class="sd">            prefix.</span>
+
+<span class="sd">        :param bool lazy:</span>
+<span class="sd">            Whether to automatically load some of the lower config levels.</span>
+
+<span class="sd">            By default (``lazy=False``), ``__init__`` automatically calls</span>
+<span class="sd">            `load_system` and `load_user` to load system and user config files,</span>
+<span class="sd">            respectively.</span>
+
+<span class="sd">            For more control over what is loaded when, you can say</span>
+<span class="sd">            ``lazy=True``, and no automatic loading is done.</span>
+
+<span class="sd">            .. note::</span>
+<span class="sd">                If you give ``defaults`` and/or ``overrides`` as ``__init__``</span>
+<span class="sd">                kwargs instead of waiting to use `load_defaults` or</span>
+<span class="sd">                `load_overrides` afterwards, those *will* still end up &#39;loaded&#39;</span>
+<span class="sd">                immediately.</span>
+<span class="sd">        &quot;&quot;&quot;</span>
+        <span class="c1"># Technically an implementation detail - do not expose in public API.</span>
+        <span class="c1"># Stores merged configs and is accessed via DataProxy.</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">_set</span><span class="p">(</span><span class="n">_config</span><span class="o">=</span><span class="p">{})</span>
+
+        <span class="c1"># Config file suffixes to search, in preference order.</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">_set</span><span class="p">(</span><span class="n">_file_suffixes</span><span class="o">=</span><span class="p">(</span><span class="s2">&quot;yaml&quot;</span><span class="p">,</span> <span class="s2">&quot;yml&quot;</span><span class="p">,</span> <span class="s2">&quot;json&quot;</span><span class="p">,</span> <span class="s2">&quot;py&quot;</span><span class="p">))</span>
+
+        <span class="c1"># Default configuration values, typically a copy of `global_defaults`.</span>
+        <span class="k">if</span> <span class="n">defaults</span> <span class="ow">is</span> <span class="kc">None</span><span class="p">:</span>
+            <span class="n">defaults</span> <span class="o">=</span> <span class="n">copy_dict</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">global_defaults</span><span class="p">())</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">_set</span><span class="p">(</span><span class="n">_defaults</span><span class="o">=</span><span class="n">defaults</span><span class="p">)</span>
+
+        <span class="c1"># Collection-driven config data, gathered from the collection tree</span>
+        <span class="c1"># containing the currently executing task.</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">_set</span><span class="p">(</span><span class="n">_collection</span><span class="o">=</span><span class="p">{})</span>
+
+        <span class="c1"># Path prefix searched for the system config file.</span>
+        <span class="c1"># NOTE: There is no default system prefix on Windows.</span>
+        <span class="k">if</span> <span class="n">system_prefix</span> <span class="ow">is</span> <span class="kc">None</span> <span class="ow">and</span> <span class="ow">not</span> <span class="n">WINDOWS</span><span class="p">:</span>
+            <span class="n">system_prefix</span> <span class="o">=</span> <span class="s2">&quot;/etc/&quot;</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">_set</span><span class="p">(</span><span class="n">_system_prefix</span><span class="o">=</span><span class="n">system_prefix</span><span class="p">)</span>
+        <span class="c1"># Path to loaded system config file, if any.</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">_set</span><span class="p">(</span><span class="n">_system_path</span><span class="o">=</span><span class="kc">None</span><span class="p">)</span>
+        <span class="c1"># Whether the system config file has been loaded or not (or ``None`` if</span>
+        <span class="c1"># no loading has been attempted yet.)</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">_set</span><span class="p">(</span><span class="n">_system_found</span><span class="o">=</span><span class="kc">None</span><span class="p">)</span>
+        <span class="c1"># Data loaded from the system config file.</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">_set</span><span class="p">(</span><span class="n">_system</span><span class="o">=</span><span class="p">{})</span>
+
+        <span class="c1"># Path prefix searched for per-user config files.</span>
+        <span class="k">if</span> <span class="n">user_prefix</span> <span class="ow">is</span> <span class="kc">None</span><span class="p">:</span>
+            <span class="n">user_prefix</span> <span class="o">=</span> <span class="s2">&quot;~/.&quot;</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">_set</span><span class="p">(</span><span class="n">_user_prefix</span><span class="o">=</span><span class="n">user_prefix</span><span class="p">)</span>
+        <span class="c1"># Path to loaded user config file, if any.</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">_set</span><span class="p">(</span><span class="n">_user_path</span><span class="o">=</span><span class="kc">None</span><span class="p">)</span>
+        <span class="c1"># Whether the user config file has been loaded or not (or ``None`` if</span>
+        <span class="c1"># no loading has been attempted yet.)</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">_set</span><span class="p">(</span><span class="n">_user_found</span><span class="o">=</span><span class="kc">None</span><span class="p">)</span>
+        <span class="c1"># Data loaded from the per-user config file.</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">_set</span><span class="p">(</span><span class="n">_user</span><span class="o">=</span><span class="p">{})</span>
+
+        <span class="c1"># As it may want to be set post-init, project conf file related attrs</span>
+        <span class="c1"># get initialized or overwritten via a specific method.</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">set_project_location</span><span class="p">(</span><span class="n">project_location</span><span class="p">)</span>
+
+        <span class="c1"># Environment variable name prefix</span>
+        <span class="n">env_prefix</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">env_prefix</span>
+        <span class="k">if</span> <span class="n">env_prefix</span> <span class="ow">is</span> <span class="kc">None</span><span class="p">:</span>
+            <span class="n">env_prefix</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">prefix</span>
+        <span class="n">env_prefix</span> <span class="o">=</span> <span class="s2">&quot;</span><span class="si">{}</span><span class="s2">_&quot;</span><span class="o">.</span><span class="n">format</span><span class="p">(</span><span class="n">env_prefix</span><span class="o">.</span><span class="n">upper</span><span class="p">())</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">_set</span><span class="p">(</span><span class="n">_env_prefix</span><span class="o">=</span><span class="n">env_prefix</span><span class="p">)</span>
+        <span class="c1"># Config data loaded from the shell environment.</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">_set</span><span class="p">(</span><span class="n">_env</span><span class="o">=</span><span class="p">{})</span>
+
+        <span class="c1"># As it may want to be set post-init, runtime conf file related attrs</span>
+        <span class="c1"># get initialized or overwritten via a specific method.</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">set_runtime_path</span><span class="p">(</span><span class="n">runtime_path</span><span class="p">)</span>
+
+        <span class="c1"># Overrides - highest normal config level. Typically filled in from</span>
+        <span class="c1"># command-line flags.</span>
+        <span class="k">if</span> <span class="n">overrides</span> <span class="ow">is</span> <span class="kc">None</span><span class="p">:</span>
+            <span class="n">overrides</span> <span class="o">=</span> <span class="p">{}</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">_set</span><span class="p">(</span><span class="n">_overrides</span><span class="o">=</span><span class="n">overrides</span><span class="p">)</span>
+
+        <span class="c1"># Absolute highest level: user modifications.</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">_set</span><span class="p">(</span><span class="n">_modifications</span><span class="o">=</span><span class="p">{})</span>
+        <span class="c1"># And its sibling: user deletions. (stored as a flat dict of keypath</span>
+        <span class="c1"># keys and dummy values, for constant-time membership testing/removal</span>
+        <span class="c1"># w/ no messy recursion. TODO: maybe redo _everything_ that way? in</span>
+        <span class="c1"># _modifications and other levels, the values would of course be</span>
+        <span class="c1"># valuable and not just None)</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">_set</span><span class="p">(</span><span class="n">_deletions</span><span class="o">=</span><span class="p">{})</span>
+
+        <span class="c1"># Convenience loading of user and system files, since those require no</span>
+        <span class="c1"># other levels in order to function.</span>
+        <span class="k">if</span> <span class="ow">not</span> <span class="n">lazy</span><span class="p">:</span>
+            <span class="bp">self</span><span class="o">.</span><span class="n">load_base_conf_files</span><span class="p">()</span>
+        <span class="c1"># Always merge, otherwise defaults, etc are not usable until creator or</span>
+        <span class="c1"># a subroutine does so.</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">merge</span><span class="p">()</span>
+
+    <span class="k">def</span> <span class="nf">load_base_conf_files</span><span class="p">(</span><span class="bp">self</span><span class="p">):</span>
+        <span class="c1"># Just a refactor of something done in unlazy init or in clone()</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">load_system</span><span class="p">(</span><span class="n">merge</span><span class="o">=</span><span class="kc">False</span><span class="p">)</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">load_user</span><span class="p">(</span><span class="n">merge</span><span class="o">=</span><span class="kc">False</span><span class="p">)</span>
+
+    <span class="k">def</span> <span class="nf">load_defaults</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">data</span><span class="p">,</span> <span class="n">merge</span><span class="o">=</span><span class="kc">True</span><span class="p">):</span>
+        <span class="sd">&quot;&quot;&quot;</span>
+<span class="sd">        Set or replace the &#39;defaults&#39; configuration level, from ``data``.</span>
+
+<span class="sd">        :param dict data: The config data to load as the defaults level.</span>
+
+<span class="sd">        :param bool merge:</span>
+<span class="sd">            Whether to merge the loaded data into the central config. Default:</span>
+<span class="sd">            ``True``.</span>
+
+<span class="sd">        :returns: ``None``.</span>
+
+<span class="sd">        .. versionadded:: 1.0</span>
+<span class="sd">        &quot;&quot;&quot;</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">_set</span><span class="p">(</span><span class="n">_defaults</span><span class="o">=</span><span class="n">data</span><span class="p">)</span>
+        <span class="k">if</span> <span class="n">merge</span><span class="p">:</span>
+            <span class="bp">self</span><span class="o">.</span><span class="n">merge</span><span class="p">()</span>
+
+    <span class="k">def</span> <span class="nf">load_overrides</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">data</span><span class="p">,</span> <span class="n">merge</span><span class="o">=</span><span class="kc">True</span><span class="p">):</span>
+        <span class="sd">&quot;&quot;&quot;</span>
+<span class="sd">        Set or replace the &#39;overrides&#39; configuration level, from ``data``.</span>
+
+<span class="sd">        :param dict data: The config data to load as the overrides level.</span>
+
+<span class="sd">        :param bool merge:</span>
+<span class="sd">            Whether to merge the loaded data into the central config. Default:</span>
+<span class="sd">            ``True``.</span>
+
+<span class="sd">        :returns: ``None``.</span>
+
+<span class="sd">        .. versionadded:: 1.0</span>
+<span class="sd">        &quot;&quot;&quot;</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">_set</span><span class="p">(</span><span class="n">_overrides</span><span class="o">=</span><span class="n">data</span><span class="p">)</span>
+        <span class="k">if</span> <span class="n">merge</span><span class="p">:</span>
+            <span class="bp">self</span><span class="o">.</span><span class="n">merge</span><span class="p">()</span>
+
+    <span class="k">def</span> <span class="nf">load_system</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">merge</span><span class="o">=</span><span class="kc">True</span><span class="p">):</span>
+        <span class="sd">&quot;&quot;&quot;</span>
+<span class="sd">        Load a system-level config file, if possible.</span>
+
+<span class="sd">        Checks the configured ``_system_prefix`` path, which defaults to</span>
+<span class="sd">        ``/etc``, and will thus load files like ``/etc/invoke.yml``.</span>
+
+<span class="sd">        :param bool merge:</span>
+<span class="sd">            Whether to merge the loaded data into the central config. Default:</span>
+<span class="sd">            ``True``.</span>
+
+<span class="sd">        :returns: ``None``.</span>
+
+<span class="sd">        .. versionadded:: 1.0</span>
+<span class="sd">        &quot;&quot;&quot;</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">_load_file</span><span class="p">(</span><span class="n">prefix</span><span class="o">=</span><span class="s2">&quot;system&quot;</span><span class="p">,</span> <span class="n">merge</span><span class="o">=</span><span class="n">merge</span><span class="p">)</span>
+
+    <span class="k">def</span> <span class="nf">load_user</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">merge</span><span class="o">=</span><span class="kc">True</span><span class="p">):</span>
+        <span class="sd">&quot;&quot;&quot;</span>
+<span class="sd">        Load a user-level config file, if possible.</span>
+
+<span class="sd">        Checks the configured ``_user_prefix`` path, which defaults to ``~/.``,</span>
+<span class="sd">        and will thus load files like ``~/.invoke.yml``.</span>
+
+<span class="sd">        :param bool merge:</span>
+<span class="sd">            Whether to merge the loaded data into the central config. Default:</span>
+<span class="sd">            ``True``.</span>
+
+<span class="sd">        :returns: ``None``.</span>
+
+<span class="sd">        .. versionadded:: 1.0</span>
+<span class="sd">        &quot;&quot;&quot;</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">_load_file</span><span class="p">(</span><span class="n">prefix</span><span class="o">=</span><span class="s2">&quot;user&quot;</span><span class="p">,</span> <span class="n">merge</span><span class="o">=</span><span class="n">merge</span><span class="p">)</span>
+
+    <span class="k">def</span> <span class="nf">load_project</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">merge</span><span class="o">=</span><span class="kc">True</span><span class="p">):</span>
+        <span class="sd">&quot;&quot;&quot;</span>
+<span class="sd">        Load a project-level config file, if possible.</span>
+
+<span class="sd">        Checks the configured ``_project_prefix`` value derived from the path</span>
+<span class="sd">        given to `set_project_location`, which is typically set to the</span>
+<span class="sd">        directory containing the loaded task collection.</span>
+
+<span class="sd">        Thus, if one were to run the CLI tool against a tasks collection</span>
+<span class="sd">        ``/home/myuser/code/tasks.py``, `load_project` would seek out files</span>
+<span class="sd">        like ``/home/myuser/code/invoke.yml``.</span>
+
+<span class="sd">        :param bool merge:</span>
+<span class="sd">            Whether to merge the loaded data into the central config. Default:</span>
+<span class="sd">            ``True``.</span>
+
+<span class="sd">        :returns: ``None``.</span>
+
+<span class="sd">        .. versionadded:: 1.0</span>
+<span class="sd">        &quot;&quot;&quot;</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">_load_file</span><span class="p">(</span><span class="n">prefix</span><span class="o">=</span><span class="s2">&quot;project&quot;</span><span class="p">,</span> <span class="n">merge</span><span class="o">=</span><span class="n">merge</span><span class="p">)</span>
+
+    <span class="k">def</span> <span class="nf">set_runtime_path</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">path</span><span class="p">):</span>
+        <span class="sd">&quot;&quot;&quot;</span>
+<span class="sd">        Set the runtime config file path.</span>
+
+<span class="sd">        .. versionadded:: 1.0</span>
+<span class="sd">        &quot;&quot;&quot;</span>
+        <span class="c1"># Path to the user-specified runtime config file.</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">_set</span><span class="p">(</span><span class="n">_runtime_path</span><span class="o">=</span><span class="n">path</span><span class="p">)</span>
+        <span class="c1"># Data loaded from the runtime config file.</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">_set</span><span class="p">(</span><span class="n">_runtime</span><span class="o">=</span><span class="p">{})</span>
+        <span class="c1"># Whether the runtime config file has been loaded or not (or ``None``</span>
+        <span class="c1"># if no loading has been attempted yet.)</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">_set</span><span class="p">(</span><span class="n">_runtime_found</span><span class="o">=</span><span class="kc">None</span><span class="p">)</span>
+
+    <span class="k">def</span> <span class="nf">load_runtime</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">merge</span><span class="o">=</span><span class="kc">True</span><span class="p">):</span>
+        <span class="sd">&quot;&quot;&quot;</span>
+<span class="sd">        Load a runtime-level config file, if one was specified.</span>
+
+<span class="sd">        When the CLI framework creates a `Config`, it sets ``_runtime_path``,</span>
+<span class="sd">        which is a full path to the requested config file. This method attempts</span>
+<span class="sd">        to load that file.</span>
+
+<span class="sd">        :param bool merge:</span>
+<span class="sd">            Whether to merge the loaded data into the central config. Default:</span>
+<span class="sd">            ``True``.</span>
+
+<span class="sd">        :returns: ``None``.</span>
+
+<span class="sd">        .. versionadded:: 1.0</span>
+<span class="sd">        &quot;&quot;&quot;</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">_load_file</span><span class="p">(</span><span class="n">prefix</span><span class="o">=</span><span class="s2">&quot;runtime&quot;</span><span class="p">,</span> <span class="n">absolute</span><span class="o">=</span><span class="kc">True</span><span class="p">,</span> <span class="n">merge</span><span class="o">=</span><span class="n">merge</span><span class="p">)</span>
+
+    <span class="k">def</span> <span class="nf">load_shell_env</span><span class="p">(</span><span class="bp">self</span><span class="p">):</span>
+        <span class="sd">&quot;&quot;&quot;</span>
+<span class="sd">        Load values from the shell environment.</span>
+
+<span class="sd">        `.load_shell_env` is intended for execution late in a `.Config`</span>
+<span class="sd">        object&#39;s lifecycle, once all other sources (such as a runtime config</span>
+<span class="sd">        file or per-collection configurations) have been loaded. Loading from</span>
+<span class="sd">        the shell is not terrifically expensive, but must be done at a specific</span>
+<span class="sd">        point in time to ensure the &quot;only known config keys are loaded from the</span>
+<span class="sd">        env&quot; behavior works correctly.</span>
+
+<span class="sd">        See :ref:`env-vars` for details on this design decision and other info</span>
+<span class="sd">        re: how environment variables are scanned and loaded.</span>
+
+<span class="sd">        .. versionadded:: 1.0</span>
+<span class="sd">        &quot;&quot;&quot;</span>
+        <span class="c1"># Force merge of existing data to ensure we have an up to date picture</span>
+        <span class="n">debug</span><span class="p">(</span><span class="s2">&quot;Running pre-merge for shell env loading...&quot;</span><span class="p">)</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">merge</span><span class="p">()</span>
+        <span class="n">debug</span><span class="p">(</span><span class="s2">&quot;Done with pre-merge.&quot;</span><span class="p">)</span>
+        <span class="n">loader</span> <span class="o">=</span> <span class="n">Environment</span><span class="p">(</span><span class="n">config</span><span class="o">=</span><span class="bp">self</span><span class="o">.</span><span class="n">_config</span><span class="p">,</span> <span class="n">prefix</span><span class="o">=</span><span class="bp">self</span><span class="o">.</span><span class="n">_env_prefix</span><span class="p">)</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">_set</span><span class="p">(</span><span class="n">_env</span><span class="o">=</span><span class="n">loader</span><span class="o">.</span><span class="n">load</span><span class="p">())</span>
+        <span class="n">debug</span><span class="p">(</span><span class="s2">&quot;Loaded shell environment, triggering final merge&quot;</span><span class="p">)</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">merge</span><span class="p">()</span>
+
+    <span class="k">def</span> <span class="nf">load_collection</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">data</span><span class="p">,</span> <span class="n">merge</span><span class="o">=</span><span class="kc">True</span><span class="p">):</span>
+        <span class="sd">&quot;&quot;&quot;</span>
+<span class="sd">        Update collection-driven config data.</span>
+
+<span class="sd">        `.load_collection` is intended for use by the core task execution</span>
+<span class="sd">        machinery, which is responsible for obtaining collection-driven data.</span>
+<span class="sd">        See :ref:`collection-configuration` for details.</span>
+
+<span class="sd">        .. versionadded:: 1.0</span>
+<span class="sd">        &quot;&quot;&quot;</span>
+        <span class="n">debug</span><span class="p">(</span><span class="s2">&quot;Loading collection configuration&quot;</span><span class="p">)</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">_set</span><span class="p">(</span><span class="n">_collection</span><span class="o">=</span><span class="n">data</span><span class="p">)</span>
+        <span class="k">if</span> <span class="n">merge</span><span class="p">:</span>
+            <span class="bp">self</span><span class="o">.</span><span class="n">merge</span><span class="p">()</span>
+
+    <span class="k">def</span> <span class="nf">set_project_location</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">path</span><span class="p">):</span>
+        <span class="sd">&quot;&quot;&quot;</span>
+<span class="sd">        Set the directory path where a project-level config file may be found.</span>
+
+<span class="sd">        Does not do any file loading on its own; for that, see `load_project`.</span>
+
+<span class="sd">        .. versionadded:: 1.0</span>
+<span class="sd">        &quot;&quot;&quot;</span>
+        <span class="c1"># &#39;Prefix&#39; to match the other sets of attrs</span>
+        <span class="n">project_prefix</span> <span class="o">=</span> <span class="kc">None</span>
+        <span class="k">if</span> <span class="n">path</span> <span class="ow">is</span> <span class="ow">not</span> <span class="kc">None</span><span class="p">:</span>
+            <span class="c1"># Ensure the prefix is normalized to a directory-like path string</span>
+            <span class="n">project_prefix</span> <span class="o">=</span> <span class="n">join</span><span class="p">(</span><span class="n">path</span><span class="p">,</span> <span class="s2">&quot;&quot;</span><span class="p">)</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">_set</span><span class="p">(</span><span class="n">_project_prefix</span><span class="o">=</span><span class="n">project_prefix</span><span class="p">)</span>
+        <span class="c1"># Path to loaded per-project config file, if any.</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">_set</span><span class="p">(</span><span class="n">_project_path</span><span class="o">=</span><span class="kc">None</span><span class="p">)</span>
+        <span class="c1"># Whether the project config file has been loaded or not (or ``None``</span>
+        <span class="c1"># if no loading has been attempted yet.)</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">_set</span><span class="p">(</span><span class="n">_project_found</span><span class="o">=</span><span class="kc">None</span><span class="p">)</span>
+        <span class="c1"># Data loaded from the per-project config file.</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">_set</span><span class="p">(</span><span class="n">_project</span><span class="o">=</span><span class="p">{})</span>
+
+    <span class="k">def</span> <span class="nf">_load_file</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">prefix</span><span class="p">,</span> <span class="n">absolute</span><span class="o">=</span><span class="kc">False</span><span class="p">,</span> <span class="n">merge</span><span class="o">=</span><span class="kc">True</span><span class="p">):</span>
+        <span class="c1"># Setup</span>
+        <span class="n">found</span> <span class="o">=</span> <span class="s2">&quot;_</span><span class="si">{}</span><span class="s2">_found&quot;</span><span class="o">.</span><span class="n">format</span><span class="p">(</span><span class="n">prefix</span><span class="p">)</span>
+        <span class="n">path</span> <span class="o">=</span> <span class="s2">&quot;_</span><span class="si">{}</span><span class="s2">_path&quot;</span><span class="o">.</span><span class="n">format</span><span class="p">(</span><span class="n">prefix</span><span class="p">)</span>
+        <span class="n">data</span> <span class="o">=</span> <span class="s2">&quot;_</span><span class="si">{}</span><span class="s2">&quot;</span><span class="o">.</span><span class="n">format</span><span class="p">(</span><span class="n">prefix</span><span class="p">)</span>
+        <span class="n">midfix</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">file_prefix</span>
+        <span class="k">if</span> <span class="n">midfix</span> <span class="ow">is</span> <span class="kc">None</span><span class="p">:</span>
+            <span class="n">midfix</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">prefix</span>
+        <span class="c1"># Short-circuit if loading appears to have occurred already</span>
+        <span class="k">if</span> <span class="nb">getattr</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">found</span><span class="p">)</span> <span class="ow">is</span> <span class="ow">not</span> <span class="kc">None</span><span class="p">:</span>
+            <span class="k">return</span>
+        <span class="c1"># Moar setup</span>
+        <span class="k">if</span> <span class="n">absolute</span><span class="p">:</span>
+            <span class="n">absolute_path</span> <span class="o">=</span> <span class="nb">getattr</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">path</span><span class="p">)</span>
+            <span class="c1"># None -&gt; expected absolute path but none set, short circuit</span>
+            <span class="k">if</span> <span class="n">absolute_path</span> <span class="ow">is</span> <span class="kc">None</span><span class="p">:</span>
+                <span class="k">return</span>
+            <span class="n">paths</span> <span class="o">=</span> <span class="p">[</span><span class="n">absolute_path</span><span class="p">]</span>
+        <span class="k">else</span><span class="p">:</span>
+            <span class="n">path_prefix</span> <span class="o">=</span> <span class="nb">getattr</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="s2">&quot;_</span><span class="si">{}</span><span class="s2">_prefix&quot;</span><span class="o">.</span><span class="n">format</span><span class="p">(</span><span class="n">prefix</span><span class="p">))</span>
+            <span class="c1"># Short circuit if loading seems unnecessary (eg for project config</span>
+            <span class="c1"># files when not running out of a project)</span>
+            <span class="k">if</span> <span class="n">path_prefix</span> <span class="ow">is</span> <span class="kc">None</span><span class="p">:</span>
+                <span class="k">return</span>
+            <span class="n">paths</span> <span class="o">=</span> <span class="p">[</span>
+                <span class="s2">&quot;.&quot;</span><span class="o">.</span><span class="n">join</span><span class="p">((</span><span class="n">path_prefix</span> <span class="o">+</span> <span class="n">midfix</span><span class="p">,</span> <span class="n">x</span><span class="p">))</span>
+                <span class="k">for</span> <span class="n">x</span> <span class="ow">in</span> <span class="bp">self</span><span class="o">.</span><span class="n">_file_suffixes</span>
+            <span class="p">]</span>
+        <span class="c1"># Poke &#39;em</span>
+        <span class="k">for</span> <span class="n">filepath</span> <span class="ow">in</span> <span class="n">paths</span><span class="p">:</span>
+            <span class="c1"># Normalize</span>
+            <span class="n">filepath</span> <span class="o">=</span> <span class="n">expanduser</span><span class="p">(</span><span class="n">filepath</span><span class="p">)</span>
+            <span class="k">try</span><span class="p">:</span>
+                <span class="k">try</span><span class="p">:</span>
+                    <span class="n">type_</span> <span class="o">=</span> <span class="n">splitext</span><span class="p">(</span><span class="n">filepath</span><span class="p">)[</span><span class="mi">1</span><span class="p">]</span><span class="o">.</span><span class="n">lstrip</span><span class="p">(</span><span class="s2">&quot;.&quot;</span><span class="p">)</span>
+                    <span class="n">loader</span> <span class="o">=</span> <span class="nb">getattr</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="s2">&quot;_load_</span><span class="si">{}</span><span class="s2">&quot;</span><span class="o">.</span><span class="n">format</span><span class="p">(</span><span class="n">type_</span><span class="p">))</span>
+                <span class="k">except</span> <span class="ne">AttributeError</span><span class="p">:</span>
+                    <span class="n">msg</span> <span class="o">=</span> <span class="s2">&quot;Config files of type </span><span class="si">{!r}</span><span class="s2"> (from file </span><span class="si">{!r}</span><span class="s2">) are not supported! Please use one of: </span><span class="si">{!r}</span><span class="s2">&quot;</span>  <span class="c1"># noqa</span>
+                    <span class="k">raise</span> <span class="n">UnknownFileType</span><span class="p">(</span>
+                        <span class="n">msg</span><span class="o">.</span><span class="n">format</span><span class="p">(</span><span class="n">type_</span><span class="p">,</span> <span class="n">filepath</span><span class="p">,</span> <span class="bp">self</span><span class="o">.</span><span class="n">_file_suffixes</span><span class="p">)</span>
+                    <span class="p">)</span>
+                <span class="c1"># Store data, the path it was found at, and fact that it was</span>
+                <span class="c1"># found</span>
+                <span class="bp">self</span><span class="o">.</span><span class="n">_set</span><span class="p">(</span><span class="n">data</span><span class="p">,</span> <span class="n">loader</span><span class="p">(</span><span class="n">filepath</span><span class="p">))</span>
+                <span class="bp">self</span><span class="o">.</span><span class="n">_set</span><span class="p">(</span><span class="n">path</span><span class="p">,</span> <span class="n">filepath</span><span class="p">)</span>
+                <span class="bp">self</span><span class="o">.</span><span class="n">_set</span><span class="p">(</span><span class="n">found</span><span class="p">,</span> <span class="kc">True</span><span class="p">)</span>
+                <span class="k">break</span>
+            <span class="c1"># Typically means &#39;no such file&#39;, so just note &amp; skip past.</span>
+            <span class="k">except</span> <span class="ne">IOError</span> <span class="k">as</span> <span class="n">e</span><span class="p">:</span>
+                <span class="k">if</span> <span class="n">e</span><span class="o">.</span><span class="n">errno</span> <span class="o">==</span> <span class="mi">2</span><span class="p">:</span>
+                    <span class="n">err</span> <span class="o">=</span> <span class="s2">&quot;Didn&#39;t see any </span><span class="si">{}</span><span class="s2">, skipping.&quot;</span>
+                    <span class="n">debug</span><span class="p">(</span><span class="n">err</span><span class="o">.</span><span class="n">format</span><span class="p">(</span><span class="n">filepath</span><span class="p">))</span>
+                <span class="k">else</span><span class="p">:</span>
+                    <span class="k">raise</span>
+        <span class="c1"># Still None -&gt; no suffixed paths were found, record this fact</span>
+        <span class="k">if</span> <span class="nb">getattr</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">path</span><span class="p">)</span> <span class="ow">is</span> <span class="kc">None</span><span class="p">:</span>
+            <span class="bp">self</span><span class="o">.</span><span class="n">_set</span><span class="p">(</span><span class="n">found</span><span class="p">,</span> <span class="kc">False</span><span class="p">)</span>
+        <span class="c1"># Merge loaded data in if any was found</span>
+        <span class="k">elif</span> <span class="n">merge</span><span class="p">:</span>
+            <span class="bp">self</span><span class="o">.</span><span class="n">merge</span><span class="p">()</span>
+
+    <span class="k">def</span> <span class="nf">_load_yaml</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">path</span><span class="p">):</span>
+        <span class="k">with</span> <span class="nb">open</span><span class="p">(</span><span class="n">path</span><span class="p">)</span> <span class="k">as</span> <span class="n">fd</span><span class="p">:</span>
+            <span class="k">return</span> <span class="n">yaml</span><span class="o">.</span><span class="n">load</span><span class="p">(</span><span class="n">fd</span><span class="p">)</span>
+
+    <span class="k">def</span> <span class="nf">_load_yml</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">path</span><span class="p">):</span>
+        <span class="k">return</span> <span class="bp">self</span><span class="o">.</span><span class="n">_load_yaml</span><span class="p">(</span><span class="n">path</span><span class="p">)</span>
+
+    <span class="k">def</span> <span class="nf">_load_json</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">path</span><span class="p">):</span>
+        <span class="k">with</span> <span class="nb">open</span><span class="p">(</span><span class="n">path</span><span class="p">)</span> <span class="k">as</span> <span class="n">fd</span><span class="p">:</span>
+            <span class="k">return</span> <span class="n">json</span><span class="o">.</span><span class="n">load</span><span class="p">(</span><span class="n">fd</span><span class="p">)</span>
+
+    <span class="k">def</span> <span class="nf">_load_py</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">path</span><span class="p">):</span>
+        <span class="n">data</span> <span class="o">=</span> <span class="p">{}</span>
+        <span class="k">for</span> <span class="n">key</span><span class="p">,</span> <span class="n">value</span> <span class="ow">in</span> <span class="n">six</span><span class="o">.</span><span class="n">iteritems</span><span class="p">(</span><span class="n">load_source</span><span class="p">(</span><span class="s2">&quot;mod&quot;</span><span class="p">,</span> <span class="n">path</span><span class="p">)):</span>
+            <span class="c1"># Strip special members, as these are always going to be builtins</span>
+            <span class="c1"># and other special things a user will not want in their config.</span>
+            <span class="k">if</span> <span class="n">key</span><span class="o">.</span><span class="n">startswith</span><span class="p">(</span><span class="s2">&quot;__&quot;</span><span class="p">):</span>
+                <span class="k">continue</span>
+            <span class="c1"># Raise exceptions on module values; they are unpicklable.</span>
+            <span class="c1"># TODO: suck it up and reimplement copy() without pickling? Then</span>
+            <span class="c1"># again, a user trying to stuff a module into their config is</span>
+            <span class="c1"># probably doing something better done in runtime/library level</span>
+            <span class="c1"># code and not in a &quot;config file&quot;...right?</span>
+            <span class="k">if</span> <span class="nb">isinstance</span><span class="p">(</span><span class="n">value</span><span class="p">,</span> <span class="n">types</span><span class="o">.</span><span class="n">ModuleType</span><span class="p">):</span>
+                <span class="n">err</span> <span class="o">=</span> <span class="s2">&quot;&#39;</span><span class="si">{}</span><span class="s2">&#39; is a module, which can&#39;t be used as a config value. (Are you perhaps giving a tasks file instead of a config file by mistake?)&quot;</span>  <span class="c1"># noqa</span>
+                <span class="k">raise</span> <span class="n">UnpicklableConfigMember</span><span class="p">(</span><span class="n">err</span><span class="o">.</span><span class="n">format</span><span class="p">(</span><span class="n">key</span><span class="p">))</span>
+            <span class="n">data</span><span class="p">[</span><span class="n">key</span><span class="p">]</span> <span class="o">=</span> <span class="n">value</span>
+        <span class="k">return</span> <span class="n">data</span>
+
+    <span class="k">def</span> <span class="nf">merge</span><span class="p">(</span><span class="bp">self</span><span class="p">):</span>
+        <span class="sd">&quot;&quot;&quot;</span>
+<span class="sd">        Merge all config sources, in order.</span>
+
+<span class="sd">        .. versionadded:: 1.0</span>
+<span class="sd">        &quot;&quot;&quot;</span>
+        <span class="n">debug</span><span class="p">(</span><span class="s2">&quot;Merging config sources in order onto new empty _config...&quot;</span><span class="p">)</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">_set</span><span class="p">(</span><span class="n">_config</span><span class="o">=</span><span class="p">{})</span>
+        <span class="n">debug</span><span class="p">(</span><span class="s2">&quot;Defaults: </span><span class="si">{!r}</span><span class="s2">&quot;</span><span class="o">.</span><span class="n">format</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">_defaults</span><span class="p">))</span>
+        <span class="n">merge_dicts</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">_config</span><span class="p">,</span> <span class="bp">self</span><span class="o">.</span><span class="n">_defaults</span><span class="p">)</span>
+        <span class="n">debug</span><span class="p">(</span><span class="s2">&quot;Collection-driven: </span><span class="si">{!r}</span><span class="s2">&quot;</span><span class="o">.</span><span class="n">format</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">_collection</span><span class="p">))</span>
+        <span class="n">merge_dicts</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">_config</span><span class="p">,</span> <span class="bp">self</span><span class="o">.</span><span class="n">_collection</span><span class="p">)</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">_merge_file</span><span class="p">(</span><span class="s2">&quot;system&quot;</span><span class="p">,</span> <span class="s2">&quot;System-wide&quot;</span><span class="p">)</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">_merge_file</span><span class="p">(</span><span class="s2">&quot;user&quot;</span><span class="p">,</span> <span class="s2">&quot;Per-user&quot;</span><span class="p">)</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">_merge_file</span><span class="p">(</span><span class="s2">&quot;project&quot;</span><span class="p">,</span> <span class="s2">&quot;Per-project&quot;</span><span class="p">)</span>
+        <span class="n">debug</span><span class="p">(</span><span class="s2">&quot;Environment variable config: </span><span class="si">{!r}</span><span class="s2">&quot;</span><span class="o">.</span><span class="n">format</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">_env</span><span class="p">))</span>
+        <span class="n">merge_dicts</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">_config</span><span class="p">,</span> <span class="bp">self</span><span class="o">.</span><span class="n">_env</span><span class="p">)</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">_merge_file</span><span class="p">(</span><span class="s2">&quot;runtime&quot;</span><span class="p">,</span> <span class="s2">&quot;Runtime&quot;</span><span class="p">)</span>
+        <span class="n">debug</span><span class="p">(</span><span class="s2">&quot;Overrides: </span><span class="si">{!r}</span><span class="s2">&quot;</span><span class="o">.</span><span class="n">format</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">_overrides</span><span class="p">))</span>
+        <span class="n">merge_dicts</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">_config</span><span class="p">,</span> <span class="bp">self</span><span class="o">.</span><span class="n">_overrides</span><span class="p">)</span>
+        <span class="n">debug</span><span class="p">(</span><span class="s2">&quot;Modifications: </span><span class="si">{!r}</span><span class="s2">&quot;</span><span class="o">.</span><span class="n">format</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">_modifications</span><span class="p">))</span>
+        <span class="n">merge_dicts</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">_config</span><span class="p">,</span> <span class="bp">self</span><span class="o">.</span><span class="n">_modifications</span><span class="p">)</span>
+        <span class="n">debug</span><span class="p">(</span><span class="s2">&quot;Deletions: </span><span class="si">{!r}</span><span class="s2">&quot;</span><span class="o">.</span><span class="n">format</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">_deletions</span><span class="p">))</span>
+        <span class="n">obliterate</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">_config</span><span class="p">,</span> <span class="bp">self</span><span class="o">.</span><span class="n">_deletions</span><span class="p">)</span>
+
+    <span class="k">def</span> <span class="nf">_merge_file</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">name</span><span class="p">,</span> <span class="n">desc</span><span class="p">):</span>
+        <span class="c1"># Setup</span>
+        <span class="n">desc</span> <span class="o">+=</span> <span class="s2">&quot; config file&quot;</span>  <span class="c1"># yup</span>
+        <span class="n">found</span> <span class="o">=</span> <span class="nb">getattr</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="s2">&quot;_</span><span class="si">{}</span><span class="s2">_found&quot;</span><span class="o">.</span><span class="n">format</span><span class="p">(</span><span class="n">name</span><span class="p">))</span>
+        <span class="n">path</span> <span class="o">=</span> <span class="nb">getattr</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="s2">&quot;_</span><span class="si">{}</span><span class="s2">_path&quot;</span><span class="o">.</span><span class="n">format</span><span class="p">(</span><span class="n">name</span><span class="p">))</span>
+        <span class="n">data</span> <span class="o">=</span> <span class="nb">getattr</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="s2">&quot;_</span><span class="si">{}</span><span class="s2">&quot;</span><span class="o">.</span><span class="n">format</span><span class="p">(</span><span class="n">name</span><span class="p">))</span>
+        <span class="c1"># None -&gt; no loading occurred yet</span>
+        <span class="k">if</span> <span class="n">found</span> <span class="ow">is</span> <span class="kc">None</span><span class="p">:</span>
+            <span class="n">debug</span><span class="p">(</span><span class="s2">&quot;</span><span class="si">{}</span><span class="s2"> has not been loaded yet, skipping&quot;</span><span class="o">.</span><span class="n">format</span><span class="p">(</span><span class="n">desc</span><span class="p">))</span>
+        <span class="c1"># True -&gt; hooray</span>
+        <span class="k">elif</span> <span class="n">found</span><span class="p">:</span>
+            <span class="n">debug</span><span class="p">(</span><span class="s2">&quot;</span><span class="si">{}</span><span class="s2"> (</span><span class="si">{}</span><span class="s2">): </span><span class="si">{!r}</span><span class="s2">&quot;</span><span class="o">.</span><span class="n">format</span><span class="p">(</span><span class="n">desc</span><span class="p">,</span> <span class="n">path</span><span class="p">,</span> <span class="n">data</span><span class="p">))</span>
+            <span class="n">merge_dicts</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">_config</span><span class="p">,</span> <span class="n">data</span><span class="p">)</span>
+        <span class="c1"># False -&gt; did try, did not succeed</span>
+        <span class="k">else</span><span class="p">:</span>
+            <span class="c1"># TODO: how to preserve what was tried for each case but only for</span>
+            <span class="c1"># the negative? Just a branch here based on &#39;name&#39;?</span>
+            <span class="n">debug</span><span class="p">(</span><span class="s2">&quot;</span><span class="si">{}</span><span class="s2"> not found, skipping&quot;</span><span class="o">.</span><span class="n">format</span><span class="p">(</span><span class="n">desc</span><span class="p">))</span>
+
+    <span class="k">def</span> <span class="nf">clone</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">into</span><span class="o">=</span><span class="kc">None</span><span class="p">):</span>
+        <span class="sd">&quot;&quot;&quot;</span>
+<span class="sd">        Return a copy of this configuration object.</span>
+
+<span class="sd">        The new object will be identical in terms of configured sources and any</span>
+<span class="sd">        loaded (or user-manipulated) data, but will be a distinct object with</span>
+<span class="sd">        as little shared mutable state as possible.</span>
+
+<span class="sd">        Specifically, all `dict` values within the config are recursively</span>
+<span class="sd">        recreated, with non-dict leaf values subjected to `copy.copy` (note:</span>
+<span class="sd">        *not* `copy.deepcopy`, as this can cause issues with various objects</span>
+<span class="sd">        such as compiled regexen or threading locks, often found buried deep</span>
+<span class="sd">        within rich aggregates like API or DB clients).</span>
+
+<span class="sd">        The only remaining config values that may end up shared between a</span>
+<span class="sd">        config and its clone are thus those &#39;rich&#39; objects that do not</span>
+<span class="sd">        `copy.copy` cleanly, or compound non-dict objects (such as lists or</span>
+<span class="sd">        tuples).</span>
+
+<span class="sd">        :param into:</span>
+<span class="sd">            A `.Config` subclass that the new clone should be &quot;upgraded&quot; to.</span>
+
+<span class="sd">            Used by client libraries which have their own `.Config` subclasses</span>
+<span class="sd">            that e.g. define additional defaults; cloning &quot;into&quot; one of these</span>
+<span class="sd">            subclasses ensures that any new keys/subtrees are added gracefully,</span>
+<span class="sd">            without overwriting anything that may have been pre-defined.</span>
+
+<span class="sd">            Default: ``None`` (just clone into another regular `.Config`).</span>
+
+<span class="sd">        :returns:</span>
+<span class="sd">            A `.Config`, or an instance of the class given to ``into``.</span>
+
+<span class="sd">        :raises:</span>
+<span class="sd">            ``TypeError``, if ``into`` is given a value and that value is not a</span>
+<span class="sd">            `.Config` subclass.</span>
+
+<span class="sd">        .. versionadded:: 1.0</span>
+<span class="sd">        &quot;&quot;&quot;</span>
+        <span class="c1"># Sanity check for &#39;into&#39;</span>
+        <span class="k">if</span> <span class="n">into</span> <span class="ow">is</span> <span class="ow">not</span> <span class="kc">None</span> <span class="ow">and</span> <span class="ow">not</span> <span class="nb">issubclass</span><span class="p">(</span><span class="n">into</span><span class="p">,</span> <span class="bp">self</span><span class="o">.</span><span class="vm">__class__</span><span class="p">):</span>
+            <span class="n">err</span> <span class="o">=</span> <span class="s2">&quot;&#39;into&#39; must be a subclass of </span><span class="si">{}</span><span class="s2">!&quot;</span>
+            <span class="k">raise</span> <span class="ne">TypeError</span><span class="p">(</span><span class="n">err</span><span class="o">.</span><span class="n">format</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="vm">__class__</span><span class="o">.</span><span class="vm">__name__</span><span class="p">))</span>
+        <span class="c1"># Construct new object</span>
+        <span class="n">klass</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="vm">__class__</span> <span class="k">if</span> <span class="n">into</span> <span class="ow">is</span> <span class="kc">None</span> <span class="k">else</span> <span class="n">into</span>
+        <span class="c1"># Also allow arbitrary constructor kwargs, for subclasses where passing</span>
+        <span class="c1"># (some) data in at init time is desired (vs post-init copying)</span>
+        <span class="c1"># TODO: probably want to pivot the whole class this way eventually...?</span>
+        <span class="c1"># No longer recall exactly why we went with the &#39;fresh init + attribute</span>
+        <span class="c1"># setting&#39; approach originally...tho there&#39;s clearly some impedance</span>
+        <span class="c1"># mismatch going on between &quot;I want stuff to happen in my config&#39;s</span>
+        <span class="c1"># instantiation&quot; and &quot;I want cloning to not trigger certain things like</span>
+        <span class="c1"># external data source loading&quot;.</span>
+        <span class="c1"># NOTE: this will include lazy=True, see end of method</span>
+        <span class="n">new</span> <span class="o">=</span> <span class="n">klass</span><span class="p">(</span><span class="o">**</span><span class="bp">self</span><span class="o">.</span><span class="n">_clone_init_kwargs</span><span class="p">(</span><span class="n">into</span><span class="o">=</span><span class="n">into</span><span class="p">))</span>
+        <span class="c1"># Copy/merge/etc all &#39;private&#39; data sources and attributes</span>
+        <span class="k">for</span> <span class="n">name</span> <span class="ow">in</span> <span class="s2">&quot;&quot;&quot;</span>
+<span class="s2">            collection</span>
+<span class="s2">            system_prefix</span>
+<span class="s2">            system_path</span>
+<span class="s2">            system_found</span>
+<span class="s2">            system</span>
+<span class="s2">            user_prefix</span>
+<span class="s2">            user_path</span>
+<span class="s2">            user_found</span>
+<span class="s2">            user</span>
+<span class="s2">            project_prefix</span>
+<span class="s2">            project_path</span>
+<span class="s2">            project_found</span>
+<span class="s2">            project</span>
+<span class="s2">            env_prefix</span>
+<span class="s2">            env</span>
+<span class="s2">            runtime_path</span>
+<span class="s2">            runtime_found</span>
+<span class="s2">            runtime</span>
+<span class="s2">            overrides</span>
+<span class="s2">            modifications</span>
+<span class="s2">        &quot;&quot;&quot;</span><span class="o">.</span><span class="n">split</span><span class="p">():</span>
+            <span class="n">name</span> <span class="o">=</span> <span class="s2">&quot;_</span><span class="si">{}</span><span class="s2">&quot;</span><span class="o">.</span><span class="n">format</span><span class="p">(</span><span class="n">name</span><span class="p">)</span>
+            <span class="n">my_data</span> <span class="o">=</span> <span class="nb">getattr</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">name</span><span class="p">)</span>
+            <span class="c1"># Non-dict data gets carried over straight (via a copy())</span>
+            <span class="c1"># NOTE: presumably someone could really screw up and change these</span>
+            <span class="c1"># values&#39; types, but at that point it&#39;s on them...</span>
+            <span class="k">if</span> <span class="ow">not</span> <span class="nb">isinstance</span><span class="p">(</span><span class="n">my_data</span><span class="p">,</span> <span class="nb">dict</span><span class="p">):</span>
+                <span class="n">new</span><span class="o">.</span><span class="n">_set</span><span class="p">(</span><span class="n">name</span><span class="p">,</span> <span class="n">copy</span><span class="o">.</span><span class="n">copy</span><span class="p">(</span><span class="n">my_data</span><span class="p">))</span>
+            <span class="c1"># Dict data gets merged (which also involves a copy.copy</span>
+            <span class="c1"># eventually)</span>
+            <span class="k">else</span><span class="p">:</span>
+                <span class="n">merge_dicts</span><span class="p">(</span><span class="nb">getattr</span><span class="p">(</span><span class="n">new</span><span class="p">,</span> <span class="n">name</span><span class="p">),</span> <span class="n">my_data</span><span class="p">)</span>
+        <span class="c1"># Do what __init__ would&#39;ve done if not lazy, i.e. load user/system</span>
+        <span class="c1"># conf files.</span>
+        <span class="n">new</span><span class="o">.</span><span class="n">load_base_conf_files</span><span class="p">()</span>
+        <span class="c1"># Finally, merge() for reals (_load_base_conf_files doesn&#39;t do so</span>
+        <span class="c1"># internally, so that data wouldn&#39;t otherwise show up.)</span>
+        <span class="n">new</span><span class="o">.</span><span class="n">merge</span><span class="p">()</span>
+        <span class="k">return</span> <span class="n">new</span>
+
+    <span class="k">def</span> <span class="nf">_clone_init_kwargs</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">into</span><span class="o">=</span><span class="kc">None</span><span class="p">):</span>
+        <span class="sd">&quot;&quot;&quot;</span>
+<span class="sd">        Supply kwargs suitable for initializing a new clone of this object.</span>
+
+<span class="sd">        Note that most of the `.clone` process involves copying data between</span>
+<span class="sd">        two instances instead of passing init kwargs; however, sometimes you</span>
+<span class="sd">        really do want init kwargs, which is why this method exists.</span>
+
+<span class="sd">        :param into: The value of ``into`` as passed to the calling `.clone`.</span>
+
+<span class="sd">        :returns: A `dict`.</span>
+<span class="sd">        &quot;&quot;&quot;</span>
+        <span class="c1"># NOTE: must pass in defaults fresh or otherwise global_defaults() gets</span>
+        <span class="c1"># used instead. Except when &#39;into&#39; is in play, in which case we truly</span>
+        <span class="c1"># want the union of the two.</span>
+        <span class="n">new_defaults</span> <span class="o">=</span> <span class="n">copy_dict</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">_defaults</span><span class="p">)</span>
+        <span class="k">if</span> <span class="n">into</span> <span class="ow">is</span> <span class="ow">not</span> <span class="kc">None</span><span class="p">:</span>
+            <span class="n">merge_dicts</span><span class="p">(</span><span class="n">new_defaults</span><span class="p">,</span> <span class="n">into</span><span class="o">.</span><span class="n">global_defaults</span><span class="p">())</span>
+        <span class="c1"># The kwargs.</span>
+        <span class="k">return</span> <span class="nb">dict</span><span class="p">(</span>
+            <span class="n">defaults</span><span class="o">=</span><span class="n">new_defaults</span><span class="p">,</span>
+            <span class="c1"># TODO: consider making this &#39;hardcoded&#39; on the calling end (ie</span>
+            <span class="c1"># inside clone()) to make sure nobody accidentally nukes it via</span>
+            <span class="c1"># subclassing?</span>
+            <span class="n">lazy</span><span class="o">=</span><span class="kc">True</span><span class="p">,</span>
+        <span class="p">)</span>
+
+    <span class="k">def</span> <span class="nf">_modify</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">keypath</span><span class="p">,</span> <span class="n">key</span><span class="p">,</span> <span class="n">value</span><span class="p">):</span>
+        <span class="sd">&quot;&quot;&quot;</span>
+<span class="sd">        Update our user-modifications config level with new data.</span>
+
+<span class="sd">        :param tuple keypath:</span>
+<span class="sd">            The key path identifying the sub-dict being updated. May be an</span>
+<span class="sd">            empty tuple if the update is occurring at the topmost level.</span>
+
+<span class="sd">        :param str key:</span>
+<span class="sd">            The actual key receiving an update.</span>
+
+<span class="sd">        :param value:</span>
+<span class="sd">            The value being written.</span>
+<span class="sd">        &quot;&quot;&quot;</span>
+        <span class="c1"># First, ensure we wipe the keypath from _deletions, in case it was</span>
+        <span class="c1"># previously deleted.</span>
+        <span class="n">excise</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">_deletions</span><span class="p">,</span> <span class="n">keypath</span> <span class="o">+</span> <span class="p">(</span><span class="n">key</span><span class="p">,))</span>
+        <span class="c1"># Now we can add it to the modifications structure.</span>
+        <span class="n">data</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">_modifications</span>
+        <span class="n">keypath</span> <span class="o">=</span> <span class="nb">list</span><span class="p">(</span><span class="n">keypath</span><span class="p">)</span>
+        <span class="k">while</span> <span class="n">keypath</span><span class="p">:</span>
+            <span class="n">subkey</span> <span class="o">=</span> <span class="n">keypath</span><span class="o">.</span><span class="n">pop</span><span class="p">(</span><span class="mi">0</span><span class="p">)</span>
+            <span class="c1"># TODO: could use defaultdict here, but...meh?</span>
+            <span class="k">if</span> <span class="n">subkey</span> <span class="ow">not</span> <span class="ow">in</span> <span class="n">data</span><span class="p">:</span>
+                <span class="c1"># TODO: generify this and the subsequent 3 lines...</span>
+                <span class="n">data</span><span class="p">[</span><span class="n">subkey</span><span class="p">]</span> <span class="o">=</span> <span class="p">{}</span>
+            <span class="n">data</span> <span class="o">=</span> <span class="n">data</span><span class="p">[</span><span class="n">subkey</span><span class="p">]</span>
+        <span class="n">data</span><span class="p">[</span><span class="n">key</span><span class="p">]</span> <span class="o">=</span> <span class="n">value</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">merge</span><span class="p">()</span>
+
+    <span class="k">def</span> <span class="nf">_remove</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">keypath</span><span class="p">,</span> <span class="n">key</span><span class="p">):</span>
+        <span class="sd">&quot;&quot;&quot;</span>
+<span class="sd">        Like `._modify`, but for removal.</span>
+<span class="sd">        &quot;&quot;&quot;</span>
+        <span class="c1"># NOTE: because deletions are processed in merge() last, we do not need</span>
+        <span class="c1"># to remove things from _modifications on removal; but we *do* do the</span>
+        <span class="c1"># inverse - remove from _deletions on modification.</span>
+        <span class="c1"># TODO: may be sane to push this step up to callers?</span>
+        <span class="n">data</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">_deletions</span>
+        <span class="n">keypath</span> <span class="o">=</span> <span class="nb">list</span><span class="p">(</span><span class="n">keypath</span><span class="p">)</span>
+        <span class="k">while</span> <span class="n">keypath</span><span class="p">:</span>
+            <span class="n">subkey</span> <span class="o">=</span> <span class="n">keypath</span><span class="o">.</span><span class="n">pop</span><span class="p">(</span><span class="mi">0</span><span class="p">)</span>
+            <span class="k">if</span> <span class="n">subkey</span> <span class="ow">in</span> <span class="n">data</span><span class="p">:</span>
+                <span class="n">data</span> <span class="o">=</span> <span class="n">data</span><span class="p">[</span><span class="n">subkey</span><span class="p">]</span>
+                <span class="c1"># If we encounter None, it means something higher up than our</span>
+                <span class="c1"># requested keypath is already marked as deleted; so we don&#39;t</span>
+                <span class="c1"># have to do anything or go further.</span>
+                <span class="k">if</span> <span class="n">data</span> <span class="ow">is</span> <span class="kc">None</span><span class="p">:</span>
+                    <span class="k">return</span>
+                <span class="c1"># Otherwise it&#39;s presumably another dict, so keep looping...</span>
+            <span class="k">else</span><span class="p">:</span>
+                <span class="c1"># Key not found -&gt; nobody&#39;s marked anything along this part of</span>
+                <span class="c1"># the path for deletion, so we&#39;ll start building it out.</span>
+                <span class="n">data</span><span class="p">[</span><span class="n">subkey</span><span class="p">]</span> <span class="o">=</span> <span class="p">{}</span>
+                <span class="c1"># Then prep for next iteration</span>
+                <span class="n">data</span> <span class="o">=</span> <span class="n">data</span><span class="p">[</span><span class="n">subkey</span><span class="p">]</span>
+        <span class="c1"># Exited loop -&gt; data must be the leafmost dict, so we can now set our</span>
+        <span class="c1"># deleted key to None</span>
+        <span class="n">data</span><span class="p">[</span><span class="n">key</span><span class="p">]</span> <span class="o">=</span> <span class="kc">None</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">merge</span><span class="p">()</span>
+
+
+<span class="k">class</span> <span class="nc">AmbiguousMergeError</span><span class="p">(</span><span class="ne">ValueError</span><span class="p">):</span>
+    <span class="k">pass</span>
+
+
+<span class="k">def</span> <span class="nf">merge_dicts</span><span class="p">(</span><span class="n">base</span><span class="p">,</span> <span class="n">updates</span><span class="p">):</span>
+    <span class="sd">&quot;&quot;&quot;</span>
+<span class="sd">    Recursively merge dict ``updates`` into dict ``base`` (mutating ``base``.)</span>
+
+<span class="sd">    * Values which are themselves dicts will be recursed into.</span>
+<span class="sd">    * Values which are a dict in one input and *not* a dict in the other input</span>
+<span class="sd">      (e.g. if our inputs were ``{&#39;foo&#39;: 5}`` and ``{&#39;foo&#39;: {&#39;bar&#39;: 5}}``) are</span>
+<span class="sd">      irreconciliable and will generate an exception.</span>
+<span class="sd">    * Non-dict leaf values are run through `copy.copy` to avoid state bleed.</span>
+
+<span class="sd">    .. note::</span>
+<span class="sd">        This is effectively a lightweight `copy.deepcopy` which offers</span>
+<span class="sd">        protection from mismatched types (dict vs non-dict) and avoids some</span>
+<span class="sd">        core deepcopy problems (such as how it explodes on certain object</span>
+<span class="sd">        types).</span>
+
+<span class="sd">    :returns:</span>
+<span class="sd">        The value of ``base``, which is mostly useful for wrapper functions</span>
+<span class="sd">        like `copy_dict`.</span>
+
+<span class="sd">    .. versionadded:: 1.0</span>
+<span class="sd">    &quot;&quot;&quot;</span>
+    <span class="c1"># TODO: for chrissakes just make it return instead of mutating?</span>
+    <span class="k">for</span> <span class="n">key</span><span class="p">,</span> <span class="n">value</span> <span class="ow">in</span> <span class="p">(</span><span class="n">updates</span> <span class="ow">or</span> <span class="p">{})</span><span class="o">.</span><span class="n">items</span><span class="p">():</span>
+        <span class="c1"># Dict values whose keys also exist in &#39;base&#39; -&gt; recurse</span>
+        <span class="c1"># (But only if both types are dicts.)</span>
+        <span class="k">if</span> <span class="n">key</span> <span class="ow">in</span> <span class="n">base</span><span class="p">:</span>
+            <span class="k">if</span> <span class="nb">isinstance</span><span class="p">(</span><span class="n">value</span><span class="p">,</span> <span class="nb">dict</span><span class="p">):</span>
+                <span class="k">if</span> <span class="nb">isinstance</span><span class="p">(</span><span class="n">base</span><span class="p">[</span><span class="n">key</span><span class="p">],</span> <span class="nb">dict</span><span class="p">):</span>
+                    <span class="n">merge_dicts</span><span class="p">(</span><span class="n">base</span><span class="p">[</span><span class="n">key</span><span class="p">],</span> <span class="n">value</span><span class="p">)</span>
+                <span class="k">else</span><span class="p">:</span>
+                    <span class="k">raise</span> <span class="n">_merge_error</span><span class="p">(</span><span class="n">base</span><span class="p">[</span><span class="n">key</span><span class="p">],</span> <span class="n">value</span><span class="p">)</span>
+            <span class="k">else</span><span class="p">:</span>
+                <span class="k">if</span> <span class="nb">isinstance</span><span class="p">(</span><span class="n">base</span><span class="p">[</span><span class="n">key</span><span class="p">],</span> <span class="nb">dict</span><span class="p">):</span>
+                    <span class="k">raise</span> <span class="n">_merge_error</span><span class="p">(</span><span class="n">base</span><span class="p">[</span><span class="n">key</span><span class="p">],</span> <span class="n">value</span><span class="p">)</span>
+                <span class="c1"># Fileno-bearing objects are probably &#39;real&#39; files which do not</span>
+                <span class="c1"># copy well &amp; must be passed by reference. Meh.</span>
+                <span class="k">elif</span> <span class="nb">hasattr</span><span class="p">(</span><span class="n">value</span><span class="p">,</span> <span class="s2">&quot;fileno&quot;</span><span class="p">):</span>
+                    <span class="n">base</span><span class="p">[</span><span class="n">key</span><span class="p">]</span> <span class="o">=</span> <span class="n">value</span>
+                <span class="k">else</span><span class="p">:</span>
+                    <span class="n">base</span><span class="p">[</span><span class="n">key</span><span class="p">]</span> <span class="o">=</span> <span class="n">copy</span><span class="o">.</span><span class="n">copy</span><span class="p">(</span><span class="n">value</span><span class="p">)</span>
+        <span class="c1"># New values get set anew</span>
+        <span class="k">else</span><span class="p">:</span>
+            <span class="c1"># Dict values get reconstructed to avoid being references to the</span>
+            <span class="c1"># updates dict, which can lead to nasty state-bleed bugs otherwise</span>
+            <span class="k">if</span> <span class="nb">isinstance</span><span class="p">(</span><span class="n">value</span><span class="p">,</span> <span class="nb">dict</span><span class="p">):</span>
+                <span class="n">base</span><span class="p">[</span><span class="n">key</span><span class="p">]</span> <span class="o">=</span> <span class="n">copy_dict</span><span class="p">(</span><span class="n">value</span><span class="p">)</span>
+            <span class="c1"># Fileno-bearing objects are probably &#39;real&#39; files which do not</span>
+            <span class="c1"># copy well &amp; must be passed by reference. Meh.</span>
+            <span class="k">elif</span> <span class="nb">hasattr</span><span class="p">(</span><span class="n">value</span><span class="p">,</span> <span class="s2">&quot;fileno&quot;</span><span class="p">):</span>
+                <span class="n">base</span><span class="p">[</span><span class="n">key</span><span class="p">]</span> <span class="o">=</span> <span class="n">value</span>
+            <span class="c1"># Non-dict values just get set straight</span>
+            <span class="k">else</span><span class="p">:</span>
+                <span class="n">base</span><span class="p">[</span><span class="n">key</span><span class="p">]</span> <span class="o">=</span> <span class="n">copy</span><span class="o">.</span><span class="n">copy</span><span class="p">(</span><span class="n">value</span><span class="p">)</span>
+    <span class="k">return</span> <span class="n">base</span>
+
+
+<span class="k">def</span> <span class="nf">_merge_error</span><span class="p">(</span><span class="n">orig</span><span class="p">,</span> <span class="n">new_</span><span class="p">):</span>
+    <span class="k">return</span> <span class="n">AmbiguousMergeError</span><span class="p">(</span>
+        <span class="s2">&quot;Can&#39;t cleanly merge </span><span class="si">{}</span><span class="s2"> with </span><span class="si">{}</span><span class="s2">&quot;</span><span class="o">.</span><span class="n">format</span><span class="p">(</span>
+            <span class="n">_format_mismatch</span><span class="p">(</span><span class="n">orig</span><span class="p">),</span> <span class="n">_format_mismatch</span><span class="p">(</span><span class="n">new_</span><span class="p">)</span>
+        <span class="p">)</span>
+    <span class="p">)</span>
+
+
+<span class="k">def</span> <span class="nf">_format_mismatch</span><span class="p">(</span><span class="n">x</span><span class="p">):</span>
+    <span class="k">return</span> <span class="s2">&quot;</span><span class="si">{}</span><span class="s2"> (</span><span class="si">{!r}</span><span class="s2">)&quot;</span><span class="o">.</span><span class="n">format</span><span class="p">(</span><span class="nb">type</span><span class="p">(</span><span class="n">x</span><span class="p">),</span> <span class="n">x</span><span class="p">)</span>
+
+
+<span class="k">def</span> <span class="nf">copy_dict</span><span class="p">(</span><span class="n">source</span><span class="p">):</span>
+    <span class="sd">&quot;&quot;&quot;</span>
+<span class="sd">    Return a fresh copy of ``source`` with as little shared state as possible.</span>
+
+<span class="sd">    Uses `merge_dicts` under the hood, with an empty ``base`` dict; see its</span>
+<span class="sd">    documentation for details on behavior.</span>
+
+<span class="sd">    .. versionadded:: 1.0</span>
+<span class="sd">    &quot;&quot;&quot;</span>
+    <span class="k">return</span> <span class="n">merge_dicts</span><span class="p">({},</span> <span class="n">source</span><span class="p">)</span>
+
+
+<span class="k">def</span> <span class="nf">excise</span><span class="p">(</span><span class="n">dict_</span><span class="p">,</span> <span class="n">keypath</span><span class="p">):</span>
+    <span class="sd">&quot;&quot;&quot;</span>
+<span class="sd">    Remove key pointed at by ``keypath`` from nested dict ``dict_``, if exists.</span>
+
+<span class="sd">    .. versionadded:: 1.0</span>
+<span class="sd">    &quot;&quot;&quot;</span>
+    <span class="n">data</span> <span class="o">=</span> <span class="n">dict_</span>
+    <span class="n">keypath</span> <span class="o">=</span> <span class="nb">list</span><span class="p">(</span><span class="n">keypath</span><span class="p">)</span>
+    <span class="n">leaf_key</span> <span class="o">=</span> <span class="n">keypath</span><span class="o">.</span><span class="n">pop</span><span class="p">()</span>
+    <span class="k">while</span> <span class="n">keypath</span><span class="p">:</span>
+        <span class="n">key</span> <span class="o">=</span> <span class="n">keypath</span><span class="o">.</span><span class="n">pop</span><span class="p">(</span><span class="mi">0</span><span class="p">)</span>
+        <span class="k">if</span> <span class="n">key</span> <span class="ow">not</span> <span class="ow">in</span> <span class="n">data</span><span class="p">:</span>
+            <span class="c1"># Not there, nothing to excise</span>
+            <span class="k">return</span>
+        <span class="n">data</span> <span class="o">=</span> <span class="n">data</span><span class="p">[</span><span class="n">key</span><span class="p">]</span>
+    <span class="k">if</span> <span class="n">leaf_key</span> <span class="ow">in</span> <span class="n">data</span><span class="p">:</span>
+        <span class="k">del</span> <span class="n">data</span><span class="p">[</span><span class="n">leaf_key</span><span class="p">]</span>
+
+
+<span class="k">def</span> <span class="nf">obliterate</span><span class="p">(</span><span class="n">base</span><span class="p">,</span> <span class="n">deletions</span><span class="p">):</span>
+    <span class="sd">&quot;&quot;&quot;</span>
+<span class="sd">    Remove all (nested) keys mentioned in ``deletions``, from ``base``.</span>
+
+<span class="sd">    .. versionadded:: 1.0</span>
+<span class="sd">    &quot;&quot;&quot;</span>
+    <span class="k">for</span> <span class="n">key</span><span class="p">,</span> <span class="n">value</span> <span class="ow">in</span> <span class="n">six</span><span class="o">.</span><span class="n">iteritems</span><span class="p">(</span><span class="n">deletions</span><span class="p">):</span>
+        <span class="k">if</span> <span class="nb">isinstance</span><span class="p">(</span><span class="n">value</span><span class="p">,</span> <span class="nb">dict</span><span class="p">):</span>
+            <span class="c1"># NOTE: not testing for whether base[key] exists; if something&#39;s</span>
+            <span class="c1"># listed in a deletions structure, it must exist in some source</span>
+            <span class="c1"># somewhere, and thus also in the cache being obliterated.</span>
+            <span class="n">obliterate</span><span class="p">(</span><span class="n">base</span><span class="p">[</span><span class="n">key</span><span class="p">],</span> <span class="n">deletions</span><span class="p">[</span><span class="n">key</span><span class="p">])</span>
+        <span class="k">else</span><span class="p">:</span>  <span class="c1"># implicitly None</span>
+            <span class="k">del</span> <span class="n">base</span><span class="p">[</span><span class="n">key</span><span class="p">]</span>
+</pre></div>
+
+          </div>
+          
+        </div>
+      </div>
+      <div class="sphinxsidebar" role="navigation" aria-label="main navigation">
+        <div class="sphinxsidebarwrapper">
+<h1 class="logo"><a href="../../index.html">Roberto</a></h1>
+
+
+
+<p class="blurb">Automated development workflow</p>
+
+
+
+
+<p>
+<iframe src="https://ghbtns.com/github-btn.html?user=theochem&repo=roberto&type=watch&count=true&size=large&v=2"
+  allowtransparency="true" frameborder="0" scrolling="0" width="200px" height="35px"></iframe>
+</p>
+
+
+
+
+
+    
+
+<p>
+<a class="badge" href="https://travis-ci.org/theochem/roberto">
+    <img
+        alt="https://secure.travis-ci.org/theochem/roberto.svg?branch=master"
+        src="https://secure.travis-ci.org/theochem/roberto.svg?branch=master"
+    />
+</a>
+</p>
+
+
+
+
+    
+
+<p>
+<a class="badge" href="https://codecov.io/github/theochem/roberto">
+    <img
+    alt="https://codecov.io/github/theochem/roberto/coverage.svg?branch=master"
+    src="https://codecov.io/github/theochem/roberto/coverage.svg?branch=master"
+    />
+</a>
+</p>
+<h3>Navigation</h3>
+<p class="caption"><span class="caption-text">User documentation</span></p>
+<ul>
+<li class="toctree-l1"><a class="reference internal" href="../../readme.html">Read me first</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../../workflow.html">Work flow</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../../configuration.html">Configuration</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../../setupci.html">CI Setup</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../../changelog.html">Change log</a></li>
+</ul>
+<p class="caption"><span class="caption-text">Developer documentation</span></p>
+<ul>
+<li class="toctree-l1"><a class="reference internal" href="../../contributing.html">How to contribute?</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../../api/roberto.html">roberto package</a></li>
+</ul>
+
+<div class="relations">
+<h3>Related Topics</h3>
+<ul>
+  <li><a href="../../index.html">Documentation overview</a><ul>
+  <li><a href="../index.html">Module code</a><ul>
+  </ul></li>
+  </ul></li>
+</ul>
+</div>
+<div id="searchbox" style="display: none" role="search">
+  <h3 id="searchlabel">Quick search</h3>
+    <div class="searchformwrapper">
+    <form class="search" action="../../search.html" method="get">
+      <input type="text" name="q" aria-labelledby="searchlabel" />
+      <input type="submit" value="Go" />
+    </form>
+    </div>
+</div>
+<script>$('#searchbox').show(0);</script>
+
+
+
+
+
+
+
+
+        </div>
+      </div>
+      <div class="clearer"></div>
+    </div>
+    <div class="footer">
+      &copy;2020 The Roberto Development Team.
+      
+      |
+      Powered by <a href="http://sphinx-doc.org/">Sphinx 3.2.1</a>
+      &amp; <a href="https://github.com/bitprophet/alabaster">Alabaster 0.7.12</a>
+      
+    </div>
+
+    
+
+    
+  </body>
+</html>

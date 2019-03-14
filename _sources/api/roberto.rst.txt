@@ -1,0 +1,53 @@
+roberto package
+===============
+
+Submodules
+----------
+
+roberto.config module
+---------------------
+
+.. automodule:: roberto.config
+   :members:
+   :undoc-members:
+   :show-inheritance:
+
+roberto.program module
+----------------------
+
+.. automodule:: roberto.program
+   :members:
+   :undoc-members:
+   :show-inheritance:
+
+roberto.tasks module
+--------------------
+
+.. automodule:: roberto.tasks
+   :members:
+   :undoc-members:
+   :show-inheritance:
+
+roberto.utils module
+--------------------
+
+.. automodule:: roberto.utils
+   :members:
+   :undoc-members:
+   :show-inheritance:
+
+roberto.version module
+----------------------
+
+.. automodule:: roberto.version
+   :members:
+   :undoc-members:
+   :show-inheritance:
+
+Module contents
+---------------
+
+.. automodule:: roberto
+   :members:
+   :undoc-members:
+   :show-inheritance:
