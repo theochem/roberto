@@ -1,6 +1,7 @@
 # Roberto workflow artifacts
 activate-*-dev-*.sh
 roberto/version.py
+doc/_build
 
 # Created by .ignore support plugin (hsz.mobi)
 ### macOS template

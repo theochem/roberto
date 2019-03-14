@@ -175,6 +175,17 @@ tools:
         PROJECT_VERSION={config.git.tag_version}
         conda build tools/conda.recipe --override-channel
 
+  build-sphinx-doc:
+    task: build-packages
+    conda_requirements:
+      - sphinx
+    pip_requirements:
+      - sphinxcontrib-napoleon
+      - sphinx-autodoc-typehints
+      - sphinx-rtd-theme
+    commands:
+      - cd doc; make html
+
   deploy-pypi:
     task: deploy
     conda_requirements:

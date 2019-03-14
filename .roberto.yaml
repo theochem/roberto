@@ -9,6 +9,7 @@ project:
         - cardboardlint-static
         - cardboardlint-dynamic
         - pytest
+        - build-sphinx-doc
         - build-py-source
         - build-conda
         - deploy-pypi
