@@ -122,8 +122,10 @@ tools:
       - pytest-cov
     commands:
       - >-
-        pytest {package.name} -v --cov={package.name} --cov-report xml
-        --cov-report term-missing --cov-branch --color=yes
+        pytest {package.name} -v --cov={package.name}
+        --cov-report xml:coverage_pytest.xml
+        --cov-report term-missing
+        --cov-branch --color=yes
 
   nose:
     task: test-inplace
@@ -136,7 +138,7 @@ tools:
         nosetests {package.name} -v --detailed-errors --with-coverage
         --cover-package={package.name} --cover-tests --cover-inclusive
         --cover-branches
-      - coverage xml -i
+      - coverage xml -i -o coverage_nose.xml
 
   maketest:
     task: test-inplace

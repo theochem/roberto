@@ -85,7 +85,7 @@ env:
     # Install conda in a *sub*directory of a directory cached by travis.
     - ROBERTO_CONDA_INSTALL_PATH=${HOME}/cache/miniconda3
     # Tell Roberto to upload coverage results
-    - ROBERTO_UPLOAD_COVERAGE=1
+    # - ROBERTO_UPLOAD_COVERAGE=1
     # Build conda packages outside the miniconda tree, to avoid caching.
     # This makes it possible to still deploy packages after cache cleaning.
     - CONDA_BLD_PATH=${HOME}/conda-bld
@@ -169,6 +169,7 @@ script:
   - python3 -m coverage run --branch --source=roberto -m roberto && sleep 10
   # Report and upload also the additional coverage.
   - python3 -m coverage report -m
+  - python3 -m coverage xml -i -o coverage_run.xml
   - bash <(curl -s https://codecov.io/bash)
 
 before_cache:
