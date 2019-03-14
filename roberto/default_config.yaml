@@ -19,6 +19,7 @@ conda:
   osx_url: 'https://repo.continuum.io/miniconda/Miniconda3-latest-MacOSX-x86_64.sh'
   base_path: '${HOME}/miniconda3'
   pinning: 'python 3.7'  # dependencies to be pinned during testing.
+  channels: [conda-forge]  # you practically always need to include conda-forge.
   # The following are set automatically...
   env_name: null  # The name of the conda development environment.
   env_path: null  # The path of the conda development environment.
@@ -77,9 +78,9 @@ tools:
         - pydocstyle
         - pylint
         - flake8
-        - conda-forge::cppcheck
-        - conda-forge::cpplint
-        - conda-forge::yamllint
+        - cppcheck
+        - cpplint
+        - yamllint
     commands:
       lint_static_master:
         - cardboardlinter -f static
@@ -166,7 +167,9 @@ tools:
         - conda-verify
     commands:
       build_packages:
-        - PROJECT_VERSION={config.git.tag_version} conda build tools/conda.recipe
+        - >-
+          PROJECT_VERSION={config.git.tag_version} conda build tools/conda.recipe
+          --override-channel
 
   deploy_pypi:
     config:
@@ -185,7 +188,7 @@ tools:
   deploy_github:
     config:
       conda_requirements:
-        - conda-forge::hub
+        - hub
       deploy_vars:
         - GITHUB_TOKEN
       asset_pattern: '{package.path}/dist/{package.name}-{config.tag_version}.*'
