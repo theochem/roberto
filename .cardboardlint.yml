@@ -9,3 +9,4 @@ linters:
       config: .pydocstylerc
   - whitespace:
   - yamllint:
+      filefilter: ['- */meta.yaml', '+ *.yaml', '+ *.yml']

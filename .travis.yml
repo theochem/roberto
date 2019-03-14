@@ -83,7 +83,7 @@ matrix:
 env:
   global:
     # Install conda in a *sub*directory of a directory cached by travis.
-    - ROBERTO_CONDA_INSTALL_PATH=${HOME}/cache/miniconda3
+    - ROBERTO_CONDA_BASE_PATH=${HOME}/cache/miniconda3
     # Tell Roberto to upload coverage results
     # - ROBERTO_UPLOAD_COVERAGE=1
     # Build conda packages outside the miniconda tree, to avoid caching.
@@ -147,7 +147,7 @@ env:
 
 cache:
   directories:
-    - $HOME/cache
+    - ${HOME}/cache
 
 install:
   # Disable deployment when TRAVIS_TAG is not set. This avoids duplicate deployments.
