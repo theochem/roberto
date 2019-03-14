@@ -1,0 +1,368 @@
+
+<!DOCTYPE html>
+
+<html lang="en">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>roberto.utils &#8212; Roberto 2.0.4 documentation</title>
+    <link rel="stylesheet" type="text/css" href="../../_static/pygments.css" />
+    <link rel="stylesheet" type="text/css" href="../../_static/alabaster.css" />
+    <script data-url_root="../../" id="documentation_options" src="../../_static/documentation_options.js"></script>
+    <script src="../../_static/jquery.js"></script>
+    <script src="../../_static/underscore.js"></script>
+    <script src="../../_static/_sphinx_javascript_frameworks_compat.js"></script>
+    <script src="../../_static/doctools.js"></script>
+    <script src="../../_static/sphinx_highlight.js"></script>
+    <link rel="index" title="Index" href="../../genindex.html" />
+    <link rel="search" title="Search" href="../../search.html" />
+   
+  <link rel="stylesheet" href="../../_static/custom.css" type="text/css" />
+  
+  
+  <meta name="viewport" content="width=device-width, initial-scale=0.9, maximum-scale=0.9" />
+
+  </head><body>
+  
+
+    <div class="document">
+      <div class="documentwrapper">
+        <div class="bodywrapper">
+          
+
+          <div class="body" role="main">
+            
+  <h1>Source code for roberto.utils</h1><div class="highlight"><pre>
+<span></span><span class="c1"># Collection of configurable development workflows</span>
+<span class="c1"># Copyright (C) 2011-2019 The Roberto Development Team</span>
+<span class="c1">#</span>
+<span class="c1"># This file is part of Roberto.</span>
+<span class="c1">#</span>
+<span class="c1"># Roberto is free software; you can redistribute it and/or</span>
+<span class="c1"># modify it under the terms of the GNU General Public License</span>
+<span class="c1"># as published by the Free Software Foundation; either version 3</span>
+<span class="c1"># of the License, or (at your option) any later version.</span>
+<span class="c1">#</span>
+<span class="c1"># Roberto is distributed in the hope that it will be useful,</span>
+<span class="c1"># but WITHOUT ANY WARRANTY; without even the implied warranty of</span>
+<span class="c1"># MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the</span>
+<span class="c1"># GNU General Public License for more details.</span>
+<span class="c1">#</span>
+<span class="c1"># You should have received a copy of the GNU General Public License</span>
+<span class="c1"># along with this program; if not, see &lt;http://www.gnu.org/licenses/&gt;</span>
+<span class="c1"># --</span>
+<span class="sd">&quot;&quot;&quot;Utilities used by tasks in Roberto&#39;s workflow.&quot;&quot;&quot;</span>
+
+
+<span class="kn">import</span> <span class="nn">hashlib</span>
+<span class="kn">import</span> <span class="nn">os</span>
+<span class="kn">import</span> <span class="nn">re</span>
+<span class="kn">from</span> <span class="nn">typing</span> <span class="kn">import</span> <span class="n">List</span>
+
+<span class="kn">from</span> <span class="nn">invoke</span> <span class="kn">import</span> <span class="n">Context</span><span class="p">,</span> <span class="n">Failure</span>
+
+
+<div class="viewcode-block" id="parse_git_describe"><a class="viewcode-back" href="../../api/roberto.html#roberto.utils.parse_git_describe">[docs]</a><span class="k">def</span> <span class="nf">parse_git_describe</span><span class="p">(</span><span class="n">git_describe</span><span class="p">:</span> <span class="nb">str</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="nb">dict</span><span class="p">:</span>
+<span class="w">    </span><span class="sd">&quot;&quot;&quot;Parse the output of ``git describe --tags``.</span>
+
+<span class="sd">    Parameters</span>
+<span class="sd">    ----------</span>
+<span class="sd">    git_describe</span>
+<span class="sd">        The output of git describe</span>
+
+<span class="sd">    Returns</span>
+<span class="sd">    -------</span>
+<span class="sd">    version_info: dict</span>
+<span class="sd">        A dictionary with version information.</span>
+
+<span class="sd">    &quot;&quot;&quot;</span>
+    <span class="c1"># Split the input string into basic parts.</span>
+    <span class="n">git_describe</span> <span class="o">=</span> <span class="n">git_describe</span><span class="o">.</span><span class="n">strip</span><span class="p">()</span>
+    <span class="n">version_words</span> <span class="o">=</span> <span class="n">git_describe</span><span class="o">.</span><span class="n">split</span><span class="p">(</span><span class="s1">&#39;-&#39;</span><span class="p">)</span>
+    <span class="n">tag</span> <span class="o">=</span> <span class="n">version_words</span><span class="p">[</span><span class="mi">0</span><span class="p">]</span>
+    <span class="n">version_parts</span> <span class="o">=</span> <span class="n">tag</span><span class="o">.</span><span class="n">split</span><span class="p">(</span><span class="s1">&#39;.&#39;</span><span class="p">)</span>
+    <span class="k">if</span> <span class="nb">len</span><span class="p">(</span><span class="n">version_parts</span><span class="p">)</span> <span class="o">!=</span> <span class="mi">3</span><span class="p">:</span>
+        <span class="k">raise</span> <span class="n">TagError</span><span class="p">(</span><span class="s1">&#39;A version tag must at least contain two dots.&#39;</span><span class="p">,</span> <span class="n">tag</span><span class="p">)</span>
+
+    <span class="c1"># If the last version part has a non numeric suffix,</span>
+    <span class="c1"># it needs to be taken out.</span>
+    <span class="n">match</span> <span class="o">=</span> <span class="n">re</span><span class="o">.</span><span class="n">fullmatch</span><span class="p">(</span><span class="sa">r</span><span class="s1">&#39;(\d+)(.*)&#39;</span><span class="p">,</span> <span class="n">version_parts</span><span class="p">[</span><span class="o">-</span><span class="mi">1</span><span class="p">])</span>
+    <span class="k">if</span> <span class="n">match</span> <span class="ow">is</span> <span class="kc">None</span><span class="p">:</span>
+        <span class="k">raise</span> <span class="n">TagError</span><span class="p">(</span><span class="s1">&#39;The patch version must start with a number.&#39;</span><span class="p">,</span> <span class="n">tag</span><span class="p">)</span>
+    <span class="n">version_parts</span><span class="p">[</span><span class="o">-</span><span class="mi">1</span><span class="p">]</span> <span class="o">=</span> <span class="n">match</span><span class="o">.</span><span class="n">group</span><span class="p">(</span><span class="mi">1</span><span class="p">)</span>
+    <span class="n">suffix</span> <span class="o">=</span> <span class="n">match</span><span class="o">.</span><span class="n">group</span><span class="p">(</span><span class="mi">2</span><span class="p">)</span>
+
+    <span class="c1"># Define various meaningful pieces</span>
+    <span class="n">major</span><span class="p">,</span> <span class="n">minor</span><span class="p">,</span> <span class="n">patch</span> <span class="o">=</span> <span class="n">version_parts</span>
+    <span class="k">if</span> <span class="ow">not</span> <span class="n">minor</span><span class="o">.</span><span class="n">isnumeric</span><span class="p">():</span>
+        <span class="k">raise</span> <span class="n">TagError</span><span class="p">(</span><span class="s1">&#39;The minor version must be numeric.&#39;</span><span class="p">,</span> <span class="n">tag</span><span class="p">)</span>
+    <span class="k">if</span> <span class="ow">not</span> <span class="n">major</span><span class="o">.</span><span class="n">isnumeric</span><span class="p">():</span>
+        <span class="k">raise</span> <span class="n">TagError</span><span class="p">(</span><span class="s1">&#39;The major version must be numeric.&#39;</span><span class="p">,</span> <span class="n">tag</span><span class="p">)</span>
+    <span class="k">if</span> <span class="nb">len</span><span class="p">(</span><span class="n">version_words</span><span class="p">)</span> <span class="o">&gt;</span> <span class="mi">1</span><span class="p">:</span>
+        <span class="n">suffix</span> <span class="o">+=</span> <span class="s1">&#39;.post&#39;</span> <span class="o">+</span> <span class="n">version_words</span><span class="p">[</span><span class="mi">1</span><span class="p">]</span>
+
+    <span class="c1"># Construct results</span>
+    <span class="n">version_info</span> <span class="o">=</span> <span class="p">{</span>
+        <span class="s1">&#39;describe&#39;</span><span class="p">:</span> <span class="n">git_describe</span><span class="p">,</span>
+        <span class="s1">&#39;tag&#39;</span><span class="p">:</span> <span class="n">tag</span><span class="p">,</span>
+        <span class="s1">&#39;tag_version&#39;</span><span class="p">:</span> <span class="sa">f</span><span class="s1">&#39;</span><span class="si">{</span><span class="n">major</span><span class="si">}</span><span class="s1">.</span><span class="si">{</span><span class="n">minor</span><span class="si">}</span><span class="s1">.</span><span class="si">{</span><span class="n">patch</span><span class="si">}{</span><span class="n">suffix</span><span class="si">}</span><span class="s1">&#39;</span><span class="p">,</span>
+        <span class="s1">&#39;tag_soversion&#39;</span><span class="p">:</span> <span class="sa">f</span><span class="s1">&#39;</span><span class="si">{</span><span class="n">major</span><span class="si">}</span><span class="s1">.</span><span class="si">{</span><span class="n">minor</span><span class="si">}</span><span class="s1">&#39;</span><span class="p">,</span>
+        <span class="s1">&#39;tag_version_major&#39;</span><span class="p">:</span> <span class="n">major</span><span class="p">,</span>
+        <span class="s1">&#39;tag_version_minor&#39;</span><span class="p">:</span> <span class="n">minor</span><span class="p">,</span>
+        <span class="s1">&#39;tag_version_patch&#39;</span><span class="p">:</span> <span class="n">patch</span><span class="p">,</span>
+        <span class="s1">&#39;tag_version_suffix&#39;</span><span class="p">:</span> <span class="n">suffix</span><span class="p">,</span>
+        <span class="s1">&#39;tag_stable&#39;</span><span class="p">:</span> <span class="nb">len</span><span class="p">(</span><span class="n">suffix</span><span class="p">)</span> <span class="o">==</span> <span class="mi">0</span><span class="p">,</span>
+        <span class="s1">&#39;tag_test&#39;</span><span class="p">:</span> <span class="n">re</span><span class="o">.</span><span class="n">fullmatch</span><span class="p">(</span><span class="sa">r</span><span class="s1">&#39;b\d+&#39;</span><span class="p">,</span> <span class="n">suffix</span><span class="p">)</span> <span class="ow">is</span> <span class="ow">not</span> <span class="kc">None</span><span class="p">,</span>
+        <span class="s1">&#39;tag_dev&#39;</span><span class="p">:</span> <span class="n">re</span><span class="o">.</span><span class="n">fullmatch</span><span class="p">(</span><span class="sa">r</span><span class="s1">&#39;a\d+&#39;</span><span class="p">,</span> <span class="n">suffix</span><span class="p">)</span> <span class="ow">is</span> <span class="ow">not</span> <span class="kc">None</span><span class="p">,</span>
+    <span class="p">}</span>
+    <span class="n">version_info</span><span class="p">[</span><span class="s1">&#39;tag_release&#39;</span><span class="p">]</span> <span class="o">=</span> <span class="p">(</span>
+        <span class="n">version_info</span><span class="p">[</span><span class="s1">&#39;tag_stable&#39;</span><span class="p">]</span>
+        <span class="ow">or</span> <span class="n">version_info</span><span class="p">[</span><span class="s1">&#39;tag_test&#39;</span><span class="p">]</span>
+        <span class="ow">or</span> <span class="n">version_info</span><span class="p">[</span><span class="s1">&#39;tag_dev&#39;</span><span class="p">])</span>
+    <span class="k">if</span> <span class="n">version_info</span><span class="p">[</span><span class="s1">&#39;tag_stable&#39;</span><span class="p">]:</span>
+        <span class="n">version_info</span><span class="p">[</span><span class="s1">&#39;deploy_label&#39;</span><span class="p">]</span> <span class="o">=</span> <span class="s2">&quot;main&quot;</span>
+        <span class="n">version_info</span><span class="p">[</span><span class="s1">&#39;dev_classifier&#39;</span><span class="p">]</span> <span class="o">=</span> <span class="s1">&#39;Development Status :: 5 - Production/Stable&#39;</span>
+    <span class="k">elif</span> <span class="n">version_info</span><span class="p">[</span><span class="s1">&#39;tag_test&#39;</span><span class="p">]:</span>
+        <span class="n">version_info</span><span class="p">[</span><span class="s1">&#39;deploy_label&#39;</span><span class="p">]</span> <span class="o">=</span> <span class="s2">&quot;test&quot;</span>
+        <span class="n">version_info</span><span class="p">[</span><span class="s1">&#39;dev_classifier&#39;</span><span class="p">]</span> <span class="o">=</span> <span class="s1">&#39;Development Status :: 4 - Beta&#39;</span>
+    <span class="k">elif</span> <span class="n">version_info</span><span class="p">[</span><span class="s1">&#39;tag_dev&#39;</span><span class="p">]:</span>
+        <span class="n">version_info</span><span class="p">[</span><span class="s1">&#39;deploy_label&#39;</span><span class="p">]</span> <span class="o">=</span> <span class="s2">&quot;dev&quot;</span>
+        <span class="n">version_info</span><span class="p">[</span><span class="s1">&#39;dev_classifier&#39;</span><span class="p">]</span> <span class="o">=</span> <span class="s1">&#39;Development Status :: 3 - Alpha&#39;</span>
+    <span class="k">else</span><span class="p">:</span>
+        <span class="c1"># Non-release tag or no tag.</span>
+        <span class="n">version_info</span><span class="p">[</span><span class="s1">&#39;deploy_label&#39;</span><span class="p">]</span> <span class="o">=</span> <span class="kc">None</span>
+        <span class="n">version_info</span><span class="p">[</span><span class="s1">&#39;dev_classifier&#39;</span><span class="p">]</span> <span class="o">=</span> <span class="s1">&#39;Development Status :: 2 - Pre-Alpha&#39;</span>
+    <span class="k">return</span> <span class="n">version_info</span></div>
+
+
+<div class="viewcode-block" id="TagError"><a class="viewcode-back" href="../../api/roberto.html#roberto.utils.TagError">[docs]</a><span class="k">class</span> <span class="nc">TagError</span><span class="p">(</span><span class="ne">Exception</span><span class="p">):</span>
+<span class="w">    </span><span class="sd">&quot;&quot;&quot;An exception raised when a version tag is invalid.&quot;&quot;&quot;</span>
+
+<div class="viewcode-block" id="TagError.__init__"><a class="viewcode-back" href="../../api/roberto.html#roberto.utils.TagError.__init__">[docs]</a>    <span class="k">def</span> <span class="fm">__init__</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">message</span><span class="p">:</span> <span class="nb">str</span><span class="p">,</span> <span class="n">tag</span><span class="p">:</span> <span class="nb">str</span><span class="p">):</span>
+<span class="w">        </span><span class="sd">&quot;&quot;&quot;Initialize an TagError.</span>
+
+<span class="sd">        Parameters</span>
+<span class="sd">        ----------</span>
+<span class="sd">        message</span>
+<span class="sd">            Describe the error.</span>
+<span class="sd">        tag</span>
+<span class="sd">            The tag having the problem, which will be added to the error</span>
+<span class="sd">            message.</span>
+
+<span class="sd">        &quot;&quot;&quot;</span>
+        <span class="n">message</span> <span class="o">=</span> <span class="sa">f</span><span class="s1">&#39;Invalid tag: </span><span class="si">{</span><span class="n">tag</span><span class="si">}</span><span class="s1"> (</span><span class="si">{</span><span class="n">message</span><span class="si">}</span><span class="s1">)&#39;</span>
+        <span class="nb">super</span><span class="p">()</span><span class="o">.</span><span class="fm">__init__</span><span class="p">(</span><span class="n">message</span><span class="p">)</span></div></div>
+
+
+<div class="viewcode-block" id="sanitize_branch"><a class="viewcode-back" href="../../api/roberto.html#roberto.utils.sanitize_branch">[docs]</a><span class="k">def</span> <span class="nf">sanitize_branch</span><span class="p">(</span><span class="n">ctx</span><span class="p">:</span> <span class="n">Context</span><span class="p">,</span> <span class="n">branch</span><span class="p">:</span> <span class="nb">str</span><span class="p">):</span>
+<span class="w">    </span><span class="sd">&quot;&quot;&quot;Attempt to fix the presence of a branch.</span>
+
+<span class="sd">    The branch is checked with rev-parse. If not present, try to set it to</span>
+<span class="sd">    origin/branch. If that does not work, try to fetch it.</span>
+
+<span class="sd">    Parameters</span>
+<span class="sd">    ----------</span>
+<span class="sd">    ctx</span>
+<span class="sd">        A invoke.Context instance.</span>
+<span class="sd">    branch</span>
+<span class="sd">        The branch to resurrect.</span>
+
+<span class="sd">    &quot;&quot;&quot;</span>
+    <span class="c1"># Test if merge branch is present</span>
+    <span class="k">try</span><span class="p">:</span>
+        <span class="n">ctx</span><span class="o">.</span><span class="n">run</span><span class="p">(</span><span class="sa">f</span><span class="s2">&quot;git rev-parse --verify </span><span class="si">{</span><span class="n">branch</span><span class="si">}</span><span class="s2">&quot;</span><span class="p">)</span>
+        <span class="k">return</span>
+    <span class="k">except</span> <span class="n">Failure</span><span class="p">:</span>
+        <span class="nb">print</span><span class="p">(</span><span class="sa">f</span><span class="s2">&quot;Merge branch </span><span class="se">\&quot;</span><span class="si">{</span><span class="n">branch</span><span class="si">}</span><span class="se">\&quot;</span><span class="s2"> not found.&quot;</span><span class="p">)</span>
+
+    <span class="c1"># Try to create it without connection to origin</span>
+    <span class="k">try</span><span class="p">:</span>
+        <span class="n">ctx</span><span class="o">.</span><span class="n">run</span><span class="p">(</span><span class="sa">f</span><span class="s2">&quot;git branch --track </span><span class="si">{</span><span class="n">branch</span><span class="si">}</span><span class="s2"> origin/</span><span class="si">{</span><span class="n">branch</span><span class="si">}</span><span class="s2">&quot;</span><span class="p">)</span>
+        <span class="k">return</span>
+    <span class="k">except</span> <span class="n">Failure</span><span class="p">:</span>
+        <span class="nb">print</span><span class="p">(</span><span class="sa">f</span><span class="s2">&quot;Local copy of remote merge branch </span><span class="se">\&quot;</span><span class="si">{</span><span class="n">branch</span><span class="si">}</span><span class="se">\&quot;</span><span class="s2"> not found.&quot;</span><span class="p">)</span>
+
+    <span class="c1"># Last resort: fetch the merge branch</span>
+    <span class="n">ctx</span><span class="o">.</span><span class="n">run</span><span class="p">(</span><span class="sa">f</span><span class="s2">&quot;git fetch origin </span><span class="si">{</span><span class="n">branch</span><span class="si">}</span><span class="s2">:</span><span class="si">{</span><span class="n">branch</span><span class="si">}</span><span class="s2">&quot;</span><span class="p">)</span></div>
+
+
+<div class="viewcode-block" id="check_env_var"><a class="viewcode-back" href="../../api/roberto.html#roberto.utils.check_env_var">[docs]</a><span class="k">def</span> <span class="nf">check_env_var</span><span class="p">(</span><span class="n">name</span><span class="p">:</span> <span class="nb">str</span><span class="p">):</span>
+<span class="w">    </span><span class="sd">&quot;&quot;&quot;Check if an environment variable is set and non-empty.</span>
+
+<span class="sd">    Parameters</span>
+<span class="sd">    ----------</span>
+<span class="sd">    name</span>
+<span class="sd">        The environment variable to be checked.</span>
+
+<span class="sd">    &quot;&quot;&quot;</span>
+    <span class="k">if</span> <span class="n">name</span> <span class="ow">not</span> <span class="ow">in</span> <span class="n">os</span><span class="o">.</span><span class="n">environ</span><span class="p">:</span>
+        <span class="k">return</span> <span class="sa">f</span><span class="s1">&#39;The environment variable </span><span class="si">{</span><span class="n">name</span><span class="si">}</span><span class="s1"> is not set.&#39;</span>
+    <span class="k">if</span> <span class="n">os</span><span class="o">.</span><span class="n">environ</span><span class="p">[</span><span class="n">name</span><span class="p">]</span> <span class="o">==</span> <span class="s2">&quot;&quot;</span><span class="p">:</span>
+        <span class="k">return</span> <span class="sa">f</span><span class="s1">&#39;The environment variable </span><span class="si">{</span><span class="n">name</span><span class="si">}</span><span class="s1"> is empty.&#39;</span>
+    <span class="k">return</span> <span class="sa">f</span><span class="s1">&#39;The environment variable </span><span class="si">{</span><span class="n">name</span><span class="si">}</span><span class="s1"> is not empty.&#39;</span></div>
+
+
+<div class="viewcode-block" id="need_deployment"><a class="viewcode-back" href="../../api/roberto.html#roberto.utils.need_deployment">[docs]</a><span class="k">def</span> <span class="nf">need_deployment</span><span class="p">(</span><span class="n">ctx</span><span class="p">:</span> <span class="n">Context</span><span class="p">,</span> <span class="n">prefix</span><span class="p">:</span> <span class="nb">str</span><span class="p">,</span> <span class="n">binary</span><span class="p">:</span> <span class="nb">bool</span><span class="p">,</span> <span class="n">deploy_labels</span><span class="p">:</span> <span class="n">List</span><span class="p">[</span><span class="nb">str</span><span class="p">])</span> <span class="o">-&gt;</span> <span class="nb">bool</span><span class="p">:</span>
+<span class="w">    </span><span class="sd">&quot;&quot;&quot;Return True if deployment is needed.</span>
+
+<span class="sd">    Parameters</span>
+<span class="sd">    ----------</span>
+<span class="sd">    ctx</span>
+<span class="sd">        A invoke.Context instance.</span>
+<span class="sd">    prefix</span>
+<span class="sd">        The type of deployment, used for message printed to stdout.</span>
+<span class="sd">    binary</span>
+<span class="sd">        Whether or not a binary is being deployment. If binary, it may be of</span>
+<span class="sd">        interest to deploy for different architectures, which is controlled by</span>
+<span class="sd">        a config.deploy_binary, intead of config.deploy_source.</span>
+<span class="sd">    deploy_labels</span>
+<span class="sd">        A list of valid deploy labels for this release. If the current deploy</span>
+<span class="sd">        label matches any of the ones in the list, deployment is needed.</span>
+
+<span class="sd">    &quot;&quot;&quot;</span>
+    <span class="k">if</span> <span class="n">binary</span> <span class="ow">and</span> <span class="ow">not</span> <span class="n">ctx</span><span class="o">.</span><span class="n">deploy_binary</span><span class="p">:</span>
+        <span class="nb">print</span><span class="p">(</span><span class="sa">f</span><span class="s2">&quot;</span><span class="si">{</span><span class="n">prefix</span><span class="si">}</span><span class="s2"> not requested in configuration. (binary)&quot;</span><span class="p">)</span>
+        <span class="k">return</span> <span class="kc">False</span>
+    <span class="k">if</span> <span class="ow">not</span> <span class="n">binary</span> <span class="ow">and</span> <span class="ow">not</span> <span class="n">ctx</span><span class="o">.</span><span class="n">deploy_noarch</span><span class="p">:</span>
+        <span class="nb">print</span><span class="p">(</span><span class="sa">f</span><span class="s2">&quot;</span><span class="si">{</span><span class="n">prefix</span><span class="si">}</span><span class="s2"> not requested in configuration. (noarch)&quot;</span><span class="p">)</span>
+        <span class="k">return</span> <span class="kc">False</span>
+    <span class="k">if</span> <span class="n">ctx</span><span class="o">.</span><span class="n">git</span><span class="o">.</span><span class="n">deploy_label</span> <span class="ow">not</span> <span class="ow">in</span> <span class="n">deploy_labels</span><span class="p">:</span>
+        <span class="nb">print</span><span class="p">(</span><span class="sa">f</span><span class="s2">&quot;</span><span class="si">{</span><span class="n">prefix</span><span class="si">}</span><span class="s2"> skipped, because of deploy label </span><span class="si">{</span><span class="n">ctx</span><span class="o">.</span><span class="n">git</span><span class="o">.</span><span class="n">deploy_label</span><span class="si">}</span><span class="s2">.&quot;</span><span class="p">)</span>
+        <span class="k">return</span> <span class="kc">False</span>
+    <span class="k">return</span> <span class="kc">True</span></div>
+
+
+<div class="viewcode-block" id="write_sha256_sum"><a class="viewcode-back" href="../../api/roberto.html#roberto.utils.write_sha256_sum">[docs]</a><span class="k">def</span> <span class="nf">write_sha256_sum</span><span class="p">(</span><span class="n">fn_asset</span><span class="p">:</span> <span class="nb">str</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="nb">str</span><span class="p">:</span>
+<span class="w">    </span><span class="sd">&quot;&quot;&quot;Make a sha256 checksum file, print it and return the checksum filename.</span>
+
+<span class="sd">    Parameters</span>
+<span class="sd">    ----------</span>
+<span class="sd">    fn_asset</span>
+<span class="sd">        The file of which the hash will be computed.</span>
+
+<span class="sd">    Returns</span>
+<span class="sd">    -------</span>
+<span class="sd">    fn_asset_hash : str</span>
+<span class="sd">        The filename of the file containing the hash.</span>
+
+<span class="sd">    &quot;&quot;&quot;</span>
+    <span class="n">hasher</span> <span class="o">=</span> <span class="n">hashlib</span><span class="o">.</span><span class="n">sha256</span><span class="p">()</span>
+    <span class="k">with</span> <span class="nb">open</span><span class="p">(</span><span class="n">fn_asset</span><span class="p">,</span> <span class="s1">&#39;br&#39;</span><span class="p">)</span> <span class="k">as</span> <span class="n">f</span><span class="p">:</span>
+        <span class="k">for</span> <span class="n">chunck</span> <span class="ow">in</span> <span class="nb">iter</span><span class="p">(</span><span class="k">lambda</span><span class="p">:</span> <span class="n">f</span><span class="o">.</span><span class="n">read</span><span class="p">(</span><span class="mi">4096</span><span class="p">),</span> <span class="sa">b</span><span class="s2">&quot;&quot;</span><span class="p">):</span>
+            <span class="n">hasher</span><span class="o">.</span><span class="n">update</span><span class="p">(</span><span class="n">chunck</span><span class="p">)</span>
+    <span class="n">fn_sha256</span> <span class="o">=</span> <span class="n">fn_asset</span> <span class="o">+</span> <span class="s1">&#39;.sha256&#39;</span>
+    <span class="k">with</span> <span class="nb">open</span><span class="p">(</span><span class="n">fn_sha256</span><span class="p">,</span> <span class="s1">&#39;w&#39;</span><span class="p">)</span> <span class="k">as</span> <span class="n">f</span><span class="p">:</span>
+        <span class="n">line</span> <span class="o">=</span> <span class="sa">f</span><span class="s1">&#39;</span><span class="si">{</span><span class="n">hasher</span><span class="o">.</span><span class="n">hexdigest</span><span class="p">()</span><span class="si">}</span><span class="s1">  </span><span class="si">{</span><span class="n">fn_asset</span><span class="si">}</span><span class="s1">&#39;</span>
+        <span class="n">f</span><span class="o">.</span><span class="n">write</span><span class="p">(</span><span class="n">line</span> <span class="o">+</span> <span class="s1">&#39;</span><span class="se">\n</span><span class="s1">&#39;</span><span class="p">)</span>
+        <span class="nb">print</span><span class="p">(</span><span class="n">line</span><span class="p">)</span>
+    <span class="k">return</span> <span class="n">fn_sha256</span></div>
+</pre></div>
+
+          </div>
+          
+        </div>
+      </div>
+      <div class="sphinxsidebar" role="navigation" aria-label="main navigation">
+        <div class="sphinxsidebarwrapper">
+<h1 class="logo"><a href="../../index.html">Roberto</a></h1>
+
+
+
+<p class="blurb">Automated development workflow</p>
+
+
+
+
+<p>
+<iframe src="https://ghbtns.com/github-btn.html?user=theochem&repo=roberto&type=watch&count=true&size=large&v=2"
+  allowtransparency="true" frameborder="0" scrolling="0" width="200px" height="35px"></iframe>
+</p>
+
+
+
+
+
+    
+
+<p>
+<a class="badge" href="https://travis-ci.org/theochem/roberto">
+    <img
+        alt="https://secure.travis-ci.org/theochem/roberto.svg?branch=master"
+        src="https://secure.travis-ci.org/theochem/roberto.svg?branch=master"
+    />
+</a>
+</p>
+
+
+
+
+    
+
+<p>
+<a class="badge" href="https://codecov.io/github/theochem/roberto">
+    <img
+    alt="https://codecov.io/github/theochem/roberto/coverage.svg?branch=master"
+    src="https://codecov.io/github/theochem/roberto/coverage.svg?branch=master"
+    />
+</a>
+</p>
+<h3>Navigation</h3>
+<p class="caption" role="heading"><span class="caption-text">User documentation</span></p>
+<ul>
+<li class="toctree-l1"><a class="reference internal" href="../../readme.html">Read me first</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../../workflow.html">Work flow</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../../configuration.html">Configuration</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../../setupci.html">CI Setup</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../../changelog.html">Change log</a></li>
+</ul>
+<p class="caption" role="heading"><span class="caption-text">Developer documentation</span></p>
+<ul>
+<li class="toctree-l1"><a class="reference internal" href="../../contributing.html">How to contribute?</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../../api/roberto.html">roberto package</a></li>
+</ul>
+
+<div class="relations">
+<h3>Related Topics</h3>
+<ul>
+  <li><a href="../../index.html">Documentation overview</a><ul>
+  <li><a href="../index.html">Module code</a><ul>
+  </ul></li>
+  </ul></li>
+</ul>
+</div>
+<div id="searchbox" style="display: none" role="search">
+  <h3 id="searchlabel">Quick search</h3>
+    <div class="searchformwrapper">
+    <form class="search" action="../../search.html" method="get">
+      <input type="text" name="q" aria-labelledby="searchlabel" autocomplete="off" autocorrect="off" autocapitalize="off" spellcheck="false"/>
+      <input type="submit" value="Go" />
+    </form>
+    </div>
+</div>
+<script>document.getElementById('searchbox').style.display = "block"</script>
+
+
+
+
+
+
+
+
+        </div>
+      </div>
+      <div class="clearer"></div>
+    </div>
+    <div class="footer">
+      &copy;2023 The Roberto Development Team.
+      
+      |
+      Powered by <a href="http://sphinx-doc.org/">Sphinx 5.3.0</a>
+      &amp; <a href="https://github.com/bitprophet/alabaster">Alabaster 0.7.13</a>
+      
+    </div>
+
+    
+
+    
+  </body>
+</html>

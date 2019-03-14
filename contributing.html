@@ -1,0 +1,238 @@
+
+<!DOCTYPE html>
+
+<html lang="en">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>How to contribute? &#8212; Roberto 2.0.4 documentation</title>
+    <link rel="stylesheet" type="text/css" href="_static/pygments.css" />
+    <link rel="stylesheet" type="text/css" href="_static/alabaster.css" />
+    <script data-url_root="./" id="documentation_options" src="_static/documentation_options.js"></script>
+    <script src="_static/jquery.js"></script>
+    <script src="_static/underscore.js"></script>
+    <script src="_static/_sphinx_javascript_frameworks_compat.js"></script>
+    <script src="_static/doctools.js"></script>
+    <script src="_static/sphinx_highlight.js"></script>
+    <link rel="index" title="Index" href="genindex.html" />
+    <link rel="search" title="Search" href="search.html" />
+    <link rel="next" title="roberto package" href="api/roberto.html" />
+    <link rel="prev" title="Change log" href="changelog.html" />
+   
+  <link rel="stylesheet" href="_static/custom.css" type="text/css" />
+  
+  
+  <meta name="viewport" content="width=device-width, initial-scale=0.9, maximum-scale=0.9" />
+
+  </head><body>
+  
+
+    <div class="document">
+      <div class="documentwrapper">
+        <div class="bodywrapper">
+          
+
+          <div class="body" role="main">
+            
+  <div class="section" id="how-to-contribute">
+<span id="contributing"></span><h1>How to contribute?<a class="headerlink" href="#how-to-contribute" title="Permalink to this heading">¶</a></h1>
+<p>We’d love you to contribute, and here is the mini how-to:
+talk, fork, branch, hack, rob &amp; pull request.</p>
+<p>Longer version:</p>
+<ol class="arabic">
+<li><p>Before diving into technicalities: if you intend to make major changes,
+beyond fixing bugs and small functionality improvements, please open a Github
+issue first, so we can discuss before coding. Please explain what you intend
+to accomplish and why. That often saves a lot of time and trouble in the long
+run.</p>
+<p>Use the issue to plan your changes. Try to solve only one problem at a time,
+instead of fixing several issues and adding different features in a single
+shot. Small changes are easier to handle, also for the reviewer in the last
+step below.</p>
+<p>Mention in the corresponding issue when you are working on it. “Claim” the
+issue to avoid duplicate efforts.</p>
+</li>
+<li><p>Make a fork of the project, using the Github “fork” feature.</p></li>
+<li><p>Clone the original repository on your local machine and enter the directory</p>
+<div class="highlight-bash notranslate"><div class="highlight"><pre><span></span>git<span class="w"> </span>clone<span class="w"> </span>git@github.com:theochem/roberto.git
+<span class="nb">cd</span><span class="w"> </span>roberto
+</pre></div>
+</div>
+</li>
+<li><p>Install this version of Roberto on your system, e.g. with one of the
+following lines, whichever works best for you:</p>
+<div class="highlight-bash notranslate"><div class="highlight"><pre><span></span>python3<span class="w"> </span>setup.py<span class="w"> </span>install
+python3<span class="w"> </span>setup.py<span class="w"> </span>install<span class="w"> </span>--user
+pip<span class="w"> </span>install<span class="w"> </span>.
+pip<span class="w"> </span>install<span class="w"> </span>.<span class="w"> </span>--user
+python3<span class="w"> </span>-m<span class="w"> </span>pip<span class="w"> </span>install<span class="w"> </span>.
+python3<span class="w"> </span>-m<span class="w"> </span>pip<span class="w"> </span>install<span class="w"> </span>.<span class="w"> </span>--user
+</pre></div>
+</div>
+</li>
+<li><p>Add your fork as a second remote to your local repository, for which we will
+use the short name <code class="docutils literal notranslate"><span class="pre">mine</span></code> below, but any short name is fine:</p>
+<div class="highlight-bash notranslate"><div class="highlight"><pre><span></span>git<span class="w"> </span>remote<span class="w"> </span>add<span class="w"> </span>mine<span class="w"> </span>git@github.com:&lt;your-github-account&gt;/roberto.git
+</pre></div>
+</div>
+</li>
+<li><p>Make a new branch, with a name that hints at the purpose of your
+modification:</p>
+<div class="highlight-bash notranslate"><div class="highlight"><pre><span></span>git<span class="w"> </span>checkout<span class="w"> </span>-b<span class="w"> </span>new-feature
+</pre></div>
+</div>
+</li>
+<li><p>Make changes to the source. Please, make it easy for others to understand
+your code. Rules of thumb:</p>
+<ul class="simple">
+<li><p>Write transparent code, e.g. self-explaining variable names.</p></li>
+<li><p>Add comments to passages that are not easy to understand at first glance.</p></li>
+<li><p>Write docstrings explaining the API.</p></li>
+<li><p>Try to add unit tests when feasible. Not everything in Roberto is covered
+with unit tests because some functions only work when the program is
+executed as a whole. If possible, try to factor out parts of features into
+separate functions that are easily unit-tested.</p></li>
+</ul>
+</li>
+<li><p>Commit your changes with a meaningful commit message. The first line is a
+short summary, written in the imperative mood. Optionally, this can be
+followed by an empty line and a longer description.</p>
+<p>If you feel the summary line is too short to describe what you did, it
+may be better to split your changes into multiple commits.</p>
+</li>
+<li><p>Run Roberto on itself and fix all problems it reports. Either one of the
+following should work</p>
+<div class="highlight-bash notranslate"><div class="highlight"><pre><span></span>rob<span class="w">                 </span><span class="c1"># Normal case</span>
+python3<span class="w"> </span>-m<span class="w"> </span>roberto<span class="w">  </span><span class="c1"># Only if your PATH is not set correctly</span>
+</pre></div>
+</div>
+<p>Style issues, failing tests and packaging issues should all be detected at
+this stage.</p>
+</li>
+<li><p>Push your branch to your forked repository on Github:</p>
+<div class="highlight-bash notranslate"><div class="highlight"><pre><span></span>git<span class="w"> </span>push<span class="w"> </span>mine<span class="w"> </span>-u<span class="w"> </span>new-feature
+</pre></div>
+</div>
+<p>A link should be printed on screen, which will take the next step for you.</p>
+</li>
+<li><p>Make a pull request from your branch <cite>new-feature</cite> in your forked repository
+to the <cite>master</cite> branch in the original repository.</p></li>
+<li><p>Wait for the QC tests to complete. Also coverage analysis will be shown, but
+this is merely indicative. Normally, someone should review your pull request
+in a few days. Ideally, the review results in minor corrections at worst.
+We’ll do our best to avoid larger problems in step 1.</p></li>
+</ol>
+</div>
+
+
+          </div>
+          
+        </div>
+      </div>
+      <div class="sphinxsidebar" role="navigation" aria-label="main navigation">
+        <div class="sphinxsidebarwrapper">
+<h1 class="logo"><a href="index.html">Roberto</a></h1>
+
+
+
+<p class="blurb">Automated development workflow</p>
+
+
+
+
+<p>
+<iframe src="https://ghbtns.com/github-btn.html?user=theochem&repo=roberto&type=watch&count=true&size=large&v=2"
+  allowtransparency="true" frameborder="0" scrolling="0" width="200px" height="35px"></iframe>
+</p>
+
+
+
+
+
+    
+
+<p>
+<a class="badge" href="https://travis-ci.org/theochem/roberto">
+    <img
+        alt="https://secure.travis-ci.org/theochem/roberto.svg?branch=master"
+        src="https://secure.travis-ci.org/theochem/roberto.svg?branch=master"
+    />
+</a>
+</p>
+
+
+
+
+    
+
+<p>
+<a class="badge" href="https://codecov.io/github/theochem/roberto">
+    <img
+    alt="https://codecov.io/github/theochem/roberto/coverage.svg?branch=master"
+    src="https://codecov.io/github/theochem/roberto/coverage.svg?branch=master"
+    />
+</a>
+</p>
+<h3>Navigation</h3>
+<p class="caption" role="heading"><span class="caption-text">User documentation</span></p>
+<ul>
+<li class="toctree-l1"><a class="reference internal" href="readme.html">Read me first</a></li>
+<li class="toctree-l1"><a class="reference internal" href="workflow.html">Work flow</a></li>
+<li class="toctree-l1"><a class="reference internal" href="configuration.html">Configuration</a></li>
+<li class="toctree-l1"><a class="reference internal" href="setupci.html">CI Setup</a></li>
+<li class="toctree-l1"><a class="reference internal" href="changelog.html">Change log</a></li>
+</ul>
+<p class="caption" role="heading"><span class="caption-text">Developer documentation</span></p>
+<ul class="current">
+<li class="toctree-l1 current"><a class="current reference internal" href="#">How to contribute?</a></li>
+<li class="toctree-l1"><a class="reference internal" href="api/roberto.html">roberto package</a></li>
+</ul>
+
+<div class="relations">
+<h3>Related Topics</h3>
+<ul>
+  <li><a href="index.html">Documentation overview</a><ul>
+      <li>Previous: <a href="changelog.html" title="previous chapter">Change log</a></li>
+      <li>Next: <a href="api/roberto.html" title="next chapter">roberto package</a></li>
+  </ul></li>
+</ul>
+</div>
+<div id="searchbox" style="display: none" role="search">
+  <h3 id="searchlabel">Quick search</h3>
+    <div class="searchformwrapper">
+    <form class="search" action="search.html" method="get">
+      <input type="text" name="q" aria-labelledby="searchlabel" autocomplete="off" autocorrect="off" autocapitalize="off" spellcheck="false"/>
+      <input type="submit" value="Go" />
+    </form>
+    </div>
+</div>
+<script>document.getElementById('searchbox').style.display = "block"</script>
+
+
+
+
+
+
+
+
+        </div>
+      </div>
+      <div class="clearer"></div>
+    </div>
+    <div class="footer">
+      &copy;2023 The Roberto Development Team.
+      
+      |
+      Powered by <a href="http://sphinx-doc.org/">Sphinx 5.3.0</a>
+      &amp; <a href="https://github.com/bitprophet/alabaster">Alabaster 0.7.13</a>
+      
+      |
+      <a href="_sources/contributing.rst.txt"
+          rel="nofollow">Page source</a>
+    </div>
+
+    
+
+    
+  </body>
+</html>

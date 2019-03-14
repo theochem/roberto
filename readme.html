@@ -1,0 +1,237 @@
+
+<!DOCTYPE html>
+
+<html lang="en">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>Read me first &#8212; Roberto 2.0.4 documentation</title>
+    <link rel="stylesheet" type="text/css" href="_static/pygments.css" />
+    <link rel="stylesheet" type="text/css" href="_static/alabaster.css" />
+    <script data-url_root="./" id="documentation_options" src="_static/documentation_options.js"></script>
+    <script src="_static/jquery.js"></script>
+    <script src="_static/underscore.js"></script>
+    <script src="_static/_sphinx_javascript_frameworks_compat.js"></script>
+    <script src="_static/doctools.js"></script>
+    <script src="_static/sphinx_highlight.js"></script>
+    <link rel="index" title="Index" href="genindex.html" />
+    <link rel="search" title="Search" href="search.html" />
+    <link rel="next" title="Work flow" href="workflow.html" />
+    <link rel="prev" title="Roberto 2.0 documentation" href="index.html" />
+   
+  <link rel="stylesheet" href="_static/custom.css" type="text/css" />
+  
+  
+  <meta name="viewport" content="width=device-width, initial-scale=0.9, maximum-scale=0.9" />
+
+  </head><body>
+  
+
+    <div class="document">
+      <div class="documentwrapper">
+        <div class="bodywrapper">
+          
+
+          <div class="body" role="main">
+            
+  <div class="section" id="read-me-first">
+<span id="readme"></span><h1>Read me first<a class="headerlink" href="#read-me-first" title="Permalink to this heading">¶</a></h1>
+<p>Roberto is a collection of configurable development work flows. Its goal is to
+facilitate the development and quality assurance of some packages in the
+theochem organization on Github.</p>
+<p>With a relatively simple configuration file (<code class="docutils literal notranslate"><span class="pre">.roberto.yaml</span></code>), the command
+<code class="docutils literal notranslate"><span class="pre">rob</span></code> will take the following steps:</p>
+<ol class="arabic simple">
+<li><p>Optionally install miniconda (and a MacOSX SDK on OSX).</p></li>
+<li><p>Make a conda or venv environment for development and testing</p></li>
+<li><p>Install dependencies (for the package being developed and for all
+development tools).</p></li>
+<li><p>Build the software in-place, i.e. without installing it.</p></li>
+<li><p>Run Linters (optionally showing only messages related to your changes).</p></li>
+<li><p>Run unit and other tests</p></li>
+<li><p>Build the documentation</p></li>
+</ol>
+<p>When you run <code class="docutils literal notranslate"><span class="pre">rob</span> <span class="pre">robot</span></code>, a few additional steps will be performed, which are
+not done by default because they are slow and have a low risk of failing:</p>
+<ol class="arabic simple" start="8">
+<li><p>Upload the documentation. (disabled by default)</p></li>
+<li><p>Make source and binary release packages.</p></li>
+<li><p>Deploy the releases. (disabled by default)</p></li>
+</ol>
+<p>(A few minor steps were omitted for clarity.) These steps should work on your
+local computer in the same way as on a continuous integration system like
+Github Actions, making it easy to prepare a pull request locally. It is also
+possible to just run a subset of these tasks, which is often needed when working
+on the code. Several steps will also reuse previous results (e.g. conda or venv
+environment) if these are already present, to speed up Roberto.</p>
+<p>The preparation tasks (1-3) are somewhat hard-coded but they are clever enough
+to install a decent development environment with the correct requirements for
+the remaining tasks. These remaining tasks (4-10) are configurable and can be
+changed to work for Python and/or CMake projects.</p>
+<div class="section" id="installation">
+<h2>Installation<a class="headerlink" href="#installation" title="Permalink to this heading">¶</a></h2>
+<p>Python 3 (&gt;=3.7) must be installed. Other dependencies will be pulled in with
+the instructions below.</p>
+<p>Roberto can be installed with conda:</p>
+<div class="highlight-bash notranslate"><div class="highlight"><pre><span></span>conda<span class="w"> </span>install<span class="w"> </span>theochem::roberto
+</pre></div>
+</div>
+<p>It can also be installed with pip. One of the following is fine, whichever you
+prefer:</p>
+<div class="highlight-bash notranslate"><div class="highlight"><pre><span></span>pip<span class="w"> </span>install<span class="w"> </span>roberto
+pip<span class="w"> </span>install<span class="w"> </span>roberto<span class="w"> </span>--user
+python3<span class="w"> </span>-m<span class="w"> </span>pip<span class="w"> </span>install<span class="w"> </span>roberto
+python3<span class="w"> </span>-m<span class="w"> </span>pip<span class="w"> </span>install<span class="w"> </span>roberto<span class="w"> </span>--user
+</pre></div>
+</div>
+<p>On some platforms, you may have to adapt your <code class="docutils literal notranslate"><span class="pre">${PATH}</span></code> variable before you
+can run <code class="docutils literal notranslate"><span class="pre">rob</span></code>.</p>
+</div>
+<div class="section" id="usage">
+<h2>Usage<a class="headerlink" href="#usage" title="Permalink to this heading">¶</a></h2>
+<p>By default, Roberto will use venv, unless it is configured to use conda. While
+conda is more powerful than venv, it is also a lot slower and requires more
+storage than venv.</p>
+<p>When using conda, be aware that Roberto will install miniconda, by default in
+<code class="docutils literal notranslate"><span class="pre">~/miniconda3</span></code>, if not present yet. You can modify this directory by setting
+the environment variable <code class="docutils literal notranslate"><span class="pre">ROBERTO_CONDA_BASE_PATH</span></code> or by putting the following
+in your global Roberto configuration file <code class="docutils literal notranslate"><span class="pre">~/.roberto.yaml</span></code>:</p>
+<div class="highlight-yaml notranslate"><div class="highlight"><pre><span></span><span class="nt">conda</span><span class="p">:</span>
+<span class="w">  </span><span class="nt">base_path</span><span class="p">:</span><span class="w"> </span><span class="l l-Scalar l-Scalar-Plain">&lt;your/preferred/location&gt;</span>
+</pre></div>
+</div>
+<p>E.g. you can use this to avoid interference with an existing miniconda install.</p>
+<p>Roberto will also make new conda or venv environments for the development of
+every package, with relatively long names. For example, when Roberto is executed
+in its own source tree, the conda environment would be
+<code class="docutils literal notranslate"><span class="pre">roberto-dev-python-3.7</span></code>.</p>
+<p>To use Roberto, just run <code class="docutils literal notranslate"><span class="pre">rob</span></code> in the root of the source tree, where also the
+project’s <code class="docutils literal notranslate"><span class="pre">.roberto.yaml</span></code> is located. Use <code class="docutils literal notranslate"><span class="pre">rob</span> <span class="pre">--help</span></code> to get a list of
+tasks if you are interested in replicating just a part of the CI process. If
+your <code class="docutils literal notranslate"><span class="pre">${PATH}</span></code> variable is not set correctly, you can also run Roberto as
+<code class="docutils literal notranslate"><span class="pre">python3</span> <span class="pre">-m</span> <span class="pre">roberto</span></code> instead of <code class="docutils literal notranslate"><span class="pre">rob</span></code>.</p>
+<p>It is a good practice to run <code class="docutils literal notranslate"><span class="pre">rob</span></code> before every <code class="docutils literal notranslate"><span class="pre">git</span> <span class="pre">commit</span></code> to make sure
+the committed code is clean and working.</p>
+<p>When using the cardboardlint tool and when you are working in a development
+branch, cardboardlint will only show linter messages for lines of code that you
+have changed. If you would like to see all messages, run Roberto as
+<code class="docutils literal notranslate"><span class="pre">ROBERTO_ABSOLUTE=1</span> <span class="pre">rob</span></code>.</p>
+</div>
+</div>
+
+
+          </div>
+          
+        </div>
+      </div>
+      <div class="sphinxsidebar" role="navigation" aria-label="main navigation">
+        <div class="sphinxsidebarwrapper">
+<h1 class="logo"><a href="index.html">Roberto</a></h1>
+
+
+
+<p class="blurb">Automated development workflow</p>
+
+
+
+
+<p>
+<iframe src="https://ghbtns.com/github-btn.html?user=theochem&repo=roberto&type=watch&count=true&size=large&v=2"
+  allowtransparency="true" frameborder="0" scrolling="0" width="200px" height="35px"></iframe>
+</p>
+
+
+
+
+
+    
+
+<p>
+<a class="badge" href="https://travis-ci.org/theochem/roberto">
+    <img
+        alt="https://secure.travis-ci.org/theochem/roberto.svg?branch=master"
+        src="https://secure.travis-ci.org/theochem/roberto.svg?branch=master"
+    />
+</a>
+</p>
+
+
+
+
+    
+
+<p>
+<a class="badge" href="https://codecov.io/github/theochem/roberto">
+    <img
+    alt="https://codecov.io/github/theochem/roberto/coverage.svg?branch=master"
+    src="https://codecov.io/github/theochem/roberto/coverage.svg?branch=master"
+    />
+</a>
+</p>
+<h3>Navigation</h3>
+<p class="caption" role="heading"><span class="caption-text">User documentation</span></p>
+<ul class="current">
+<li class="toctree-l1 current"><a class="current reference internal" href="#">Read me first</a><ul>
+<li class="toctree-l2"><a class="reference internal" href="#installation">Installation</a></li>
+<li class="toctree-l2"><a class="reference internal" href="#usage">Usage</a></li>
+</ul>
+</li>
+<li class="toctree-l1"><a class="reference internal" href="workflow.html">Work flow</a></li>
+<li class="toctree-l1"><a class="reference internal" href="configuration.html">Configuration</a></li>
+<li class="toctree-l1"><a class="reference internal" href="setupci.html">CI Setup</a></li>
+<li class="toctree-l1"><a class="reference internal" href="changelog.html">Change log</a></li>
+</ul>
+<p class="caption" role="heading"><span class="caption-text">Developer documentation</span></p>
+<ul>
+<li class="toctree-l1"><a class="reference internal" href="contributing.html">How to contribute?</a></li>
+<li class="toctree-l1"><a class="reference internal" href="api/roberto.html">roberto package</a></li>
+</ul>
+
+<div class="relations">
+<h3>Related Topics</h3>
+<ul>
+  <li><a href="index.html">Documentation overview</a><ul>
+      <li>Previous: <a href="index.html" title="previous chapter">Roberto 2.0 documentation</a></li>
+      <li>Next: <a href="workflow.html" title="next chapter">Work flow</a></li>
+  </ul></li>
+</ul>
+</div>
+<div id="searchbox" style="display: none" role="search">
+  <h3 id="searchlabel">Quick search</h3>
+    <div class="searchformwrapper">
+    <form class="search" action="search.html" method="get">
+      <input type="text" name="q" aria-labelledby="searchlabel" autocomplete="off" autocorrect="off" autocapitalize="off" spellcheck="false"/>
+      <input type="submit" value="Go" />
+    </form>
+    </div>
+</div>
+<script>document.getElementById('searchbox').style.display = "block"</script>
+
+
+
+
+
+
+
+
+        </div>
+      </div>
+      <div class="clearer"></div>
+    </div>
+    <div class="footer">
+      &copy;2023 The Roberto Development Team.
+      
+      |
+      Powered by <a href="http://sphinx-doc.org/">Sphinx 5.3.0</a>
+      &amp; <a href="https://github.com/bitprophet/alabaster">Alabaster 0.7.13</a>
+      
+      |
+      <a href="_sources/readme.rst.txt"
+          rel="nofollow">Page source</a>
+    </div>
+
+    
+
+    
+  </body>
+</html>

@@ -1,0 +1,199 @@
+
+<!DOCTYPE html>
+
+<html lang="en">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>Work flow &#8212; Roberto 2.0.4 documentation</title>
+    <link rel="stylesheet" type="text/css" href="_static/pygments.css" />
+    <link rel="stylesheet" type="text/css" href="_static/alabaster.css" />
+    <script data-url_root="./" id="documentation_options" src="_static/documentation_options.js"></script>
+    <script src="_static/jquery.js"></script>
+    <script src="_static/underscore.js"></script>
+    <script src="_static/_sphinx_javascript_frameworks_compat.js"></script>
+    <script src="_static/doctools.js"></script>
+    <script src="_static/sphinx_highlight.js"></script>
+    <link rel="index" title="Index" href="genindex.html" />
+    <link rel="search" title="Search" href="search.html" />
+    <link rel="next" title="Configuration" href="configuration.html" />
+    <link rel="prev" title="Read me first" href="readme.html" />
+   
+  <link rel="stylesheet" href="_static/custom.css" type="text/css" />
+  
+  
+  <meta name="viewport" content="width=device-width, initial-scale=0.9, maximum-scale=0.9" />
+
+  </head><body>
+  
+
+    <div class="document">
+      <div class="documentwrapper">
+        <div class="bodywrapper">
+          
+
+          <div class="body" role="main">
+            
+  <div class="section" id="work-flow">
+<span id="workflow"></span><h1>Work flow<a class="headerlink" href="#work-flow" title="Permalink to this heading">¶</a></h1>
+<p>Roberto divides the continuous integration process into
+smaller “tasks”, which are listed by <code class="docutils literal notranslate"><span class="pre">rob</span> <span class="pre">--help</span></code> and which are defined in
+<code class="docutils literal notranslate"><span class="pre">roberto/tasks.py</span></code>:</p>
+<ul class="simple">
+<li><p><strong>{name}</strong> will {endsentence}</p></li>
+<li><p><strong>{name}</strong> will {endsentence}</p></li>
+<li><p><strong>{name}</strong> will {endsentence}</p></li>
+<li><p><strong>{name}</strong> will {endsentence}</p></li>
+<li><p><strong>install-requirements</strong> depends on <strong>setup-testenv</strong> and will install all requirements, including tools used by Roberto.</p></li>
+<li><p><strong>lint-static</strong> depends on <strong>install-requirements</strong>, <strong>sanitize-git</strong>, <strong>write-version</strong> and will run static linters.</p></li>
+<li><p><strong>build-inplace</strong> depends on <strong>install-requirements</strong>, <strong>sanitize-git</strong>, <strong>write-version</strong> and will build software in-place and update environment variables.</p></li>
+<li><p><strong>build-packages</strong> depends on <strong>install-requirements</strong>, <strong>write-version</strong> and will build software package(s).</p></li>
+<li><p><strong>deploy</strong> depends on <strong>install-requirements</strong>, <strong>build-packages</strong> and will run all deployment tasks.</p></li>
+<li><p><strong>lint-dynamic</strong> depends on <strong>build-inplace</strong> and will run dynamic linters.</p></li>
+<li><p><strong>test-inplace</strong> depends on <strong>build-inplace</strong> and will run tests in-place.</p></li>
+<li><p><strong>upload-coverage</strong> depends on <strong>test-inplace</strong> and will upload coverage reports, if explicitly enabled in config.</p></li>
+<li><p><strong>build-docs</strong> depends on <strong>install-requirements</strong>, <strong>build-inplace</strong>, <strong>write-version</strong> and will build documentation.</p></li>
+<li><p><strong>quality</strong> depends on <strong>lint-static</strong>, <strong>test-inplace</strong>, <strong>upload-coverage</strong>, <strong>lint-dynamic</strong>, <strong>build-docs</strong> and will run all quality assurance tasks: linting and in-place testing.</p></li>
+<li><p><strong>upload-docs</strong> depends on <strong>install-requirements</strong>, <strong>build-docs</strong> and will upload documentation.</p></li>
+<li><p><strong>robot</strong> depends on <strong>quality</strong>, <strong>upload-docs</strong>, <strong>deploy</strong> and will run all tasks, except nuke_virtual_env.</p></li>
+</ul>
+<p>When <code class="docutils literal notranslate"><span class="pre">rob</span></code> is executed without arguments, the <strong>quality</strong> task is executed,
+which runs all the tests related to the in-placed build. You may provide one or
+more task names as positional command-line arguments to change this behavior.
+The <strong>robot</strong> task is a more complete test and runs all tasks except for
+<strong>nuke-testenv</strong>, so also including the packaging.</p>
+<p>The tasks <strong>sanitize-git</strong>, <strong>setup-testenv</strong>, <strong>install-requirements</strong> and
+<strong>nuke-testenv</strong> are less configurable than the other tasks. They take care
+of a proper development environment for the remaining tasks, except for
+<strong>nuke-testenv</strong> which does exactly the opposite.</p>
+<p>The other tasks are more configurable through <code class="docutils literal notranslate"><span class="pre">.roberto.yml</span></code>. In this file,
+you specify which software packages need to be built and which tools should be
+used in each task. More details can be found in <a class="reference internal" href="configuration.html#configuration"><span class="std std-ref">Configuration</span></a>.</p>
+<p>When Roberto starts, it will also run <code class="docutils literal notranslate"><span class="pre">git</span> <span class="pre">describe</span> <span class="pre">--tags</span></code> to determine the
+current version. It is assumed that git tags are complete <a class="reference external" href="https://semver.org">semantic version
+numbers</a>. The expected format of a tag is just three
+numbers separated by dots, <em>not</em> prefixed with a <code class="docutils literal notranslate"><span class="pre">v</span></code>. Suffixes for alpha (dev),
+beta (test) and post releases are supported in line with
+<a class="reference external" href="https://www.python.org/dev/peps/pep-0440/">PEP404</a>.
+Roberto will fail when the last tag does not follow these conventions. The
+version information can be used in all tasks. The most prominent one is
+<strong>write-version</strong>, which can write updated version files.</p>
+<p>For development purposes, it is often sufficient to run <code class="docutils literal notranslate"><span class="pre">rob</span> <span class="pre">quality</span></code> to
+perform all code quality checks or <code class="docutils literal notranslate"><span class="pre">rob</span> <span class="pre">build-inplace</span></code> to prepare a working
+in-place compilation. The latter will also generate a file
+<code class="docutils literal notranslate"><span class="pre">activate-*-dev-*.sh</span></code>, which can be sourced to load all the environment
+variables that will activate the in-place build for further testing.</p>
+</div>
+
+
+          </div>
+          
+        </div>
+      </div>
+      <div class="sphinxsidebar" role="navigation" aria-label="main navigation">
+        <div class="sphinxsidebarwrapper">
+<h1 class="logo"><a href="index.html">Roberto</a></h1>
+
+
+
+<p class="blurb">Automated development workflow</p>
+
+
+
+
+<p>
+<iframe src="https://ghbtns.com/github-btn.html?user=theochem&repo=roberto&type=watch&count=true&size=large&v=2"
+  allowtransparency="true" frameborder="0" scrolling="0" width="200px" height="35px"></iframe>
+</p>
+
+
+
+
+
+    
+
+<p>
+<a class="badge" href="https://travis-ci.org/theochem/roberto">
+    <img
+        alt="https://secure.travis-ci.org/theochem/roberto.svg?branch=master"
+        src="https://secure.travis-ci.org/theochem/roberto.svg?branch=master"
+    />
+</a>
+</p>
+
+
+
+
+    
+
+<p>
+<a class="badge" href="https://codecov.io/github/theochem/roberto">
+    <img
+    alt="https://codecov.io/github/theochem/roberto/coverage.svg?branch=master"
+    src="https://codecov.io/github/theochem/roberto/coverage.svg?branch=master"
+    />
+</a>
+</p>
+<h3>Navigation</h3>
+<p class="caption" role="heading"><span class="caption-text">User documentation</span></p>
+<ul class="current">
+<li class="toctree-l1"><a class="reference internal" href="readme.html">Read me first</a></li>
+<li class="toctree-l1 current"><a class="current reference internal" href="#">Work flow</a></li>
+<li class="toctree-l1"><a class="reference internal" href="configuration.html">Configuration</a></li>
+<li class="toctree-l1"><a class="reference internal" href="setupci.html">CI Setup</a></li>
+<li class="toctree-l1"><a class="reference internal" href="changelog.html">Change log</a></li>
+</ul>
+<p class="caption" role="heading"><span class="caption-text">Developer documentation</span></p>
+<ul>
+<li class="toctree-l1"><a class="reference internal" href="contributing.html">How to contribute?</a></li>
+<li class="toctree-l1"><a class="reference internal" href="api/roberto.html">roberto package</a></li>
+</ul>
+
+<div class="relations">
+<h3>Related Topics</h3>
+<ul>
+  <li><a href="index.html">Documentation overview</a><ul>
+      <li>Previous: <a href="readme.html" title="previous chapter">Read me first</a></li>
+      <li>Next: <a href="configuration.html" title="next chapter">Configuration</a></li>
+  </ul></li>
+</ul>
+</div>
+<div id="searchbox" style="display: none" role="search">
+  <h3 id="searchlabel">Quick search</h3>
+    <div class="searchformwrapper">
+    <form class="search" action="search.html" method="get">
+      <input type="text" name="q" aria-labelledby="searchlabel" autocomplete="off" autocorrect="off" autocapitalize="off" spellcheck="false"/>
+      <input type="submit" value="Go" />
+    </form>
+    </div>
+</div>
+<script>document.getElementById('searchbox').style.display = "block"</script>
+
+
+
+
+
+
+
+
+        </div>
+      </div>
+      <div class="clearer"></div>
+    </div>
+    <div class="footer">
+      &copy;2023 The Roberto Development Team.
+      
+      |
+      Powered by <a href="http://sphinx-doc.org/">Sphinx 5.3.0</a>
+      &amp; <a href="https://github.com/bitprophet/alabaster">Alabaster 0.7.13</a>
+      
+      |
+      <a href="_sources/workflow.rst.txt"
+          rel="nofollow">Page source</a>
+    </div>
+
+    
+
+    
+  </body>
+</html>

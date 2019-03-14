@@ -1,0 +1,565 @@
+
+<!DOCTYPE html>
+
+<html lang="en">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>roberto.tools &#8212; Roberto 2.0.4 documentation</title>
+    <link rel="stylesheet" type="text/css" href="../../_static/pygments.css" />
+    <link rel="stylesheet" type="text/css" href="../../_static/alabaster.css" />
+    <script data-url_root="../../" id="documentation_options" src="../../_static/documentation_options.js"></script>
+    <script src="../../_static/jquery.js"></script>
+    <script src="../../_static/underscore.js"></script>
+    <script src="../../_static/_sphinx_javascript_frameworks_compat.js"></script>
+    <script src="../../_static/doctools.js"></script>
+    <script src="../../_static/sphinx_highlight.js"></script>
+    <link rel="index" title="Index" href="../../genindex.html" />
+    <link rel="search" title="Search" href="../../search.html" />
+   
+  <link rel="stylesheet" href="../../_static/custom.css" type="text/css" />
+  
+  
+  <meta name="viewport" content="width=device-width, initial-scale=0.9, maximum-scale=0.9" />
+
+  </head><body>
+  
+
+    <div class="document">
+      <div class="documentwrapper">
+        <div class="bodywrapper">
+          
+
+          <div class="body" role="main">
+            
+  <h1>Source code for roberto.tools</h1><div class="highlight"><pre>
+<span></span><span class="c1"># Collection of configurable development workflows</span>
+<span class="c1"># Copyright (C) 2011-2019 The Roberto Development Team</span>
+<span class="c1">#</span>
+<span class="c1"># This file is part of Roberto.</span>
+<span class="c1">#</span>
+<span class="c1"># Roberto is free software; you can redistribute it and/or</span>
+<span class="c1"># modify it under the terms of the GNU General Public License</span>
+<span class="c1"># as published by the Free Software Foundation; either version 3</span>
+<span class="c1"># of the License, or (at your option) any later version.</span>
+<span class="c1">#</span>
+<span class="c1"># Roberto is distributed in the hope that it will be useful,</span>
+<span class="c1"># but WITHOUT ANY WARRANTY; without even the implied warranty of</span>
+<span class="c1"># MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the</span>
+<span class="c1"># GNU General Public License for more details.</span>
+<span class="c1">#</span>
+<span class="c1"># You should have received a copy of the GNU General Public License</span>
+<span class="c1"># along with this program; if not, see &lt;http://www.gnu.org/licenses/&gt;</span>
+<span class="c1"># --</span>
+<span class="sd">&quot;&quot;&quot;Tools contribute functionality to tasks.&quot;&quot;&quot;</span>
+
+
+<span class="kn">from</span> <span class="nn">glob</span> <span class="kn">import</span> <span class="n">glob</span>
+<span class="kn">import</span> <span class="nn">json</span>
+<span class="kn">import</span> <span class="nn">os</span>
+<span class="kn">import</span> <span class="nn">urllib.request</span>
+
+<span class="kn">from</span> <span class="nn">invoke</span> <span class="kn">import</span> <span class="n">UnexpectedExit</span>
+
+<span class="kn">from</span> <span class="nn">.utils</span> <span class="kn">import</span> <span class="p">(</span><span class="n">sanitize_branch</span><span class="p">,</span> <span class="n">need_deployment</span><span class="p">,</span>
+                    <span class="n">check_env_var</span><span class="p">,</span> <span class="n">write_sha256_sum</span><span class="p">)</span>
+<span class="kn">from</span> <span class="nn">.testenvs</span> <span class="kn">import</span> <span class="n">append_activate</span>
+
+
+<span class="n">TOOL_CLASSES</span> <span class="o">=</span> <span class="p">{}</span>
+<span class="n">TOOLS</span> <span class="o">=</span> <span class="p">{}</span>
+
+
+<div class="viewcode-block" id="initialize_tools"><a class="viewcode-back" href="../../api/roberto.html#roberto.tools.initialize_tools">[docs]</a><span class="k">def</span> <span class="nf">initialize_tools</span><span class="p">(</span><span class="n">tools_config</span><span class="p">):</span>
+<span class="w">    </span><span class="sd">&quot;&quot;&quot;Build a dictionary with available tools.&quot;&quot;&quot;</span>
+    <span class="k">for</span> <span class="n">tool_name</span><span class="p">,</span> <span class="n">tool_config</span> <span class="ow">in</span> <span class="n">tools_config</span><span class="o">.</span><span class="n">items</span><span class="p">():</span>
+        <span class="c1"># Extract generic stuff</span>
+        <span class="bp">cls</span> <span class="o">=</span> <span class="n">tool_config</span><span class="o">.</span><span class="n">pop</span><span class="p">(</span><span class="s2">&quot;cls&quot;</span><span class="p">)</span>
+        <span class="n">kwargs</span> <span class="o">=</span> <span class="nb">dict</span><span class="p">(</span><span class="n">tool_config</span><span class="p">)</span>
+        <span class="n">supported_envs</span> <span class="o">=</span> <span class="n">kwargs</span><span class="o">.</span><span class="n">pop</span><span class="p">(</span><span class="s2">&quot;supported_envs&quot;</span><span class="p">,</span> <span class="p">[</span><span class="s2">&quot;conda&quot;</span><span class="p">,</span> <span class="s2">&quot;venv&quot;</span><span class="p">])</span>
+        <span class="n">requirements</span> <span class="o">=</span> <span class="n">kwargs</span><span class="o">.</span><span class="n">pop</span><span class="p">(</span><span class="s2">&quot;requirements&quot;</span><span class="p">,</span> <span class="p">[])</span>
+        <span class="c1"># Initialize</span>
+        <span class="n">tool</span> <span class="o">=</span> <span class="n">TOOL_CLASSES</span><span class="p">[</span><span class="bp">cls</span><span class="p">](</span><span class="n">tool_name</span><span class="p">,</span> <span class="o">**</span><span class="n">kwargs</span><span class="p">)</span>
+        <span class="c1"># Inject attributes, to keep constructors light. Ugly here, but sweet</span>
+        <span class="c1"># in code below.</span>
+        <span class="n">tool</span><span class="o">.</span><span class="n">supported_envs</span> <span class="o">=</span> <span class="n">supported_envs</span>
+        <span class="n">tool</span><span class="o">.</span><span class="n">requirements</span> <span class="o">=</span> <span class="n">requirements</span>
+        <span class="c1"># Register</span>
+        <span class="n">TOOLS</span><span class="p">[</span><span class="n">tool_name</span><span class="p">]</span> <span class="o">=</span> <span class="n">tool</span></div>
+
+
+<div class="viewcode-block" id="execute_tools"><a class="viewcode-back" href="../../api/roberto.html#roberto.tools.execute_tools">[docs]</a><span class="k">def</span> <span class="nf">execute_tools</span><span class="p">(</span><span class="n">ctx</span><span class="p">,</span> <span class="n">tool_cls</span><span class="p">):</span>
+<span class="w">    </span><span class="sd">&quot;&quot;&quot;Execute all tools of a given class for all packages.&quot;&quot;&quot;</span>
+    <span class="k">for</span> <span class="n">package</span> <span class="ow">in</span> <span class="n">ctx</span><span class="o">.</span><span class="n">project</span><span class="o">.</span><span class="n">packages</span><span class="p">:</span>
+        <span class="k">for</span> <span class="n">toolname</span> <span class="ow">in</span> <span class="n">package</span><span class="o">.</span><span class="n">tools</span><span class="p">:</span>
+            <span class="n">tool</span> <span class="o">=</span> <span class="n">TOOLS</span><span class="p">[</span><span class="n">toolname</span><span class="p">]</span>
+            <span class="k">if</span> <span class="nb">isinstance</span><span class="p">(</span><span class="n">tool</span><span class="p">,</span> <span class="n">tool_cls</span><span class="p">):</span>
+                <span class="c1"># Skip tools which are not supported</span>
+                <span class="nb">print</span><span class="p">(</span><span class="sa">f</span><span class="s2">&quot;</span><span class="se">\033</span><span class="s2">[0;94m   TOOL  </span><span class="si">{</span><span class="n">tool</span><span class="o">.</span><span class="n">name</span><span class="si">}</span><span class="se">\033</span><span class="s2">[0;0m&quot;</span><span class="p">)</span>
+                <span class="k">if</span> <span class="n">ctx</span><span class="o">.</span><span class="n">testenv</span><span class="o">.</span><span class="n">use</span> <span class="ow">not</span> <span class="ow">in</span> <span class="n">tool</span><span class="o">.</span><span class="n">supported_envs</span><span class="p">:</span>
+                    <span class="nb">print</span><span class="p">(</span>
+                        <span class="sa">f</span><span class="s2">&quot;Tool </span><span class="si">{</span><span class="n">toolname</span><span class="si">}</span><span class="s2"> skipped due to incompatibility with &quot;</span>
+                        <span class="sa">f</span><span class="s2">&quot;</span><span class="si">{</span><span class="n">ctx</span><span class="o">.</span><span class="n">testenv</span><span class="o">.</span><span class="n">use</span><span class="si">}</span><span class="s2">.&quot;</span><span class="p">)</span>
+                    <span class="k">continue</span>
+                <span class="n">fmtkwargs</span> <span class="o">=</span> <span class="p">{</span><span class="s1">&#39;config&#39;</span><span class="p">:</span> <span class="n">ctx</span><span class="o">.</span><span class="n">config</span><span class="p">,</span> <span class="s1">&#39;package&#39;</span><span class="p">:</span> <span class="n">package</span><span class="p">}</span>
+                <span class="n">tool</span><span class="o">.</span><span class="n">execute</span><span class="p">(</span><span class="n">ctx</span><span class="p">,</span> <span class="n">package</span><span class="p">,</span> <span class="n">fmtkwargs</span><span class="p">)</span></div>
+
+
+<div class="viewcode-block" id="Tool"><a class="viewcode-back" href="../../api/roberto.html#roberto.tools.Tool">[docs]</a><span class="k">class</span> <span class="nc">Tool</span><span class="p">:</span>
+<span class="w">    </span><span class="sd">&quot;&quot;&quot;Tool base class.&quot;&quot;&quot;</span>
+
+<div class="viewcode-block" id="Tool.__init_subclass__"><a class="viewcode-back" href="../../api/roberto.html#roberto.tools.Tool.__init_subclass__">[docs]</a>    <span class="k">def</span> <span class="nf">__init_subclass__</span><span class="p">(</span><span class="bp">cls</span><span class="p">,</span> <span class="o">**</span><span class="n">kwargs</span><span class="p">):</span>
+<span class="w">        </span><span class="sd">&quot;&quot;&quot;Register any new sub class.&quot;&quot;&quot;</span>
+        <span class="nb">super</span><span class="p">()</span><span class="o">.</span><span class="n">__init_subclass__</span><span class="p">(</span><span class="o">**</span><span class="n">kwargs</span><span class="p">)</span>
+        <span class="n">TOOL_CLASSES</span><span class="p">[</span><span class="bp">cls</span><span class="o">.</span><span class="vm">__name__</span><span class="p">]</span> <span class="o">=</span> <span class="bp">cls</span></div>
+
+<div class="viewcode-block" id="Tool.execute"><a class="viewcode-back" href="../../api/roberto.html#roberto.tools.Tool.execute">[docs]</a>    <span class="k">def</span> <span class="nf">execute</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">ctx</span><span class="p">,</span> <span class="n">package</span><span class="p">,</span> <span class="n">fmtkwargs</span><span class="p">):</span>
+<span class="w">        </span><span class="sd">&quot;&quot;&quot;Execute the tool for a given package.</span>
+
+<span class="sd">        Parameters</span>
+<span class="sd">        ----------</span>
+<span class="sd">        ctx</span>
+<span class="sd">            Invoke Context instance.</span>
+<span class="sd">        package</span>
+<span class="sd">            Package configuration.</span>
+<span class="sd">        fmtkwargs</span>
+<span class="sd">            A dictionary used for formatting arguments.</span>
+
+<span class="sd">        &quot;&quot;&quot;</span>
+        <span class="k">raise</span> <span class="ne">NotImplementedError</span></div>
+
+    <span class="nd">@staticmethod</span>
+    <span class="k">def</span> <span class="nf">_run_commands</span><span class="p">(</span><span class="n">ctx</span><span class="p">,</span> <span class="n">package</span><span class="p">,</span> <span class="n">fmtkwargs</span><span class="p">,</span> <span class="n">commands</span><span class="p">):</span>
+<span class="w">        </span><span class="sd">&quot;&quot;&quot;Run all commengs for a given package, performanc variable substitution.&quot;&quot;&quot;</span>
+        <span class="k">with</span> <span class="n">ctx</span><span class="o">.</span><span class="n">cd</span><span class="p">(</span><span class="n">package</span><span class="o">.</span><span class="n">path</span><span class="p">),</span> <span class="n">ctx</span><span class="o">.</span><span class="n">prefix</span><span class="p">(</span><span class="n">ctx</span><span class="o">.</span><span class="n">testenv</span><span class="o">.</span><span class="n">activate</span><span class="p">):</span>
+            <span class="k">for</span> <span class="n">command</span> <span class="ow">in</span> <span class="n">commands</span><span class="p">:</span>
+                <span class="n">ctx</span><span class="o">.</span><span class="n">run</span><span class="p">(</span><span class="n">command</span><span class="o">.</span><span class="n">format</span><span class="p">(</span><span class="o">**</span><span class="n">fmtkwargs</span><span class="p">))</span></div>
+
+
+<div class="viewcode-block" id="WriteVersion"><a class="viewcode-back" href="../../api/roberto.html#roberto.tools.WriteVersion">[docs]</a><span class="k">class</span> <span class="nc">WriteVersion</span><span class="p">(</span><span class="n">Tool</span><span class="p">):</span>
+<span class="w">    </span><span class="sd">&quot;&quot;&quot;Write version info to a file.&quot;&quot;&quot;</span>
+
+<div class="viewcode-block" id="WriteVersion.__init__"><a class="viewcode-back" href="../../api/roberto.html#roberto.tools.WriteVersion.__init__">[docs]</a>    <span class="k">def</span> <span class="fm">__init__</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">name</span><span class="p">,</span> <span class="n">template</span><span class="p">,</span> <span class="n">destination</span><span class="p">):</span>
+<span class="w">        </span><span class="sd">&quot;&quot;&quot;Initialize a WriteVersion instance.</span>
+
+<span class="sd">        Parameters</span>
+<span class="sd">        ----------</span>
+<span class="sd">        name</span>
+<span class="sd">            The name of the tool</span>
+<span class="sd">        template</span>
+<span class="sd">            Template for the source code with the version info.</span>
+<span class="sd">        destination</span>
+<span class="sd">            The destination to write the file too.</span>
+
+<span class="sd">        &quot;&quot;&quot;</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">name</span> <span class="o">=</span> <span class="n">name</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">template</span> <span class="o">=</span> <span class="n">template</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">destination</span> <span class="o">=</span> <span class="n">destination</span></div>
+
+<div class="viewcode-block" id="WriteVersion.execute"><a class="viewcode-back" href="../../api/roberto.html#roberto.tools.WriteVersion.execute">[docs]</a>    <span class="k">def</span> <span class="nf">execute</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">ctx</span><span class="p">,</span> <span class="n">package</span><span class="p">,</span> <span class="n">fmtkwargs</span><span class="p">):</span>
+<span class="w">        </span><span class="sd">&quot;&quot;&quot;Execute the tool for a given package.&quot;&quot;&quot;</span>
+        <span class="n">fn_version</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">destination</span><span class="o">.</span><span class="n">format</span><span class="p">(</span><span class="o">**</span><span class="n">fmtkwargs</span><span class="p">)</span>
+        <span class="n">content</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">template</span><span class="o">.</span><span class="n">format</span><span class="p">(</span><span class="o">**</span><span class="n">fmtkwargs</span><span class="p">)</span>
+        <span class="k">with</span> <span class="nb">open</span><span class="p">(</span><span class="n">os</span><span class="o">.</span><span class="n">path</span><span class="o">.</span><span class="n">join</span><span class="p">(</span><span class="n">package</span><span class="o">.</span><span class="n">path</span><span class="p">,</span> <span class="n">fn_version</span><span class="p">),</span> <span class="s1">&#39;w&#39;</span><span class="p">)</span> <span class="k">as</span> <span class="n">f</span><span class="p">:</span>
+            <span class="n">f</span><span class="o">.</span><span class="n">write</span><span class="p">(</span><span class="n">content</span><span class="p">)</span>
+        <span class="nb">print</span><span class="p">(</span><span class="s2">&quot;Version file written to:&quot;</span><span class="p">,</span> <span class="n">fn_version</span><span class="p">)</span></div></div>
+
+
+<div class="viewcode-block" id="Lint"><a class="viewcode-back" href="../../api/roberto.html#roberto.tools.Lint">[docs]</a><span class="k">class</span> <span class="nc">Lint</span><span class="p">(</span><span class="n">Tool</span><span class="p">):</span>
+<span class="w">    </span><span class="sd">&quot;&quot;&quot;Base class for linters.&quot;&quot;&quot;</span>
+
+<div class="viewcode-block" id="Lint.__init__"><a class="viewcode-back" href="../../api/roberto.html#roberto.tools.Lint.__init__">[docs]</a>    <span class="k">def</span> <span class="fm">__init__</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">name</span><span class="p">,</span> <span class="n">commands_master</span><span class="p">,</span> <span class="n">commands_feature</span><span class="p">):</span>
+<span class="w">        </span><span class="sd">&quot;&quot;&quot;Initialize a Lint instance.</span>
+
+<span class="sd">        Parameters</span>
+<span class="sd">        ----------</span>
+<span class="sd">        name</span>
+<span class="sd">            The name of the tool</span>
+<span class="sd">        commands_master</span>
+<span class="sd">            Executed when working in the merge_branch, usually master.</span>
+<span class="sd">        commands_feature</span>
+<span class="sd">            Executed when working in a feature branch.</span>
+
+<span class="sd">        &quot;&quot;&quot;</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">name</span> <span class="o">=</span> <span class="n">name</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">commands_master</span> <span class="o">=</span> <span class="n">commands_master</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">commands_feature</span> <span class="o">=</span> <span class="n">commands_feature</span></div>
+
+<div class="viewcode-block" id="Lint.execute"><a class="viewcode-back" href="../../api/roberto.html#roberto.tools.Lint.execute">[docs]</a>    <span class="k">def</span> <span class="nf">execute</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">ctx</span><span class="p">,</span> <span class="n">package</span><span class="p">,</span> <span class="n">fmtkwargs</span><span class="p">):</span>
+<span class="w">        </span><span class="sd">&quot;&quot;&quot;Execute the tool for a given package.&quot;&quot;&quot;</span>
+        <span class="k">if</span> <span class="n">ctx</span><span class="o">.</span><span class="n">absolute</span><span class="p">:</span>
+            <span class="n">on_merge_branch</span> <span class="o">=</span> <span class="kc">True</span>
+        <span class="k">else</span><span class="p">:</span>
+            <span class="n">result</span> <span class="o">=</span> <span class="n">ctx</span><span class="o">.</span><span class="n">run</span><span class="p">(</span><span class="sa">f</span><span class="s1">&#39;git diff </span><span class="si">{</span><span class="n">ctx</span><span class="o">.</span><span class="n">git</span><span class="o">.</span><span class="n">merge_branch</span><span class="si">}</span><span class="s1">..HEAD --stat&#39;</span><span class="p">,</span> <span class="n">hide</span><span class="o">=</span><span class="s1">&#39;out&#39;</span><span class="p">)</span>
+            <span class="n">on_merge_branch</span> <span class="o">=</span> <span class="n">result</span><span class="o">.</span><span class="n">stdout</span><span class="o">.</span><span class="n">strip</span><span class="p">()</span> <span class="o">==</span> <span class="s2">&quot;&quot;</span>
+        <span class="k">if</span> <span class="n">on_merge_branch</span><span class="p">:</span>
+            <span class="bp">self</span><span class="o">.</span><span class="n">_run_commands</span><span class="p">(</span><span class="n">ctx</span><span class="p">,</span> <span class="n">package</span><span class="p">,</span> <span class="n">fmtkwargs</span><span class="p">,</span> <span class="bp">self</span><span class="o">.</span><span class="n">commands_master</span><span class="p">)</span>
+        <span class="k">else</span><span class="p">:</span>
+            <span class="bp">self</span><span class="o">.</span><span class="n">_run_commands</span><span class="p">(</span><span class="n">ctx</span><span class="p">,</span> <span class="n">package</span><span class="p">,</span> <span class="n">fmtkwargs</span><span class="p">,</span> <span class="bp">self</span><span class="o">.</span><span class="n">commands_feature</span><span class="p">)</span></div></div>
+
+
+<div class="viewcode-block" id="LintStatic"><a class="viewcode-back" href="../../api/roberto.html#roberto.tools.LintStatic">[docs]</a><span class="k">class</span> <span class="nc">LintStatic</span><span class="p">(</span><span class="n">Lint</span><span class="p">):</span>
+<span class="w">    </span><span class="sd">&quot;&quot;&quot;Stub for static linters.&quot;&quot;&quot;</span></div>
+
+
+<div class="viewcode-block" id="LintDynamic"><a class="viewcode-back" href="../../api/roberto.html#roberto.tools.LintDynamic">[docs]</a><span class="k">class</span> <span class="nc">LintDynamic</span><span class="p">(</span><span class="n">Lint</span><span class="p">):</span>
+<span class="w">    </span><span class="sd">&quot;&quot;&quot;Stub for dynamic linters.&quot;&quot;&quot;</span></div>
+
+
+<div class="viewcode-block" id="BuildInPlace"><a class="viewcode-back" href="../../api/roberto.html#roberto.tools.BuildInPlace">[docs]</a><span class="k">class</span> <span class="nc">BuildInPlace</span><span class="p">(</span><span class="n">Tool</span><span class="p">):</span>
+<span class="w">    </span><span class="sd">&quot;&quot;&quot;Build in-place and check and/or extend environment variables.&quot;&quot;&quot;</span>
+
+<div class="viewcode-block" id="BuildInPlace.__init__"><a class="viewcode-back" href="../../api/roberto.html#roberto.tools.BuildInPlace.__init__">[docs]</a>    <span class="k">def</span> <span class="fm">__init__</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">name</span><span class="p">,</span> <span class="n">check_vars</span><span class="p">,</span> <span class="n">commands</span><span class="p">,</span> <span class="n">extra_vars</span><span class="p">):</span>
+<span class="w">        </span><span class="sd">&quot;&quot;&quot;Initialize a BuiltInPlace instance.</span>
+
+<span class="sd">        Parameters</span>
+<span class="sd">        ----------</span>
+<span class="sd">        name</span>
+<span class="sd">            The name of the tool</span>
+<span class="sd">        check_vars</span>
+<span class="sd">            A list of variable names to print before building, just to</span>
+<span class="sd">            help detecting issues.</span>
+<span class="sd">        commands</span>
+<span class="sd">            Build commands.</span>
+<span class="sd">        extra_vars</span>
+<span class="sd">            Additions to environment variables needed after this build.</span>
+
+<span class="sd">        &quot;&quot;&quot;</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">name</span> <span class="o">=</span> <span class="n">name</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">check_vars</span> <span class="o">=</span> <span class="n">check_vars</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">commands</span> <span class="o">=</span> <span class="n">commands</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">extra_vars</span> <span class="o">=</span> <span class="n">extra_vars</span></div>
+
+    <span class="k">def</span> <span class="nf">_check_vars</span><span class="p">(</span><span class="bp">self</span><span class="p">):</span>
+<span class="w">        </span><span class="sd">&quot;&quot;&quot;Print out some variables who might reveal issues.&quot;&quot;&quot;</span>
+        <span class="nb">print</span><span class="p">(</span><span class="s1">&#39;Existing variables that could affect the in-place build:&#39;</span><span class="p">)</span>
+        <span class="k">for</span> <span class="n">varname</span> <span class="ow">in</span> <span class="bp">self</span><span class="o">.</span><span class="n">check_vars</span><span class="p">:</span>
+            <span class="k">if</span> <span class="n">varname</span> <span class="ow">in</span> <span class="n">os</span><span class="o">.</span><span class="n">environ</span><span class="p">:</span>
+                <span class="nb">print</span><span class="p">(</span><span class="sa">f</span><span class="s1">&#39;</span><span class="si">{</span><span class="n">varname</span><span class="si">}</span><span class="s1">=</span><span class="si">{</span><span class="n">os</span><span class="o">.</span><span class="n">environ</span><span class="p">[</span><span class="n">varname</span><span class="p">]</span><span class="si">}</span><span class="s1">&#39;</span><span class="p">)</span>
+
+    <span class="k">def</span> <span class="nf">_update_extra_vars</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">ctx</span><span class="p">,</span> <span class="n">fmtkwargs</span><span class="p">):</span>
+<span class="w">        </span><span class="sd">&quot;&quot;&quot;Update environment variables after running build commands.&quot;&quot;&quot;</span>
+        <span class="k">for</span> <span class="n">name</span><span class="p">,</span> <span class="n">value</span> <span class="ow">in</span> <span class="bp">self</span><span class="o">.</span><span class="n">extra_vars</span><span class="o">.</span><span class="n">items</span><span class="p">():</span>
+            <span class="n">separator</span> <span class="o">=</span> <span class="s2">&quot;:&quot;</span> <span class="k">if</span> <span class="s2">&quot;PATH&quot;</span> <span class="ow">in</span> <span class="n">name</span> <span class="k">else</span> <span class="s2">&quot; &quot;</span>
+            <span class="n">value</span> <span class="o">=</span> <span class="n">value</span><span class="o">.</span><span class="n">format</span><span class="p">(</span><span class="o">**</span><span class="n">fmtkwargs</span><span class="p">)</span>
+            <span class="n">append_activate</span><span class="p">(</span><span class="n">ctx</span><span class="p">,</span> <span class="sa">f</span><span class="s1">&#39;export </span><span class="si">{</span><span class="n">name</span><span class="si">}</span><span class="s1">=&quot;$</span><span class="se">{{</span><span class="si">{</span><span class="n">name</span><span class="si">}</span><span class="s1">:+$</span><span class="se">{{</span><span class="si">{</span><span class="n">name</span><span class="si">}</span><span class="se">}}</span><span class="si">{</span><span class="n">separator</span><span class="si">}</span><span class="se">}}</span><span class="si">{</span><span class="n">value</span><span class="si">}</span><span class="s1">&quot;&#39;</span><span class="p">)</span>
+
+<div class="viewcode-block" id="BuildInPlace.execute"><a class="viewcode-back" href="../../api/roberto.html#roberto.tools.BuildInPlace.execute">[docs]</a>    <span class="k">def</span> <span class="nf">execute</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">ctx</span><span class="p">,</span> <span class="n">package</span><span class="p">,</span> <span class="n">fmtkwargs</span><span class="p">):</span>
+<span class="w">        </span><span class="sd">&quot;&quot;&quot;Execute the tool for a given package.&quot;&quot;&quot;</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">_check_vars</span><span class="p">()</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">_run_commands</span><span class="p">(</span><span class="n">ctx</span><span class="p">,</span> <span class="n">package</span><span class="p">,</span> <span class="n">fmtkwargs</span><span class="p">,</span> <span class="bp">self</span><span class="o">.</span><span class="n">commands</span><span class="p">)</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">_update_extra_vars</span><span class="p">(</span><span class="n">ctx</span><span class="p">,</span> <span class="n">fmtkwargs</span><span class="p">)</span></div></div>
+
+
+<div class="viewcode-block" id="RunCommands"><a class="viewcode-back" href="../../api/roberto.html#roberto.tools.RunCommands">[docs]</a><span class="k">class</span> <span class="nc">RunCommands</span><span class="p">(</span><span class="n">Tool</span><span class="p">):</span>
+<span class="w">    </span><span class="sd">&quot;&quot;&quot;Base class for all tools that just execute some commands.&quot;&quot;&quot;</span>
+
+<div class="viewcode-block" id="RunCommands.__init__"><a class="viewcode-back" href="../../api/roberto.html#roberto.tools.RunCommands.__init__">[docs]</a>    <span class="k">def</span> <span class="fm">__init__</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">name</span><span class="p">,</span> <span class="n">commands</span><span class="p">):</span>
+<span class="w">        </span><span class="sd">&quot;&quot;&quot;Initialize a BuiltInPlace instance.</span>
+
+<span class="sd">        Parameters</span>
+<span class="sd">        ----------</span>
+<span class="sd">        name</span>
+<span class="sd">            The name of the tool</span>
+<span class="sd">        commands</span>
+<span class="sd">            Commands to run.</span>
+
+<span class="sd">        &quot;&quot;&quot;</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">name</span> <span class="o">=</span> <span class="n">name</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">commands</span> <span class="o">=</span> <span class="n">commands</span></div>
+
+<div class="viewcode-block" id="RunCommands.execute"><a class="viewcode-back" href="../../api/roberto.html#roberto.tools.RunCommands.execute">[docs]</a>    <span class="k">def</span> <span class="nf">execute</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">ctx</span><span class="p">,</span> <span class="n">package</span><span class="p">,</span> <span class="n">fmtkwargs</span><span class="p">):</span>
+<span class="w">        </span><span class="sd">&quot;&quot;&quot;Execute the tool for a given package.&quot;&quot;&quot;</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">_run_commands</span><span class="p">(</span><span class="n">ctx</span><span class="p">,</span> <span class="n">package</span><span class="p">,</span> <span class="n">fmtkwargs</span><span class="p">,</span> <span class="bp">self</span><span class="o">.</span><span class="n">commands</span><span class="p">)</span></div></div>
+
+
+<div class="viewcode-block" id="TestInPlace"><a class="viewcode-back" href="../../api/roberto.html#roberto.tools.TestInPlace">[docs]</a><span class="k">class</span> <span class="nc">TestInPlace</span><span class="p">(</span><span class="n">RunCommands</span><span class="p">):</span>
+<span class="w">    </span><span class="sd">&quot;&quot;&quot;Stub for in-place testing tools.&quot;&quot;&quot;</span></div>
+
+
+<div class="viewcode-block" id="UploadCoverage"><a class="viewcode-back" href="../../api/roberto.html#roberto.tools.UploadCoverage">[docs]</a><span class="k">class</span> <span class="nc">UploadCoverage</span><span class="p">(</span><span class="n">RunCommands</span><span class="p">):</span>
+<span class="w">    </span><span class="sd">&quot;&quot;&quot;Stub for coverage upload.&quot;&quot;&quot;</span></div>
+
+
+<div class="viewcode-block" id="BuildDocs"><a class="viewcode-back" href="../../api/roberto.html#roberto.tools.BuildDocs">[docs]</a><span class="k">class</span> <span class="nc">BuildDocs</span><span class="p">(</span><span class="n">RunCommands</span><span class="p">):</span>
+<span class="w">    </span><span class="sd">&quot;&quot;&quot;Stub for documentation builds.&quot;&quot;&quot;</span></div>
+
+
+<div class="viewcode-block" id="UploadDocs"><a class="viewcode-back" href="../../api/roberto.html#roberto.tools.UploadDocs">[docs]</a><span class="k">class</span> <span class="nc">UploadDocs</span><span class="p">(</span><span class="n">Tool</span><span class="p">):</span>
+<span class="w">    </span><span class="sd">&quot;&quot;&quot;Base class for all docu upload tools.&quot;&quot;&quot;</span></div>
+
+
+<div class="viewcode-block" id="UploadDocsGit"><a class="viewcode-back" href="../../api/roberto.html#roberto.tools.UploadDocsGit">[docs]</a><span class="k">class</span> <span class="nc">UploadDocsGit</span><span class="p">(</span><span class="n">UploadDocs</span><span class="p">):</span>
+<span class="w">    </span><span class="sd">&quot;&quot;&quot;Squash-push documentation to a git branch.&quot;&quot;&quot;</span>
+
+<div class="viewcode-block" id="UploadDocsGit.__init__"><a class="viewcode-back" href="../../api/roberto.html#roberto.tools.UploadDocsGit.__init__">[docs]</a>    <span class="k">def</span> <span class="fm">__init__</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">name</span><span class="p">,</span> <span class="n">docroot</span><span class="p">,</span> <span class="n">docbranch</span><span class="p">,</span> <span class="n">docremote</span><span class="p">,</span> <span class="n">deploy_labels</span><span class="p">):</span>
+<span class="w">        </span><span class="sd">&quot;&quot;&quot;Initialize an UploadDocsGit instance.</span>
+
+<span class="sd">        Parameters</span>
+<span class="sd">        ----------</span>
+<span class="sd">        name</span>
+<span class="sd">            The name of the tool</span>
+<span class="sd">        docroot</span>
+<span class="sd">            The subdirectory where the documentation can be found.</span>
+<span class="sd">        docbranch</span>
+<span class="sd">            The branch to which the documentation must be pushed.</span>
+<span class="sd">        docremote</span>
+<span class="sd">            The remote repository for the documentation.</span>
+<span class="sd">        deploy_labels</span>
+<span class="sd">            The kind of releases for which documentation must be uploaded.</span>
+
+<span class="sd">        &quot;&quot;&quot;</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">name</span> <span class="o">=</span> <span class="n">name</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">docroot</span> <span class="o">=</span> <span class="n">docroot</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">docbranch</span> <span class="o">=</span> <span class="n">docbranch</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">docremote</span> <span class="o">=</span> <span class="n">docremote</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">deploy_labels</span> <span class="o">=</span> <span class="n">deploy_labels</span></div>
+
+<div class="viewcode-block" id="UploadDocsGit.execute"><a class="viewcode-back" href="../../api/roberto.html#roberto.tools.UploadDocsGit.execute">[docs]</a>    <span class="k">def</span> <span class="nf">execute</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">ctx</span><span class="p">,</span> <span class="n">package</span><span class="p">,</span> <span class="n">fmtkwargs</span><span class="p">):</span>
+<span class="w">        </span><span class="sd">&quot;&quot;&quot;Execute the tool for a given package.&quot;&quot;&quot;</span>
+        <span class="c1"># Try to get a git username and author argument for the doc commit.</span>
+        <span class="k">if</span> <span class="s1">&#39;GITHUB_TOKEN&#39;</span> <span class="ow">in</span> <span class="n">os</span><span class="o">.</span><span class="n">environ</span><span class="p">:</span>
+            <span class="c1"># First get user info from the owner of the token</span>
+            <span class="n">req</span> <span class="o">=</span> <span class="n">urllib</span><span class="o">.</span><span class="n">request</span><span class="o">.</span><span class="n">Request</span><span class="p">(</span><span class="s1">&#39;https://api.github.com/user&#39;</span><span class="p">)</span>
+            <span class="n">req</span><span class="o">.</span><span class="n">add_header</span><span class="p">(</span><span class="s1">&#39;Authorization&#39;</span><span class="p">,</span> <span class="sa">f</span><span class="s1">&#39;token </span><span class="si">{</span><span class="n">os</span><span class="o">.</span><span class="n">environ</span><span class="p">[</span><span class="s2">&quot;GITHUB_TOKEN&quot;</span><span class="p">]</span><span class="si">}</span><span class="s1">&#39;</span><span class="p">)</span>
+            <span class="k">try</span><span class="p">:</span>
+                <span class="k">with</span> <span class="n">urllib</span><span class="o">.</span><span class="n">request</span><span class="o">.</span><span class="n">urlopen</span><span class="p">(</span><span class="n">req</span><span class="p">)</span> <span class="k">as</span> <span class="n">f</span><span class="p">:</span>
+                    <span class="n">user_info</span> <span class="o">=</span> <span class="n">json</span><span class="o">.</span><span class="n">loads</span><span class="p">(</span><span class="n">f</span><span class="o">.</span><span class="n">read</span><span class="p">()</span><span class="o">.</span><span class="n">decode</span><span class="p">(</span><span class="s1">&#39;utf-8&#39;</span><span class="p">))[</span><span class="s1">&#39;login&#39;</span><span class="p">]</span>
+            <span class="k">except</span> <span class="n">urllib</span><span class="o">.</span><span class="n">error</span><span class="o">.</span><span class="n">HTTPError</span><span class="p">:</span>
+                <span class="c1"># The exception may be raised when the token has no permission to</span>
+                <span class="c1"># access user information.</span>
+                <span class="n">user_info</span> <span class="o">=</span> <span class="p">{}</span>
+            <span class="n">author_name</span> <span class="o">=</span> <span class="n">user_info</span><span class="o">.</span><span class="n">get</span><span class="p">(</span><span class="s2">&quot;name&quot;</span><span class="p">,</span> <span class="n">user_info</span><span class="o">.</span><span class="n">get</span><span class="p">(</span><span class="s2">&quot;login&quot;</span><span class="p">,</span> <span class="s2">&quot;Roberto&quot;</span><span class="p">))</span>
+            <span class="n">fallback_email</span> <span class="o">=</span> <span class="n">user_info</span><span class="o">.</span><span class="n">get</span><span class="p">(</span><span class="s2">&quot;login&quot;</span><span class="p">,</span> <span class="s2">&quot;roberto&quot;</span><span class="p">)</span> <span class="o">+</span> <span class="s2">&quot;@users.noreply.github.com&quot;</span>
+            <span class="n">author_email</span> <span class="o">=</span> <span class="n">user_info</span><span class="o">.</span><span class="n">get</span><span class="p">(</span><span class="s2">&quot;email&quot;</span><span class="p">,</span> <span class="n">fallback_email</span><span class="p">)</span>
+            <span class="n">os</span><span class="o">.</span><span class="n">environ</span><span class="p">[</span><span class="s2">&quot;GIT_AUTHOR_NAME&quot;</span><span class="p">]</span> <span class="o">=</span> <span class="n">author_name</span>
+            <span class="n">os</span><span class="o">.</span><span class="n">environ</span><span class="p">[</span><span class="s2">&quot;GIT_AUTHOR_EMAIL&quot;</span><span class="p">]</span> <span class="o">=</span> <span class="n">author_email</span>
+            <span class="n">os</span><span class="o">.</span><span class="n">environ</span><span class="p">[</span><span class="s2">&quot;GIT_COMMITTER_NAME&quot;</span><span class="p">]</span> <span class="o">=</span> <span class="n">author_name</span>
+            <span class="n">os</span><span class="o">.</span><span class="n">environ</span><span class="p">[</span><span class="s2">&quot;GIT_COMMITTER_EMAIL&quot;</span><span class="p">]</span> <span class="o">=</span> <span class="n">author_email</span>
+
+        <span class="c1"># Check if deployment is needed with deploy_label.</span>
+        <span class="n">prefix</span> <span class="o">=</span> <span class="sa">f</span><span class="s1">&#39;</span><span class="si">{</span><span class="bp">self</span><span class="o">.</span><span class="n">name</span><span class="si">}</span><span class="s1"> of </span><span class="si">{</span><span class="n">package</span><span class="o">.</span><span class="n">dist_name</span><span class="si">}</span><span class="s1">&#39;</span>
+        <span class="k">if</span> <span class="ow">not</span> <span class="n">need_deployment</span><span class="p">(</span><span class="n">ctx</span><span class="p">,</span> <span class="n">prefix</span><span class="p">,</span> <span class="kc">False</span><span class="p">,</span> <span class="bp">self</span><span class="o">.</span><span class="n">deploy_labels</span><span class="p">):</span>
+            <span class="k">return</span>
+
+        <span class="k">with</span> <span class="n">ctx</span><span class="o">.</span><span class="n">cd</span><span class="p">(</span><span class="n">package</span><span class="o">.</span><span class="n">path</span><span class="p">):</span>
+            <span class="c1"># Switch to a docu branch and remove everything that was present in</span>
+            <span class="c1"># the previous commit. It is assumed that the doc branch is an</span>
+            <span class="c1"># orphan branch made previously.</span>
+            <span class="n">sanitize_branch</span><span class="p">(</span><span class="n">ctx</span><span class="p">,</span> <span class="bp">self</span><span class="o">.</span><span class="n">docbranch</span><span class="p">)</span>
+            <span class="n">ctx</span><span class="o">.</span><span class="n">run</span><span class="p">(</span><span class="sa">f</span><span class="s2">&quot;git checkout </span><span class="si">{</span><span class="bp">self</span><span class="o">.</span><span class="n">docbranch</span><span class="si">}</span><span class="s2">&quot;</span><span class="p">)</span>
+            <span class="n">ctx</span><span class="o">.</span><span class="n">run</span><span class="p">(</span><span class="s2">&quot;git ls-tree HEAD -r --name-only | xargs rm&quot;</span><span class="p">)</span>
+            <span class="c1"># Copy the documentation to the repo root.</span>
+            <span class="n">docroot</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">docroot</span><span class="o">.</span><span class="n">format</span><span class="p">(</span><span class="o">**</span><span class="n">fmtkwargs</span><span class="p">)</span>
+            <span class="n">ctx</span><span class="o">.</span><span class="n">run</span><span class="p">(</span><span class="sa">f</span><span class="s2">&quot;GLOBIGNORE=&#39;.:..&#39;; cp -rv </span><span class="si">{</span><span class="n">docroot</span><span class="si">}</span><span class="s2">/* .&quot;</span><span class="p">)</span>
+            <span class="c1"># Add all files</span>
+            <span class="k">for</span> <span class="n">root</span><span class="p">,</span> <span class="n">_dirs</span><span class="p">,</span> <span class="n">filenames</span> <span class="ow">in</span> <span class="n">os</span><span class="o">.</span><span class="n">walk</span><span class="p">(</span><span class="n">docroot</span><span class="p">):</span>
+                <span class="k">for</span> <span class="n">filename</span> <span class="ow">in</span> <span class="n">filenames</span><span class="p">:</span>
+                    <span class="n">fullfn</span> <span class="o">=</span> <span class="n">os</span><span class="o">.</span><span class="n">path</span><span class="o">.</span><span class="n">join</span><span class="p">(</span><span class="n">root</span><span class="p">,</span> <span class="n">filename</span><span class="p">)[</span><span class="nb">len</span><span class="p">(</span><span class="n">docroot</span><span class="p">)</span><span class="o">+</span><span class="mi">1</span><span class="p">:]</span>
+                    <span class="n">ctx</span><span class="o">.</span><span class="n">run</span><span class="p">(</span><span class="sa">f</span><span class="s2">&quot;git add </span><span class="si">{</span><span class="n">fullfn</span><span class="si">}</span><span class="s2">&quot;</span><span class="p">)</span>
+            <span class="c1"># Commit, push and go back to the original branch</span>
+            <span class="n">ctx</span><span class="o">.</span><span class="n">run</span><span class="p">(</span><span class="s2">&quot;git commit -a -m &#39;Automatic documentation update&#39; --amend &quot;</span><span class="p">)</span>
+            <span class="n">ctx</span><span class="o">.</span><span class="n">run</span><span class="p">(</span><span class="sa">f</span><span class="s2">&quot;git checkout </span><span class="si">{</span><span class="n">ctx</span><span class="o">.</span><span class="n">git</span><span class="o">.</span><span class="n">branch</span><span class="si">}</span><span class="s2">&quot;</span><span class="p">)</span>
+            <span class="c1"># Push</span>
+            <span class="k">if</span> <span class="s1">&#39;GITHUB_TOKEN&#39;</span> <span class="ow">in</span> <span class="n">os</span><span class="o">.</span><span class="n">environ</span><span class="p">:</span>
+                <span class="c1"># Get the remote url</span>
+                <span class="n">giturl</span> <span class="o">=</span> <span class="n">ctx</span><span class="o">.</span><span class="n">run</span><span class="p">(</span><span class="s2">&quot;git config --get remote.origin.url&quot;</span><span class="p">)</span><span class="o">.</span><span class="n">stdout</span><span class="o">.</span><span class="n">strip</span><span class="p">()</span>
+                <span class="c1"># Derive the slug, works for both ssh and https</span>
+                <span class="n">slug</span> <span class="o">=</span> <span class="s1">&#39;/&#39;</span><span class="o">.</span><span class="n">join</span><span class="p">(</span><span class="n">giturl</span><span class="o">.</span><span class="n">replace</span><span class="p">(</span><span class="s1">&#39;:&#39;</span><span class="p">,</span> <span class="s1">&#39;/&#39;</span><span class="p">)</span><span class="o">.</span><span class="n">split</span><span class="p">(</span><span class="s1">&#39;/&#39;</span><span class="p">)[</span><span class="o">-</span><span class="mi">2</span><span class="p">:])</span>
+                <span class="c1"># Push with github token magic. Taken from</span>
+                <span class="c1"># https://gist.github.com/willprice/e07efd73fb7f13f917ea</span>
+                <span class="n">ctx</span><span class="o">.</span><span class="n">run</span><span class="p">(</span>
+                    <span class="s2">&quot;git remote add origin-pages &quot;</span>
+                    <span class="sa">f</span><span class="s2">&quot;https://</span><span class="si">{</span><span class="n">os</span><span class="o">.</span><span class="n">environ</span><span class="p">[</span><span class="s1">&#39;GITHUB_TOKEN&#39;</span><span class="p">]</span><span class="si">}</span><span class="s2">@github.com/</span><span class="si">{</span><span class="n">slug</span><span class="si">}</span><span class="s2">&quot;</span><span class="p">,</span>
+                    <span class="n">hide</span><span class="o">=</span><span class="kc">True</span><span class="p">,</span> <span class="n">echo</span><span class="o">=</span><span class="kc">False</span><span class="p">,</span> <span class="n">warn</span><span class="o">=</span><span class="kc">True</span>
+                <span class="p">)</span>
+                <span class="n">ctx</span><span class="o">.</span><span class="n">run</span><span class="p">(</span><span class="sa">f</span><span class="s2">&quot;git push --quiet -f origin-pages </span><span class="si">{</span><span class="bp">self</span><span class="o">.</span><span class="n">docbranch</span><span class="si">}</span><span class="s2">:</span><span class="si">{</span><span class="bp">self</span><span class="o">.</span><span class="n">docbranch</span><span class="si">}</span><span class="s2">&quot;</span><span class="p">)</span>
+            <span class="k">else</span><span class="p">:</span>
+                <span class="c1"># Fallback for local doc updates.</span>
+                <span class="n">ctx</span><span class="o">.</span><span class="n">run</span><span class="p">(</span><span class="sa">f</span><span class="s2">&quot;git push -f </span><span class="si">{</span><span class="bp">self</span><span class="o">.</span><span class="n">docremote</span><span class="si">}</span><span class="s2"> </span><span class="si">{</span><span class="bp">self</span><span class="o">.</span><span class="n">docbranch</span><span class="si">}</span><span class="s2">:</span><span class="si">{</span><span class="bp">self</span><span class="o">.</span><span class="n">docbranch</span><span class="si">}</span><span class="s2">&quot;</span><span class="p">)</span></div></div>
+
+
+<div class="viewcode-block" id="BuildPackage"><a class="viewcode-back" href="../../api/roberto.html#roberto.tools.BuildPackage">[docs]</a><span class="k">class</span> <span class="nc">BuildPackage</span><span class="p">(</span><span class="n">RunCommands</span><span class="p">):</span>
+<span class="w">    </span><span class="sd">&quot;&quot;&quot;Stub for building a package.&quot;&quot;&quot;</span></div>
+
+
+<div class="viewcode-block" id="Deploy"><a class="viewcode-back" href="../../api/roberto.html#roberto.tools.Deploy">[docs]</a><span class="k">class</span> <span class="nc">Deploy</span><span class="p">(</span><span class="n">Tool</span><span class="p">):</span>
+<span class="w">    </span><span class="sd">&quot;&quot;&quot;Upload software packages to distribution servers.&quot;&quot;&quot;</span>
+
+<div class="viewcode-block" id="Deploy.__init__"><a class="viewcode-back" href="../../api/roberto.html#roberto.tools.Deploy.__init__">[docs]</a>    <span class="k">def</span> <span class="fm">__init__</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">name</span><span class="p">,</span> <span class="n">deploy_vars</span><span class="p">,</span> <span class="n">include_sha256</span><span class="p">,</span> <span class="n">noarch_asset_patterns</span><span class="p">,</span>
+                 <span class="n">binary_asset_patterns</span><span class="p">,</span> <span class="n">deploy_labels</span><span class="p">,</span> <span class="n">commands</span><span class="p">):</span>
+<span class="w">        </span><span class="sd">&quot;&quot;&quot;Initialize an UploadDocsGit instance.</span>
+
+<span class="sd">        Parameters</span>
+<span class="sd">        ----------</span>
+<span class="sd">        name</span>
+<span class="sd">            The name of the tool</span>
+<span class="sd">        deploy_vars</span>
+<span class="sd">            Essential environment variables for deployment. Their presence is</span>
+<span class="sd">            checked.</span>
+<span class="sd">        include_sha256</span>
+<span class="sd">            If True, sha256 checksums are generated for the assets</span>
+<span class="sd">        noarch_asset_patterns</span>
+<span class="sd">            Glob pattern for architecture-independent assets.</span>
+<span class="sd">        binary_asset_patterns</span>
+<span class="sd">            Glob pattern for architecture-dependent assets.</span>
+<span class="sd">        deploy_labels</span>
+<span class="sd">            The kind of releases for which documentation must be uploaded.</span>
+<span class="sd">        commands</span>
+<span class="sd">            Bash command to perform the deployment.</span>
+
+<span class="sd">        &quot;&quot;&quot;</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">name</span> <span class="o">=</span> <span class="n">name</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">deploy_vars</span> <span class="o">=</span> <span class="n">deploy_vars</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">include_sha256</span> <span class="o">=</span> <span class="n">include_sha256</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">noarch_asset_patterns</span> <span class="o">=</span> <span class="n">noarch_asset_patterns</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">binary_asset_patterns</span> <span class="o">=</span> <span class="n">binary_asset_patterns</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">deploy_labels</span> <span class="o">=</span> <span class="n">deploy_labels</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">commands</span> <span class="o">=</span> <span class="n">commands</span></div>
+
+<div class="viewcode-block" id="Deploy.execute"><a class="viewcode-back" href="../../api/roberto.html#roberto.tools.Deploy.execute">[docs]</a>    <span class="k">def</span> <span class="nf">execute</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">ctx</span><span class="p">,</span> <span class="n">package</span><span class="p">,</span> <span class="n">fmtkwargs</span><span class="p">):</span>
+<span class="w">        </span><span class="sd">&quot;&quot;&quot;Execute the tool for a given package.&quot;&quot;&quot;</span>
+        <span class="c1"># Check if and how deployment vars are set.</span>
+        <span class="k">for</span> <span class="n">deploy_var</span> <span class="ow">in</span> <span class="bp">self</span><span class="o">.</span><span class="n">deploy_vars</span><span class="p">:</span>
+            <span class="nb">print</span><span class="p">(</span><span class="n">check_env_var</span><span class="p">(</span><span class="n">deploy_var</span><span class="p">))</span>
+
+        <span class="k">for</span> <span class="n">binary</span><span class="p">,</span> <span class="n">asset_patterns</span> <span class="ow">in</span> <span class="p">[(</span><span class="kc">True</span><span class="p">,</span> <span class="bp">self</span><span class="o">.</span><span class="n">binary_asset_patterns</span><span class="p">),</span>
+                                       <span class="p">(</span><span class="kc">False</span><span class="p">,</span> <span class="bp">self</span><span class="o">.</span><span class="n">noarch_asset_patterns</span><span class="p">)]:</span>
+            <span class="c1"># Fill in config variables in asset_patterns</span>
+            <span class="n">asset_patterns</span> <span class="o">=</span> <span class="p">[</span><span class="n">pattern</span><span class="o">.</span><span class="n">format</span><span class="p">(</span><span class="o">**</span><span class="n">fmtkwargs</span><span class="p">)</span> <span class="k">for</span> <span class="n">pattern</span> <span class="ow">in</span> <span class="n">asset_patterns</span><span class="p">]</span>
+            <span class="n">descr</span> <span class="o">=</span> <span class="sa">f</span><span class="s1">&#39;</span><span class="si">{</span><span class="bp">self</span><span class="o">.</span><span class="n">name</span><span class="si">}</span><span class="s1"> of </span><span class="si">{</span><span class="n">package</span><span class="o">.</span><span class="n">dist_name</span><span class="si">}</span><span class="s1"> (binary=</span><span class="si">{</span><span class="n">binary</span><span class="si">}</span><span class="s1">)&#39;</span>
+            <span class="nb">print</span><span class="p">(</span><span class="sa">f</span><span class="s2">&quot;Preparing for </span><span class="si">{</span><span class="n">descr</span><span class="si">}</span><span class="s2">&quot;</span><span class="p">)</span>
+            <span class="c1"># Collect assets, skipping hash files previously generated.</span>
+            <span class="n">assets</span> <span class="o">=</span> <span class="p">[]</span>
+            <span class="k">for</span> <span class="n">pattern</span> <span class="ow">in</span> <span class="n">asset_patterns</span><span class="p">:</span>
+                <span class="nb">print</span><span class="p">(</span><span class="s2">&quot;  Searching for&quot;</span><span class="p">,</span> <span class="n">pattern</span><span class="p">)</span>
+                <span class="n">assets</span><span class="o">.</span><span class="n">extend</span><span class="p">([</span><span class="n">filename</span> <span class="k">for</span> <span class="n">filename</span> <span class="ow">in</span> <span class="n">glob</span><span class="p">(</span><span class="n">pattern</span><span class="p">)</span>
+                               <span class="k">if</span> <span class="ow">not</span> <span class="n">filename</span><span class="o">.</span><span class="n">endswith</span><span class="p">(</span><span class="s2">&quot;sha256&quot;</span><span class="p">)])</span>
+            <span class="k">if</span> <span class="ow">not</span> <span class="n">assets</span><span class="p">:</span>
+                <span class="nb">print</span><span class="p">(</span><span class="s2">&quot;No assets found&quot;</span><span class="p">)</span>
+                <span class="k">continue</span>
+            <span class="c1"># Make sha256 checksums</span>
+            <span class="n">asset_hashes</span> <span class="o">=</span> <span class="p">[</span><span class="n">write_sha256_sum</span><span class="p">(</span><span class="n">asset</span><span class="p">)</span> <span class="k">for</span> <span class="n">asset</span> <span class="ow">in</span> <span class="n">assets</span><span class="p">]</span>
+            <span class="k">if</span> <span class="bp">self</span><span class="o">.</span><span class="n">include_sha256</span><span class="p">:</span>
+                <span class="n">assets</span><span class="o">.</span><span class="n">extend</span><span class="p">(</span><span class="n">asset_hashes</span><span class="p">)</span>
+            <span class="c1"># Print final assets</span>
+            <span class="nb">print</span><span class="p">(</span><span class="sa">f</span><span class="s2">&quot;Assets for upload: </span><span class="si">{</span><span class="n">assets</span><span class="si">}</span><span class="s2">&quot;</span><span class="p">)</span>
+            <span class="c1"># Set extra formatting variables.</span>
+            <span class="n">fmtkwargs</span><span class="p">[</span><span class="s1">&#39;assets&#39;</span><span class="p">]</span> <span class="o">=</span> <span class="s1">&#39; &#39;</span><span class="o">.</span><span class="n">join</span><span class="p">(</span><span class="n">assets</span><span class="p">)</span>
+            <span class="c1"># Check if deployment is needed before running commands. This check</span>
+            <span class="c1"># is maximally postponed to increase the coverage of the code above.</span>
+            <span class="k">if</span> <span class="n">need_deployment</span><span class="p">(</span><span class="n">ctx</span><span class="p">,</span> <span class="n">descr</span><span class="p">,</span> <span class="n">binary</span><span class="p">,</span> <span class="bp">self</span><span class="o">.</span><span class="n">deploy_labels</span><span class="p">):</span>
+                <span class="k">try</span><span class="p">:</span>
+                    <span class="bp">self</span><span class="o">.</span><span class="n">_run_commands</span><span class="p">(</span><span class="n">ctx</span><span class="p">,</span> <span class="n">package</span><span class="p">,</span> <span class="n">fmtkwargs</span><span class="p">,</span> <span class="bp">self</span><span class="o">.</span><span class="n">commands</span><span class="p">)</span>
+                <span class="k">except</span> <span class="n">UnexpectedExit</span><span class="p">:</span>
+                    <span class="nb">print</span><span class="p">(</span><span class="s2">&quot;</span><span class="se">\033</span><span class="s2">[0;91m Deployment failed:</span><span class="se">\033</span><span class="s2">[0;0m&quot;</span><span class="p">,</span> <span class="n">descr</span><span class="p">)</span></div></div>
+</pre></div>
+
+          </div>
+          
+        </div>
+      </div>
+      <div class="sphinxsidebar" role="navigation" aria-label="main navigation">
+        <div class="sphinxsidebarwrapper">
+<h1 class="logo"><a href="../../index.html">Roberto</a></h1>
+
+
+
+<p class="blurb">Automated development workflow</p>
+
+
+
+
+<p>
+<iframe src="https://ghbtns.com/github-btn.html?user=theochem&repo=roberto&type=watch&count=true&size=large&v=2"
+  allowtransparency="true" frameborder="0" scrolling="0" width="200px" height="35px"></iframe>
+</p>
+
+
+
+
+
+    
+
+<p>
+<a class="badge" href="https://travis-ci.org/theochem/roberto">
+    <img
+        alt="https://secure.travis-ci.org/theochem/roberto.svg?branch=master"
+        src="https://secure.travis-ci.org/theochem/roberto.svg?branch=master"
+    />
+</a>
+</p>
+
+
+
+
+    
+
+<p>
+<a class="badge" href="https://codecov.io/github/theochem/roberto">
+    <img
+    alt="https://codecov.io/github/theochem/roberto/coverage.svg?branch=master"
+    src="https://codecov.io/github/theochem/roberto/coverage.svg?branch=master"
+    />
+</a>
+</p>
+<h3>Navigation</h3>
+<p class="caption" role="heading"><span class="caption-text">User documentation</span></p>
+<ul>
+<li class="toctree-l1"><a class="reference internal" href="../../readme.html">Read me first</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../../workflow.html">Work flow</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../../configuration.html">Configuration</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../../setupci.html">CI Setup</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../../changelog.html">Change log</a></li>
+</ul>
+<p class="caption" role="heading"><span class="caption-text">Developer documentation</span></p>
+<ul>
+<li class="toctree-l1"><a class="reference internal" href="../../contributing.html">How to contribute?</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../../api/roberto.html">roberto package</a></li>
+</ul>
+
+<div class="relations">
+<h3>Related Topics</h3>
+<ul>
+  <li><a href="../../index.html">Documentation overview</a><ul>
+  <li><a href="../index.html">Module code</a><ul>
+  </ul></li>
+  </ul></li>
+</ul>
+</div>
+<div id="searchbox" style="display: none" role="search">
+  <h3 id="searchlabel">Quick search</h3>
+    <div class="searchformwrapper">
+    <form class="search" action="../../search.html" method="get">
+      <input type="text" name="q" aria-labelledby="searchlabel" autocomplete="off" autocorrect="off" autocapitalize="off" spellcheck="false"/>
+      <input type="submit" value="Go" />
+    </form>
+    </div>
+</div>
+<script>document.getElementById('searchbox').style.display = "block"</script>
+
+
+
+
+
+
+
+
+        </div>
+      </div>
+      <div class="clearer"></div>
+    </div>
+    <div class="footer">
+      &copy;2023 The Roberto Development Team.
+      
+      |
+      Powered by <a href="http://sphinx-doc.org/">Sphinx 5.3.0</a>
+      &amp; <a href="https://github.com/bitprophet/alabaster">Alabaster 0.7.13</a>
+      
+    </div>
+
+    
+
+    
+  </body>
+</html>

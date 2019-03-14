@@ -1,0 +1,594 @@
+
+<!DOCTYPE html>
+
+<html lang="en">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>CI Setup &#8212; Roberto 2.0.4 documentation</title>
+    <link rel="stylesheet" type="text/css" href="_static/pygments.css" />
+    <link rel="stylesheet" type="text/css" href="_static/alabaster.css" />
+    <script data-url_root="./" id="documentation_options" src="_static/documentation_options.js"></script>
+    <script src="_static/jquery.js"></script>
+    <script src="_static/underscore.js"></script>
+    <script src="_static/_sphinx_javascript_frameworks_compat.js"></script>
+    <script src="_static/doctools.js"></script>
+    <script src="_static/sphinx_highlight.js"></script>
+    <link rel="index" title="Index" href="genindex.html" />
+    <link rel="search" title="Search" href="search.html" />
+    <link rel="next" title="Change log" href="changelog.html" />
+    <link rel="prev" title="Configuration" href="configuration.html" />
+   
+  <link rel="stylesheet" href="_static/custom.css" type="text/css" />
+  
+  
+  <meta name="viewport" content="width=device-width, initial-scale=0.9, maximum-scale=0.9" />
+
+  </head><body>
+  
+
+    <div class="document">
+      <div class="documentwrapper">
+        <div class="bodywrapper">
+          
+
+          <div class="body" role="main">
+            
+  <div class="section" id="ci-setup">
+<span id="setupci"></span><h1>CI Setup<a class="headerlink" href="#ci-setup" title="Permalink to this heading">¶</a></h1>
+<div class="section" id="general-instructions">
+<h2>General instructions<a class="headerlink" href="#general-instructions" title="Permalink to this heading">¶</a></h2>
+<p>When using Roberto to drive a continuous integration (CI) setup, you may want to
+set additional environment variables:</p>
+<ul class="simple">
+<li><p><code class="docutils literal notranslate"><span class="pre">ROBERTO_CONDA_PINNING</span></code> can be used to pin any dependencies to a specific
+version, e.g. <code class="docutils literal notranslate"><span class="pre">&quot;python</span> <span class="pre">3.5&quot;</span></code> will let Roberto install a Python-3.5 conda
+environment instead of the default. This variable must be an even number of
+strings separated by spaces, each time a conda package followed by a version
+number. (This is ignored when using Python’s venv.)</p></li>
+<li><p><code class="docutils literal notranslate"><span class="pre">ROBERTO_DEPLOY_BINARY</span></code>. Set this to <code class="docutils literal notranslate"><span class="pre">1</span></code> if you want Roberto to upload
+binary releases.</p></li>
+<li><p><code class="docutils literal notranslate"><span class="pre">ROBERTO_DEPLOY_NOARCH</span></code>. Set this to <code class="docutils literal notranslate"><span class="pre">1</span></code> if you want Roberto to upload
+architecture-independent releases and documentation.</p></li>
+<li><p><code class="docutils literal notranslate"><span class="pre">ROBERTO_UPLOAD_COVERAGE</span></code>. Set this to <code class="docutils literal notranslate"><span class="pre">1</span></code> if you want coverage reports
+on CodeCov.</p></li>
+<li><p><code class="docutils literal notranslate"><span class="pre">GITHUB_TOKEN</span></code>: a token with write access to your repo, to
+make deployment to Github and pushing to gh-pages work. (This is automatically
+set in Github Actions.)</p></li>
+<li><p><code class="docutils literal notranslate"><span class="pre">ANACONDA_API_TOKEN</span></code>: a token to make anaconda uploads work.</p></li>
+<li><p><code class="docutils literal notranslate"><span class="pre">TWINE_USERNAME</span></code> and <code class="docutils literal notranslate"><span class="pre">TWINE_PASSWORD</span></code>: needed for uploads to pypi.</p></li>
+</ul>
+<p>Make sure tokens and passwords are never shown in plain text in your CI
+configuration. Use encryption or other mechanisms to hide them.</p>
+<p>Besides setting the above environment variables, you also need to install and
+run Roberto correctly. The following minimalistic set of bash commands should
+work on both Linux and OSX:</p>
+<div class="highlight-bash notranslate"><div class="highlight"><pre><span></span><span class="c1"># These commands assume you are in the root of the repository and</span>
+<span class="c1"># that a basic Python 3 (&gt;= 3.5) is installed.</span>
+<span class="c1"># 1) Install pip and roberto</span>
+wget<span class="w"> </span>--no-clobber<span class="w"> </span>-O<span class="w"> </span><span class="si">${</span><span class="nv">HOME</span><span class="si">}</span>/get-pip.py<span class="w"> </span>https://bootstrap.pypa.io/3.5/get-pip.py<span class="w"> </span><span class="o">||</span><span class="w"> </span><span class="nb">true</span>
+python3<span class="w"> </span><span class="si">${</span><span class="nv">HOME</span><span class="si">}</span>/get-pip.py<span class="w"> </span>--user
+python3<span class="w"> </span>-m<span class="w"> </span>pip<span class="w"> </span>install<span class="w"> </span>roberto<span class="w"> </span>--user
+<span class="c1"># 2) Run Roberto</span>
+python3<span class="w"> </span>-m<span class="w"> </span>roberto
+</pre></div>
+</div>
+</div>
+<div class="section" id="tips-and-tricks-for-github-actions">
+<h2>Tips and tricks for Github Actions<a class="headerlink" href="#tips-and-tricks-for-github-actions" title="Permalink to this heading">¶</a></h2>
+<div class="section" id="example-of-a-github-workflow-ci-yml-file">
+<h3>Example of a <code class="docutils literal notranslate"><span class="pre">.github/workflow/ci.yml</span></code> file<a class="headerlink" href="#example-of-a-github-workflow-ci-yml-file" title="Permalink to this heading">¶</a></h3>
+<div class="highlight-yaml notranslate"><div class="highlight"><pre><span></span><span class="nt">name</span><span class="p">:</span><span class="w"> </span><span class="l l-Scalar l-Scalar-Plain">CI</span>
+<span class="nt">on</span><span class="p">:</span>
+<span class="w">  </span><span class="nt">push</span><span class="p">:</span>
+<span class="w">    </span><span class="nt">tags</span><span class="p">:</span>
+<span class="w">      </span><span class="p p-Indicator">-</span><span class="w"> </span><span class="s">&#39;[1-9]+.[0-9]+.[0-9]+*&#39;</span>
+<span class="w">    </span><span class="nt">branches</span><span class="p">:</span>
+<span class="w">      </span><span class="p p-Indicator">-</span><span class="w"> </span><span class="l l-Scalar l-Scalar-Plain">master</span>
+<span class="w">  </span><span class="nt">pull_request</span><span class="p">:</span>
+<span class="w">    </span><span class="nt">branches</span><span class="p">:</span>
+<span class="w">      </span><span class="p p-Indicator">-</span><span class="w"> </span><span class="l l-Scalar l-Scalar-Plain">master</span>
+
+<span class="nt">jobs</span><span class="p">:</span>
+<span class="w">  </span><span class="c1"># These are quick tests using Python&#39;s venv on different Python versions.</span>
+<span class="w">  </span><span class="nt">test-venv</span><span class="p">:</span>
+<span class="w">    </span><span class="nt">timeout-minutes</span><span class="p">:</span><span class="w"> </span><span class="l l-Scalar l-Scalar-Plain">30</span>
+<span class="w">    </span><span class="nt">if</span><span class="p">:</span><span class="w"> </span><span class="s">&quot;!</span><span class="nv"> </span><span class="s">startsWith(github.ref,</span><span class="nv"> </span><span class="s">&#39;refs/tags&#39;)&quot;</span>
+<span class="w">    </span><span class="nt">strategy</span><span class="p">:</span>
+<span class="w">      </span><span class="nt">fail-fast</span><span class="p">:</span><span class="w"> </span><span class="l l-Scalar l-Scalar-Plain">false</span>
+<span class="w">      </span><span class="nt">matrix</span><span class="p">:</span>
+<span class="w">        </span><span class="nt">include</span><span class="p">:</span>
+<span class="w">          </span><span class="p p-Indicator">-</span><span class="w"> </span><span class="nt">os</span><span class="p">:</span><span class="w"> </span><span class="l l-Scalar l-Scalar-Plain">ubuntu-latest</span>
+<span class="w">            </span><span class="nt">python-version</span><span class="p">:</span><span class="w"> </span><span class="s">&#39;3.7&#39;</span>
+<span class="w">          </span><span class="p p-Indicator">-</span><span class="w"> </span><span class="nt">os</span><span class="p">:</span><span class="w"> </span><span class="l l-Scalar l-Scalar-Plain">ubuntu-latest</span>
+<span class="w">            </span><span class="nt">python-version</span><span class="p">:</span><span class="w"> </span><span class="s">&#39;3.8&#39;</span>
+<span class="w">          </span><span class="p p-Indicator">-</span><span class="w"> </span><span class="nt">os</span><span class="p">:</span><span class="w"> </span><span class="l l-Scalar l-Scalar-Plain">ubuntu-latest</span>
+<span class="w">            </span><span class="nt">python-version</span><span class="p">:</span><span class="w"> </span><span class="s">&#39;3.9&#39;</span>
+<span class="w">          </span><span class="p p-Indicator">-</span><span class="w"> </span><span class="nt">os</span><span class="p">:</span><span class="w"> </span><span class="l l-Scalar l-Scalar-Plain">ubuntu-latest</span>
+<span class="w">            </span><span class="nt">python-version</span><span class="p">:</span><span class="w"> </span><span class="s">&#39;3.10&#39;</span>
+<span class="w">          </span><span class="p p-Indicator">-</span><span class="w"> </span><span class="nt">os</span><span class="p">:</span><span class="w"> </span><span class="l l-Scalar l-Scalar-Plain">macos-latest</span>
+<span class="w">            </span><span class="nt">python-version</span><span class="p">:</span><span class="w"> </span><span class="s">&#39;3.7&#39;</span>
+
+<span class="w">    </span><span class="nt">runs-on</span><span class="p">:</span><span class="w"> </span><span class="l l-Scalar l-Scalar-Plain">${{ matrix.os }}</span>
+<span class="w">    </span><span class="nt">env</span><span class="p">:</span>
+<span class="w">      </span><span class="c1"># Tell Roberto to upload coverage results</span>
+<span class="w">      </span><span class="nt">ROBERTO_UPLOAD_COVERAGE</span><span class="p">:</span><span class="w"> </span><span class="l l-Scalar l-Scalar-Plain">1</span>
+<span class="w">    </span><span class="nt">steps</span><span class="p">:</span>
+<span class="w">      </span><span class="p p-Indicator">-</span><span class="w"> </span><span class="nt">uses</span><span class="p">:</span><span class="w"> </span><span class="l l-Scalar l-Scalar-Plain">actions/checkout@v2</span>
+<span class="w">        </span><span class="nt">with</span><span class="p">:</span>
+<span class="w">          </span><span class="nt">fetch-depth</span><span class="p">:</span><span class="w"> </span><span class="l l-Scalar l-Scalar-Plain">2</span>
+<span class="w">      </span><span class="p p-Indicator">-</span><span class="w"> </span><span class="nt">name</span><span class="p">:</span><span class="w"> </span><span class="l l-Scalar l-Scalar-Plain">Fetch base branch (usually master)</span>
+<span class="w">        </span><span class="nt">run</span><span class="p">:</span><span class="w"> </span><span class="p p-Indicator">|</span>
+<span class="w">          </span><span class="no">if [[ -n &quot;${GITHUB_HEAD_REF}&quot; ]]; then</span>
+<span class="w">            </span><span class="no">git fetch origin ${GITHUB_BASE_REF} --depth=2</span>
+<span class="w">          </span><span class="no">fi</span>
+<span class="w">      </span><span class="p p-Indicator">-</span><span class="w"> </span><span class="nt">name</span><span class="p">:</span><span class="w"> </span><span class="l l-Scalar l-Scalar-Plain">Set up Python ${{ matrix.python-version }}</span>
+<span class="w">        </span><span class="nt">uses</span><span class="p">:</span><span class="w"> </span><span class="l l-Scalar l-Scalar-Plain">actions/setup-python@v2</span>
+<span class="w">        </span><span class="nt">with</span><span class="p">:</span>
+<span class="w">          </span><span class="nt">python-version</span><span class="p">:</span><span class="w"> </span><span class="l l-Scalar l-Scalar-Plain">${{ matrix.python-version }}</span>
+<span class="w">          </span><span class="nt">architecture</span><span class="p">:</span><span class="w"> </span><span class="l l-Scalar l-Scalar-Plain">x64</span>
+<span class="w">      </span><span class="p p-Indicator">-</span><span class="w"> </span><span class="nt">uses</span><span class="p">:</span><span class="w"> </span><span class="l l-Scalar l-Scalar-Plain">actions/cache@v2</span>
+<span class="w">        </span><span class="nt">with</span><span class="p">:</span>
+<span class="w">          </span><span class="nt">path</span><span class="p">:</span><span class="w"> </span><span class="l l-Scalar l-Scalar-Plain">~/.local/venvs</span>
+<span class="w">          </span><span class="nt">key</span><span class="p">:</span><span class="w"> </span><span class="l l-Scalar l-Scalar-Plain">${{ runner.os }}-Python-${{ matrix.python-version }}-venv</span>
+<span class="w">      </span><span class="p p-Indicator">-</span><span class="w"> </span><span class="nt">name</span><span class="p">:</span><span class="w"> </span><span class="l l-Scalar l-Scalar-Plain">Install Pip and Roberto</span>
+<span class="w">        </span><span class="nt">run</span><span class="p">:</span><span class="w"> </span><span class="p p-Indicator">|</span>
+<span class="w">          </span><span class="no">python -m pip install --upgrade pip</span>
+<span class="w">          </span><span class="no">python -m pip install roberto&gt;=2.0.0</span>
+<span class="w">      </span><span class="p p-Indicator">-</span><span class="w"> </span><span class="nt">name</span><span class="p">:</span><span class="w"> </span><span class="l l-Scalar l-Scalar-Plain">Test with Roberto</span>
+<span class="w">        </span><span class="nt">run</span><span class="p">:</span><span class="w"> </span><span class="p p-Indicator">|</span>
+<span class="w">          </span><span class="no">if [[ -n &quot;${GITHUB_HEAD_REF}&quot; ]]; then</span>
+<span class="w">            </span><span class="no">ROBERTO_GIT_MERGE_BRANCH=${GITHUB_SHA} \</span>
+<span class="w">            </span><span class="no">ROBERTO_GIT_BRANCH=${GITHUB_BASE_REF} \</span>
+<span class="w">            </span><span class="no">python -m roberto</span>
+<span class="w">          </span><span class="no">else</span>
+<span class="w">            </span><span class="no">ROBERTO_TESTENV_USE=venv \</span>
+<span class="w">            </span><span class="no">python -m roberto robot</span>
+<span class="w">          </span><span class="no">fi</span>
+
+
+<span class="w">  </span><span class="nt">test-conda</span><span class="p">:</span>
+<span class="w">    </span><span class="c1"># This is a slow test in a Conda environment, including deployment of</span>
+<span class="w">    </span><span class="c1"># tagged releases.</span>
+<span class="w">    </span><span class="nt">timeout-minutes</span><span class="p">:</span><span class="w"> </span><span class="l l-Scalar l-Scalar-Plain">30</span>
+<span class="w">    </span><span class="nt">if</span><span class="p">:</span><span class="w"> </span><span class="l l-Scalar l-Scalar-Plain">(github.ref == &#39;refs/heads/master&#39;) || startsWith(github.ref, &#39;refs/tags&#39;)</span>
+<span class="w">    </span><span class="nt">strategy</span><span class="p">:</span>
+<span class="w">      </span><span class="nt">fail-fast</span><span class="p">:</span><span class="w"> </span><span class="l l-Scalar l-Scalar-Plain">false</span>
+
+<span class="w">    </span><span class="nt">runs-on</span><span class="p">:</span><span class="w"> </span><span class="l l-Scalar l-Scalar-Plain">ubuntu-latest</span>
+<span class="w">    </span><span class="nt">env</span><span class="p">:</span>
+<span class="w">      </span><span class="nt">ROBERTO_UPLOAD_COVERAGE</span><span class="p">:</span><span class="w"> </span><span class="l l-Scalar l-Scalar-Plain">1</span>
+<span class="w">      </span><span class="nt">ROBERTO_PACKAGE_MANAGER</span><span class="p">:</span><span class="w"> </span><span class="l l-Scalar l-Scalar-Plain">conda</span>
+<span class="w">      </span><span class="nt">ROBERTO_TESTENV_USE</span><span class="p">:</span><span class="w"> </span><span class="l l-Scalar l-Scalar-Plain">conda</span>
+<span class="w">      </span><span class="nt">ROBERTO_DEPLOY_NOARCH</span><span class="p">:</span><span class="w"> </span><span class="l l-Scalar l-Scalar-Plain">1</span>
+<span class="w">      </span><span class="nt">TWINE_USERNAME</span><span class="p">:</span><span class="w"> </span><span class="l l-Scalar l-Scalar-Plain">theochem</span>
+<span class="w">      </span><span class="nt">TWINE_PASSWORD</span><span class="p">:</span><span class="w"> </span><span class="l l-Scalar l-Scalar-Plain">${{ secrets.TWINE_PASSWORD }}</span>
+<span class="w">      </span><span class="nt">GITHUB_TOKEN</span><span class="p">:</span><span class="w"> </span><span class="l l-Scalar l-Scalar-Plain">${{ secrets.GITHUB_TOKEN }}</span>
+<span class="w">      </span><span class="nt">ANACONDA_API_TOKEN</span><span class="p">:</span><span class="w"> </span><span class="l l-Scalar l-Scalar-Plain">${{ secrets.ANACONDA_API_TOKEN }}</span>
+<span class="w">    </span><span class="nt">steps</span><span class="p">:</span>
+<span class="w">      </span><span class="p p-Indicator">-</span><span class="w"> </span><span class="nt">uses</span><span class="p">:</span><span class="w"> </span><span class="l l-Scalar l-Scalar-Plain">actions/checkout@v2</span>
+<span class="w">      </span><span class="p p-Indicator">-</span><span class="w"> </span><span class="nt">uses</span><span class="p">:</span><span class="w"> </span><span class="l l-Scalar l-Scalar-Plain">actions/cache@v2</span>
+<span class="w">        </span><span class="nt">with</span><span class="p">:</span>
+<span class="w">          </span><span class="nt">path</span><span class="p">:</span><span class="w"> </span><span class="p p-Indicator">|</span>
+<span class="w">            </span><span class="no">~/miniconda3</span>
+<span class="w">            </span><span class="no">!~/miniconda3/conda-bld</span>
+<span class="w">            </span><span class="no">!~/miniconda3/locks</span>
+<span class="w">            </span><span class="no">!~/miniconda3/pkgs</span>
+<span class="w">            </span><span class="no">!~/miniconda3/var</span>
+<span class="w">            </span><span class="no">!~/miniconda3/envs/*/conda-bld</span>
+<span class="w">            </span><span class="no">!~/miniconda3/envs/*/locks</span>
+<span class="w">            </span><span class="no">!~/miniconda3/envs/*/pkgs</span>
+<span class="w">            </span><span class="no">!~/miniconda3/envs/*/var</span>
+<span class="w">          </span><span class="nt">key</span><span class="p">:</span><span class="w"> </span><span class="l l-Scalar l-Scalar-Plain">${{ runner.os }}-conda-3</span>
+<span class="w">      </span><span class="p p-Indicator">-</span><span class="w"> </span><span class="nt">name</span><span class="p">:</span><span class="w"> </span><span class="l l-Scalar l-Scalar-Plain">Install Roberto</span>
+<span class="w">        </span><span class="nt">run</span><span class="p">:</span><span class="w"> </span><span class="p p-Indicator">|</span>
+<span class="w">          </span><span class="no">python -m pip install roberto&gt;=2.0.0</span>
+<span class="w">      </span><span class="p p-Indicator">-</span><span class="w"> </span><span class="nt">name</span><span class="p">:</span><span class="w"> </span><span class="l l-Scalar l-Scalar-Plain">Test and deploy with Roberto</span>
+<span class="w">        </span><span class="nt">run</span><span class="p">:</span><span class="w"> </span><span class="p p-Indicator">|</span>
+<span class="w">          </span><span class="no">python -m roberto robot</span>
+</pre></div>
+</div>
+</div>
+</div>
+<div class="section" id="tips-and-tricks-for-travis-ci">
+<h2>Tips and tricks for Travis-CI<a class="headerlink" href="#tips-and-tricks-for-travis-ci" title="Permalink to this heading">¶</a></h2>
+<div class="admonition warning">
+<p class="admonition-title">Warning</p>
+<p>This section is mainly kept for historical reasons.</p>
+</div>
+<p>Travis is extensively documented and this section does not replace that
+documentation. See <a class="reference external" href="https://docs.travis-ci.com/">https://docs.travis-ci.com/</a></p>
+<div class="section" id="minimal-example-of-a-travis-yaml-file-that-uses-roberto">
+<h3>Minimal example of a <code class="docutils literal notranslate"><span class="pre">.travis.yaml</span></code> file that uses Roberto<a class="headerlink" href="#minimal-example-of-a-travis-yaml-file-that-uses-roberto" title="Permalink to this heading">¶</a></h3>
+<div class="highlight-yaml notranslate"><div class="highlight"><pre><span></span><span class="nt">matrix</span><span class="p">:</span>
+<span class="w">  </span><span class="nt">include</span><span class="p">:</span>
+<span class="w">    </span><span class="p p-Indicator">-</span><span class="w"> </span><span class="nt">os</span><span class="p">:</span><span class="w"> </span><span class="l l-Scalar l-Scalar-Plain">linux</span>
+<span class="w">      </span><span class="nt">dist</span><span class="p">:</span><span class="w"> </span><span class="l l-Scalar l-Scalar-Plain">xenial</span>
+<span class="w">      </span><span class="nt">language</span><span class="p">:</span><span class="w"> </span><span class="l l-Scalar l-Scalar-Plain">generic</span>
+<span class="w">      </span><span class="nt">env</span><span class="p">:</span>
+<span class="w">        </span><span class="p p-Indicator">-</span><span class="w"> </span><span class="l l-Scalar l-Scalar-Plain">ROBERTO_CONDA_PINNING=&quot;python 3.6&quot;</span>
+<span class="w">        </span><span class="p p-Indicator">-</span><span class="w"> </span><span class="l l-Scalar l-Scalar-Plain">ROBERTO_DEPLOY_BINARY=1</span>
+<span class="w">    </span><span class="p p-Indicator">-</span><span class="w"> </span><span class="nt">os</span><span class="p">:</span><span class="w"> </span><span class="l l-Scalar l-Scalar-Plain">linux</span>
+<span class="w">      </span><span class="nt">dist</span><span class="p">:</span><span class="w"> </span><span class="l l-Scalar l-Scalar-Plain">xenial</span>
+<span class="w">      </span><span class="nt">language</span><span class="p">:</span><span class="w"> </span><span class="l l-Scalar l-Scalar-Plain">generic</span>
+<span class="w">      </span><span class="nt">env</span><span class="p">:</span>
+<span class="w">        </span><span class="p p-Indicator">-</span><span class="w"> </span><span class="l l-Scalar l-Scalar-Plain">ROBERTO_CONDA_PINNING=&quot;python 3.7&quot;</span>
+<span class="w">        </span><span class="p p-Indicator">-</span><span class="w"> </span><span class="l l-Scalar l-Scalar-Plain">ROBERTO_DEPLOY_NOARCH=1</span>
+<span class="w">        </span><span class="p p-Indicator">-</span><span class="w"> </span><span class="l l-Scalar l-Scalar-Plain">ROBERTO_DEPLOY_BINARY=1</span>
+<span class="w">    </span><span class="p p-Indicator">-</span><span class="w"> </span><span class="nt">os</span><span class="p">:</span><span class="w"> </span><span class="l l-Scalar l-Scalar-Plain">osx</span>
+<span class="w">      </span><span class="nt">osx_image</span><span class="p">:</span><span class="w"> </span><span class="l l-Scalar l-Scalar-Plain">xcode9.4</span>
+<span class="w">      </span><span class="nt">language</span><span class="p">:</span><span class="w"> </span><span class="l l-Scalar l-Scalar-Plain">generic</span>
+<span class="w">      </span><span class="nt">env</span><span class="p">:</span>
+<span class="w">        </span><span class="p p-Indicator">-</span><span class="w"> </span><span class="l l-Scalar l-Scalar-Plain">ROBERTO_CONDA_PINNING=&quot;python 3.6&quot;</span>
+<span class="w">        </span><span class="p p-Indicator">-</span><span class="w"> </span><span class="l l-Scalar l-Scalar-Plain">ROBERTO_DEPLOY_BINARY=1</span>
+<span class="w">    </span><span class="p p-Indicator">-</span><span class="w"> </span><span class="nt">os</span><span class="p">:</span><span class="w"> </span><span class="l l-Scalar l-Scalar-Plain">osx</span>
+<span class="w">      </span><span class="nt">osx_image</span><span class="p">:</span><span class="w"> </span><span class="l l-Scalar l-Scalar-Plain">xcode9.4</span>
+<span class="w">      </span><span class="nt">language</span><span class="p">:</span><span class="w"> </span><span class="l l-Scalar l-Scalar-Plain">generic</span>
+<span class="w">      </span><span class="nt">env</span><span class="p">:</span>
+<span class="w">        </span><span class="p p-Indicator">-</span><span class="w"> </span><span class="l l-Scalar l-Scalar-Plain">ROBERTO_CONDA_PINNING=&quot;python 3.7&quot;</span>
+<span class="w">        </span><span class="p p-Indicator">-</span><span class="w"> </span><span class="l l-Scalar l-Scalar-Plain">ROBERTO_DEPLOY_BINARY=1</span>
+
+<span class="nt">env</span><span class="p">:</span>
+<span class="w">  </span><span class="nt">global</span><span class="p">:</span>
+<span class="w">    </span><span class="c1"># Install conda in a *sub*directory of a</span>
+<span class="w">    </span><span class="c1"># directory cached by travis.</span>
+<span class="w">    </span><span class="p p-Indicator">-</span><span class="w"> </span><span class="l l-Scalar l-Scalar-Plain">ROBERTO_CONDA_BASE_PATH=${HOME}/cache/miniconda3</span>
+<span class="w">    </span><span class="c1"># Tell Roberto to upload coverage results</span>
+<span class="w">    </span><span class="p p-Indicator">-</span><span class="w"> </span><span class="l l-Scalar l-Scalar-Plain">ROBERTO_UPLOAD_COVERAGE=1</span>
+<span class="w">    </span><span class="c1"># Build conda packages outside the</span>
+<span class="w">    </span><span class="c1"># miniconda tree, to avoid caching.</span>
+<span class="w">    </span><span class="p p-Indicator">-</span><span class="w"> </span><span class="l l-Scalar l-Scalar-Plain">CONDA_BLD_PATH=${HOME}/conda-bld</span>
+<span class="w">    </span><span class="c1"># Tell roberto which branch is being</span>
+<span class="w">    </span><span class="c1"># merged into, in case of a PR.</span>
+<span class="w">    </span><span class="p p-Indicator">-</span><span class="w"> </span><span class="l l-Scalar l-Scalar-Plain">ROBERTO_GIT_MERGE_BRANCH=${TRAVIS_BRANCH}</span>
+
+<span class="w">    </span><span class="c1"># GITHUB_TOKEN</span>
+<span class="w">    </span><span class="c1"># yamllint disable-line rule:line-length</span>
+<span class="w">    </span><span class="c1"># - secure: &quot;...&quot;</span>
+<span class="w">    </span><span class="c1"># ANACONDA_API_TOKEN</span>
+<span class="w">    </span><span class="c1"># yamllint disable-line rule:line-length</span>
+<span class="w">    </span><span class="c1"># - secure: &quot;...&quot;</span>
+<span class="w">    </span><span class="c1"># TWINE_PASSWORD</span>
+<span class="w">    </span><span class="c1"># yamllint disable-line rule:line-length</span>
+<span class="w">    </span><span class="c1"># - secure: &quot;...&quot;</span>
+<span class="w">    </span><span class="c1"># - TWINE_USERNAME: theochem</span>
+
+<span class="nt">cache</span><span class="p">:</span>
+<span class="w">  </span><span class="c1"># More time is needed for caching due to</span>
+<span class="w">  </span><span class="c1"># the sheer size of the conda env.</span>
+<span class="w">  </span><span class="nt">timeout</span><span class="p">:</span><span class="w"> </span><span class="l l-Scalar l-Scalar-Plain">1000</span>
+<span class="w">  </span><span class="nt">directories</span><span class="p">:</span>
+<span class="w">    </span><span class="c1"># Everything under the cache directory will be archived and made</span>
+<span class="w">    </span><span class="c1"># available in subsequent builds to speed them up.</span>
+<span class="w">    </span><span class="p p-Indicator">-</span><span class="w"> </span><span class="l l-Scalar l-Scalar-Plain">${HOME}/cache</span>
+
+<span class="nt">install</span><span class="p">:</span>
+<span class="w">  </span><span class="c1"># Disable deployment when TRAVIS_TAG is not set.</span>
+<span class="w">  </span><span class="c1"># This avoids duplicate deployments.</span>
+<span class="w">  </span><span class="p p-Indicator">-</span><span class="w"> </span><span class="l l-Scalar l-Scalar-Plain">if [[ -z $TRAVIS_TAG ]]; then</span>
+<span class="w">      </span><span class="l l-Scalar l-Scalar-Plain">export ROBERTO_DEPLOY_BINARY=0 ROBERTO_DEPLOY_NOARCH=0;</span>
+<span class="w">    </span><span class="l l-Scalar l-Scalar-Plain">fi</span>
+<span class="w">  </span><span class="c1"># Get a basic python 3 with pip to run roberto</span>
+<span class="w">  </span><span class="p p-Indicator">-</span><span class="w"> </span><span class="l l-Scalar l-Scalar-Plain">python3 --version</span>
+<span class="w">  </span><span class="p p-Indicator">-</span><span class="w"> </span><span class="l l-Scalar l-Scalar-Plain">wget --no-clobber -O ${HOME}/cache/get-pip.py</span>
+<span class="w">    </span><span class="l l-Scalar l-Scalar-Plain">https://bootstrap.pypa.io/3.5/get-pip.py || true</span>
+<span class="w">  </span><span class="p p-Indicator">-</span><span class="w"> </span><span class="l l-Scalar l-Scalar-Plain">python3 ${HOME}/cache/get-pip.py --user</span>
+<span class="w">  </span><span class="c1"># To avoid surprises, constrain the major</span>
+<span class="w">  </span><span class="c1"># version number of roberto.</span>
+<span class="w">  </span><span class="p p-Indicator">-</span><span class="w"> </span><span class="l l-Scalar l-Scalar-Plain">python3 -m pip install &#39;roberto&lt;2.0.0&#39; --user</span>
+
+<span class="nt">script</span><span class="p">:</span>
+<span class="w">  </span><span class="c1"># Instead of simply calling `rob`, do something that</span>
+<span class="w">  </span><span class="c1"># always works on OSX too. When testing a pull request,</span>
+<span class="w">  </span><span class="c1"># it is sufficient to run only the quality checks on</span>
+<span class="w">  </span><span class="c1"># the in-place build, which should catch 99% of the</span>
+<span class="w">  </span><span class="c1"># problems while it is considerably faster.</span>
+<span class="w">  </span><span class="p p-Indicator">-</span><span class="w"> </span><span class="l l-Scalar l-Scalar-Plain">if [[ &quot;$TRAVIS_PULL_REQUEST&quot; == &quot;false&quot; ]]; then</span>
+<span class="w">      </span><span class="l l-Scalar l-Scalar-Plain">python3 -m roberto robot;</span>
+<span class="w">    </span><span class="l l-Scalar l-Scalar-Plain">else</span>
+<span class="w">      </span><span class="l l-Scalar l-Scalar-Plain">python3 -m roberto;</span>
+<span class="w">    </span><span class="l l-Scalar l-Scalar-Plain">fi</span>
+
+<span class="nt">before_cache</span><span class="p">:</span>
+<span class="w">  </span><span class="c1"># Remove things that are not needed in subsequent builds.</span>
+<span class="w">  </span><span class="p p-Indicator">-</span><span class="w"> </span><span class="l l-Scalar l-Scalar-Plain">rm -rf ${ROBERTO_CONDA_BASE_PATH}/conda-bld</span>
+<span class="w">  </span><span class="p p-Indicator">-</span><span class="w"> </span><span class="l l-Scalar l-Scalar-Plain">rm -rf ${ROBERTO_CONDA_BASE_PATH}/locks</span>
+<span class="w">  </span><span class="p p-Indicator">-</span><span class="w"> </span><span class="l l-Scalar l-Scalar-Plain">rm -rf ${ROBERTO_CONDA_BASE_PATH}/pkgs</span>
+<span class="w">  </span><span class="p p-Indicator">-</span><span class="w"> </span><span class="l l-Scalar l-Scalar-Plain">rm -rf ${ROBERTO_CONDA_BASE_PATH}/var</span>
+<span class="w">  </span><span class="p p-Indicator">-</span><span class="w"> </span><span class="l l-Scalar l-Scalar-Plain">rm -rf ${ROBERTO_CONDA_BASE_PATH}/envs/*/conda-bld</span>
+<span class="w">  </span><span class="p p-Indicator">-</span><span class="w"> </span><span class="l l-Scalar l-Scalar-Plain">rm -rf ${ROBERTO_CONDA_BASE_PATH}/envs/*/locks</span>
+<span class="w">  </span><span class="p p-Indicator">-</span><span class="w"> </span><span class="l l-Scalar l-Scalar-Plain">rm -rf ${ROBERTO_CONDA_BASE_PATH}/envs/*/pkgs</span>
+<span class="w">  </span><span class="p p-Indicator">-</span><span class="w"> </span><span class="l l-Scalar l-Scalar-Plain">rm -rf ${ROBERTO_CONDA_BASE_PATH}/envs/*/var</span>
+</pre></div>
+</div>
+</div>
+<div class="section" id="setting-up-encrypted-tokens-and-passwords-for-theochem-admins">
+<h3>Setting up encrypted tokens and passwords (for theochem admins)<a class="headerlink" href="#setting-up-encrypted-tokens-and-passwords-for-theochem-admins" title="Permalink to this heading">¶</a></h3>
+<p><strong>GITHUB_TOKEN</strong></p>
+<ol class="arabic" start="0">
+<li><p>Install the <code class="docutils literal notranslate"><span class="pre">travis-ci</span></code> command-line client. See
+<a class="reference external" href="https://github.com/travis-ci/travis.rb#installation">https://github.com/travis-ci/travis.rb#installation</a></p></li>
+<li><p>Login with the theochem-ci-bot account on github.com.</p></li>
+<li><p>Go to profile settings: <a class="reference external" href="https://github.com/settings/profile">https://github.com/settings/profile</a></p></li>
+<li><p>Select “Developer settings”.</p></li>
+<li><p>Select “Personal access tokens”.</p></li>
+<li><p>Create a new token “automatic releases for theochem/???” and
+activate “public_repo”, then save.</p></li>
+<li><p>Copy the token. It is only shown once.</p></li>
+<li><p>Encrypt the token on the command line</p>
+<div class="highlight-bash notranslate"><div class="highlight"><pre><span></span>travis<span class="w"> </span>encrypt<span class="w"> </span>--pro<span class="w"> </span><span class="nv">GITHUB_TOKEN</span><span class="o">=</span><span class="s2">&quot;[copy-paste-your-github-token]&quot;</span>
+</pre></div>
+</div>
+<p>This command asks for a username and a password of the theochem-ci-bot
+account. (Do not use the <code class="docutils literal notranslate"><span class="pre">--add</span></code> feature.)</p>
+</li>
+<li><p>Put the output in <code class="docutils literal notranslate"><span class="pre">.travis.yaml</span></code>:</p>
+<div class="highlight-yaml notranslate"><div class="highlight"><pre><span></span><span class="nt">env</span><span class="p">:</span>
+<span class="w">  </span><span class="nt">global</span><span class="p">:</span>
+<span class="w">    </span><span class="c1"># ...</span>
+<span class="w">    </span><span class="c1"># GITHUB_TOKEN</span>
+<span class="w">    </span><span class="c1"># yamllint disable-line rule:line-length</span>
+<span class="w">    </span><span class="p p-Indicator">-</span><span class="w"> </span><span class="nt">secure</span><span class="p">:</span><span class="w"> </span><span class="s">&quot;...&quot;</span>
+</pre></div>
+</div>
+<p>Do not forget to add a comment so everyone can figure out the purpose of the
+encrypted string.</p>
+</li>
+<li><p>Add the repository to the list the Buildtools team on theochem and
+enable write permission.</p></li>
+</ol>
+<p><strong>ANACONDA_API_TOKEN</strong></p>
+<ol class="arabic" start="0">
+<li><p>Install the <code class="docutils literal notranslate"><span class="pre">travis-ci</span></code> command-line client. See
+<a class="reference external" href="https://github.com/travis-ci/travis.rb#installation">https://github.com/travis-ci/travis.rb#installation</a></p></li>
+<li><p>Login on anaconda.org (with our bot account).</p></li>
+<li><p>Go to profile settings: <a class="reference external" href="https://anaconda.org/theochem/settings/profile">https://anaconda.org/theochem/settings/profile</a></p></li>
+<li><p>Select “Access”.</p></li>
+<li><p>Create a new token (Allow all API operations)</p></li>
+<li><p>Copy the token.</p></li>
+<li><p>Encrypt the token on the command line</p>
+<div class="highlight-bash notranslate"><div class="highlight"><pre><span></span>travis<span class="w"> </span>encrypt<span class="w"> </span>--pro<span class="w"> </span><span class="nv">ANACONDA_API_TOKEN</span><span class="o">=</span><span class="s2">&quot;[copy-paste-your-anaconda-token]&quot;</span>
+</pre></div>
+</div>
+<p>This command asks for a username and a password of the theochem-ci-bot
+account. (Do not use the <code class="docutils literal notranslate"><span class="pre">--add</span></code> feature.)</p>
+</li>
+<li><p>Put the output in <code class="docutils literal notranslate"><span class="pre">.travis.yaml</span></code>:</p>
+<div class="highlight-yaml notranslate"><div class="highlight"><pre><span></span><span class="nt">env</span><span class="p">:</span>
+<span class="w">  </span><span class="nt">global</span><span class="p">:</span>
+<span class="w">    </span><span class="c1"># ...</span>
+<span class="w">    </span><span class="c1"># ANACONDA_API_TOKEN</span>
+<span class="w">    </span><span class="c1"># yamllint disable-line rule:line-length</span>
+<span class="w">    </span><span class="p p-Indicator">-</span><span class="w"> </span><span class="nt">secure</span><span class="p">:</span><span class="w"> </span><span class="s">&quot;...&quot;</span>
+</pre></div>
+</div>
+<p>Do not forget to add a comment so everyone can figure out the purpose of the
+encrypted string.</p>
+</li>
+</ol>
+<p><strong>TWINE_PASSWORD</strong></p>
+<ol class="arabic" start="0">
+<li><p>Install the <code class="docutils literal notranslate"><span class="pre">travis-ci</span></code> command-line client. See
+<a class="reference external" href="https://github.com/travis-ci/travis.rb#installation">https://github.com/travis-ci/travis.rb#installation</a></p></li>
+<li><p>Encrypt the Pypi password on the command line</p>
+<div class="highlight-bash notranslate"><div class="highlight"><pre><span></span>travis<span class="w"> </span>encrypt<span class="w"> </span>--pro<span class="w"> </span><span class="nv">TWINE_PASSWORD</span><span class="o">=</span><span class="s1">&#39;[copy-paste-pypi-password]&#39;</span>
+</pre></div>
+</div>
+<p>This command asks for a username and a password of the theochem-ci-bot
+account. (Do not use the <code class="docutils literal notranslate"><span class="pre">--add</span></code> feature.)</p>
+</li>
+<li><p>Put the output and the username in <code class="docutils literal notranslate"><span class="pre">.travis.yaml</span></code>:</p>
+<div class="highlight-yaml notranslate"><div class="highlight"><pre><span></span><span class="nt">env</span><span class="p">:</span>
+<span class="w">  </span><span class="nt">global</span><span class="p">:</span>
+<span class="w">    </span><span class="c1"># ...</span>
+<span class="w">    </span><span class="c1"># TWINE_PASSWORD</span>
+<span class="w">    </span><span class="c1"># yamllint disable-line rule:line-length</span>
+<span class="w">    </span><span class="p p-Indicator">-</span><span class="w"> </span><span class="nt">secure</span><span class="p">:</span><span class="w"> </span><span class="s">&quot;...&quot;</span>
+<span class="w">    </span><span class="p p-Indicator">-</span><span class="w"> </span><span class="nt">TWINE_USERNAME</span><span class="p">:</span><span class="w"> </span><span class="l l-Scalar l-Scalar-Plain">theochem</span>
+</pre></div>
+</div>
+<p>Do not forget to add a comment so everyone can figure out the purpose of the
+encrypted string.</p>
+</li>
+</ol>
+</div>
+<div class="section" id="troubleshooting-encrypted-token-issues">
+<h3>Troubleshooting encrypted token issues<a class="headerlink" href="#troubleshooting-encrypted-token-issues" title="Permalink to this heading">¶</a></h3>
+<p>Debugging issues with encrypted tokens and passwords can be very tricky.
+Here are some clues to overcome the most common problems:</p>
+<ul class="simple">
+<li><p>When the en- or decryption has somehow failed, the corresponding variables
+are not set when your build runs on Travis-CI. You should be able to see this
+in the header of the build log (under the section <code class="docutils literal notranslate"><span class="pre">Setting</span> <span class="pre">environment</span>
+<span class="pre">variables</span> <span class="pre">from</span> <span class="pre">.travis.yml</span></code>). It normally shows all variables, with the
+encrypted ones masked as <code class="docutils literal notranslate"><span class="pre">MEANINGFULL_NAME=[secure]</span></code>. When it fails, you
+see something like <code class="docutils literal notranslate"><span class="pre">wPKmdvIo2cOt6SH02fDd=[secure]</span></code>.</p></li>
+<li><p>The deployment scripts will fail if the necessary tokens or passwords are
+not found in the right environment variables. Twine and hub will start
+asking for login crediatials. Anaconda will fail without clear error
+message. Roberto checks the required variables and will print for each one if
+it is not set, empty or not empty.</p></li>
+<li><p>The order of the lines in the build log tends to get mixed up near the
+deployment scripts, so it may not be easy to follow what is going on.</p></li>
+<li><p>The simplest solution to try first, is a second attempt to encrypt the
+variables. If that does not work, check if something else is causing the
+problem by running the Travis-CI image in a docker instance as explained
+below. In this docker instance, just use non-encrypted variables.</p></li>
+<li><p>We had some issues with encryption before on travis-ci.org that magically
+disappaered on travis-ci.com. The <code class="docutils literal notranslate"><span class="pre">--pro</span></code> argument mentioned in the
+instructions above is needed for travis-ci.com, not for travis-ci.org.</p></li>
+</ul>
+</div>
+<div class="section" id="manually-running-tests-in-a-travis-docker-image">
+<h3>Manually running tests in a Travis docker image<a class="headerlink" href="#manually-running-tests-in-a-travis-docker-image" title="Permalink to this heading">¶</a></h3>
+<p>Even when <code class="docutils literal notranslate"><span class="pre">rob</span></code> reports no problems your local computer, <code class="docutils literal notranslate"><span class="pre">rob</span></code> might still
+print errors for exactly the same code on Travis. (This should be rare though.)
+In this case, it could be helpful to run <code class="docutils literal notranslate"><span class="pre">rob</span></code> or any other tests manually in
+a Travis docker image:</p>
+<ol class="arabic">
+<li><p>Install docker-ce: <a class="reference external" href="https://docs.docker.com/install/">https://docs.docker.com/install/</a> or an alternative engine
+for OCI containers, e.g. podman: <a class="reference external" href="https://podman.io/">https://podman.io/</a></p></li>
+<li><p>Get an up-to-date travis-ci docker image. For our linux builds, these can
+be found here: <a class="reference external" href="https://hub.docker.com/r/travisci/ci-sardonyx/tags">https://hub.docker.com/r/travisci/ci-sardonyx/tags</a></p>
+<p>Download as follows:</p>
+<div class="highlight-bash notranslate"><div class="highlight"><pre><span></span>docker<span class="w"> </span>pull<span class="w"> </span>travisci/ci-sardonyx:packer-1553530531-f909ac5
+</pre></div>
+</div>
+<p>This will take a while. (3GB download!)
+You may want to use a newer tag than <code class="docutils literal notranslate"><span class="pre">packer-1553530531-f909ac5</span></code>.</p>
+</li>
+<li><p>Run the headless image:</p>
+<div class="highlight-bash notranslate"><div class="highlight"><pre><span></span>docker<span class="w"> </span>run<span class="w"> </span>--name<span class="w"> </span>foobar<span class="w"> </span><span class="se">\</span>
+<span class="w">    </span>travisci/ci-sardonyx:packer-1553530531-f909ac5<span class="w"> </span><span class="se">\</span>
+<span class="w">    </span>/sbin/init
+</pre></div>
+</div>
+<p>where you may also need to change the tag to be consistent with step 2.
+Note that tab completion can be convenient.</p>
+</li>
+<li><p>In another terminal window, run the following, to get into the docker
+instance:</p>
+<div class="highlight-bash notranslate"><div class="highlight"><pre><span></span>docker<span class="w"> </span><span class="nb">exec</span><span class="w"> </span>-it<span class="w"> </span>foobar<span class="w"> </span>bash<span class="w"> </span>-l
+</pre></div>
+</div>
+</li>
+<li><p>Once in the image, switch first to the travis user:</p>
+<div class="highlight-bash notranslate"><div class="highlight"><pre><span></span>su<span class="w"> </span>-<span class="w"> </span>travis
+</pre></div>
+</div>
+</li>
+<li><p>Then run all the commands you encounter in the travis log and debug.</p></li>
+<li><p>When done, log out of the instance (exit two times)</p></li>
+<li><p>Stop the instance</p>
+<div class="highlight-bash notranslate"><div class="highlight"><pre><span></span>docker<span class="w"> </span>stop<span class="w"> </span>foobar
+</pre></div>
+</div>
+</li>
+<li><p>Clean up</p>
+<div class="highlight-bash notranslate"><div class="highlight"><pre><span></span>docker<span class="w"> </span>rm<span class="w"> </span>foobar
+</pre></div>
+</div>
+<p>This will clean up your experiments, but not the image you downloaded.</p>
+</li>
+</ol>
+</div>
+</div>
+</div>
+
+
+          </div>
+          
+        </div>
+      </div>
+      <div class="sphinxsidebar" role="navigation" aria-label="main navigation">
+        <div class="sphinxsidebarwrapper">
+<h1 class="logo"><a href="index.html">Roberto</a></h1>
+
+
+
+<p class="blurb">Automated development workflow</p>
+
+
+
+
+<p>
+<iframe src="https://ghbtns.com/github-btn.html?user=theochem&repo=roberto&type=watch&count=true&size=large&v=2"
+  allowtransparency="true" frameborder="0" scrolling="0" width="200px" height="35px"></iframe>
+</p>
+
+
+
+
+
+    
+
+<p>
+<a class="badge" href="https://travis-ci.org/theochem/roberto">
+    <img
+        alt="https://secure.travis-ci.org/theochem/roberto.svg?branch=master"
+        src="https://secure.travis-ci.org/theochem/roberto.svg?branch=master"
+    />
+</a>
+</p>
+
+
+
+
+    
+
+<p>
+<a class="badge" href="https://codecov.io/github/theochem/roberto">
+    <img
+    alt="https://codecov.io/github/theochem/roberto/coverage.svg?branch=master"
+    src="https://codecov.io/github/theochem/roberto/coverage.svg?branch=master"
+    />
+</a>
+</p>
+<h3>Navigation</h3>
+<p class="caption" role="heading"><span class="caption-text">User documentation</span></p>
+<ul class="current">
+<li class="toctree-l1"><a class="reference internal" href="readme.html">Read me first</a></li>
+<li class="toctree-l1"><a class="reference internal" href="workflow.html">Work flow</a></li>
+<li class="toctree-l1"><a class="reference internal" href="configuration.html">Configuration</a></li>
+<li class="toctree-l1 current"><a class="current reference internal" href="#">CI Setup</a><ul>
+<li class="toctree-l2"><a class="reference internal" href="#general-instructions">General instructions</a></li>
+<li class="toctree-l2"><a class="reference internal" href="#tips-and-tricks-for-github-actions">Tips and tricks for Github Actions</a></li>
+<li class="toctree-l2"><a class="reference internal" href="#tips-and-tricks-for-travis-ci">Tips and tricks for Travis-CI</a></li>
+</ul>
+</li>
+<li class="toctree-l1"><a class="reference internal" href="changelog.html">Change log</a></li>
+</ul>
+<p class="caption" role="heading"><span class="caption-text">Developer documentation</span></p>
+<ul>
+<li class="toctree-l1"><a class="reference internal" href="contributing.html">How to contribute?</a></li>
+<li class="toctree-l1"><a class="reference internal" href="api/roberto.html">roberto package</a></li>
+</ul>
+
+<div class="relations">
+<h3>Related Topics</h3>
+<ul>
+  <li><a href="index.html">Documentation overview</a><ul>
+      <li>Previous: <a href="configuration.html" title="previous chapter">Configuration</a></li>
+      <li>Next: <a href="changelog.html" title="next chapter">Change log</a></li>
+  </ul></li>
+</ul>
+</div>
+<div id="searchbox" style="display: none" role="search">
+  <h3 id="searchlabel">Quick search</h3>
+    <div class="searchformwrapper">
+    <form class="search" action="search.html" method="get">
+      <input type="text" name="q" aria-labelledby="searchlabel" autocomplete="off" autocorrect="off" autocapitalize="off" spellcheck="false"/>
+      <input type="submit" value="Go" />
+    </form>
+    </div>
+</div>
+<script>document.getElementById('searchbox').style.display = "block"</script>
+
+
+
+
+
+
+
+
+        </div>
+      </div>
+      <div class="clearer"></div>
+    </div>
+    <div class="footer">
+      &copy;2023 The Roberto Development Team.
+      
+      |
+      Powered by <a href="http://sphinx-doc.org/">Sphinx 5.3.0</a>
+      &amp; <a href="https://github.com/bitprophet/alabaster">Alabaster 0.7.13</a>
+      
+      |
+      <a href="_sources/setupci.rst.txt"
+          rel="nofollow">Page source</a>
+    </div>
+
+    
+
+    
+  </body>
+</html>

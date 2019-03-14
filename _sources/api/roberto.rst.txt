@@ -1,0 +1,93 @@
+roberto package
+===============
+
+Submodules
+----------
+
+roberto.conda module
+--------------------
+
+.. automodule:: roberto.conda
+   :members:
+   :undoc-members:
+   :show-inheritance:
+
+roberto.config module
+---------------------
+
+.. automodule:: roberto.config
+   :members:
+   :undoc-members:
+   :show-inheritance:
+
+roberto.program module
+----------------------
+
+.. automodule:: roberto.program
+   :members:
+   :undoc-members:
+   :show-inheritance:
+
+roberto.requirements module
+---------------------------
+
+.. automodule:: roberto.requirements
+   :members:
+   :undoc-members:
+   :show-inheritance:
+
+roberto.tasks module
+--------------------
+
+.. automodule:: roberto.tasks
+   :members:
+   :undoc-members:
+   :show-inheritance:
+
+roberto.testenvs module
+-----------------------
+
+.. automodule:: roberto.testenvs
+   :members:
+   :undoc-members:
+   :show-inheritance:
+
+roberto.tools module
+--------------------
+
+.. automodule:: roberto.tools
+   :members:
+   :undoc-members:
+   :show-inheritance:
+
+roberto.utils module
+--------------------
+
+.. automodule:: roberto.utils
+   :members:
+   :undoc-members:
+   :show-inheritance:
+
+roberto.venv module
+-------------------
+
+.. automodule:: roberto.venv
+   :members:
+   :undoc-members:
+   :show-inheritance:
+
+roberto.version module
+----------------------
+
+.. automodule:: roberto.version
+   :members:
+   :undoc-members:
+   :show-inheritance:
+
+Module contents
+---------------
+
+.. automodule:: roberto
+   :members:
+   :undoc-members:
+   :show-inheritance:

@@ -1,0 +1,411 @@
+
+<!DOCTYPE html>
+
+<html lang="en">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>Configuration &#8212; Roberto 2.0.4 documentation</title>
+    <link rel="stylesheet" type="text/css" href="_static/pygments.css" />
+    <link rel="stylesheet" type="text/css" href="_static/alabaster.css" />
+    <script data-url_root="./" id="documentation_options" src="_static/documentation_options.js"></script>
+    <script src="_static/jquery.js"></script>
+    <script src="_static/underscore.js"></script>
+    <script src="_static/_sphinx_javascript_frameworks_compat.js"></script>
+    <script src="_static/doctools.js"></script>
+    <script src="_static/sphinx_highlight.js"></script>
+    <link rel="index" title="Index" href="genindex.html" />
+    <link rel="search" title="Search" href="search.html" />
+    <link rel="next" title="CI Setup" href="setupci.html" />
+    <link rel="prev" title="Work flow" href="workflow.html" />
+   
+  <link rel="stylesheet" href="_static/custom.css" type="text/css" />
+  
+  
+  <meta name="viewport" content="width=device-width, initial-scale=0.9, maximum-scale=0.9" />
+
+  </head><body>
+  
+
+    <div class="document">
+      <div class="documentwrapper">
+        <div class="bodywrapper">
+          
+
+          <div class="body" role="main">
+            
+  <div class="section" id="configuration">
+<span id="id1"></span><h1>Configuration<a class="headerlink" href="#configuration" title="Permalink to this heading">¶</a></h1>
+<p>Roberto uses invoke, amongst other things, to parse its configuration files. For
+most projectes, it is sufficient to just write a <code class="docutils literal notranslate"><span class="pre">.roberto.yaml</span></code> file in the
+root of the project’s source tree. In some cases, environment variables,
+prefixed with <code class="docutils literal notranslate"><span class="pre">ROBERTO_</span></code> can be useful to extend or override the settings in
+the configuration file. All your settings extend the
+<a class="reference external" href="https://github.com/theochem/roberto/blob/master/roberto/default_config.yaml">default configuration file</a>.</p>
+<p>Invoke also offers other mechanisms to modify Roberto’s configuration, which is
+explained here: <a class="reference external" href="http://docs.pyinvoke.org/">http://docs.pyinvoke.org/</a></p>
+<div class="section" id="basic-configuration">
+<h2>Basic configuration<a class="headerlink" href="#basic-configuration" title="Permalink to this heading">¶</a></h2>
+<p>The configuration file must at least contain the following:</p>
+<div class="highlight-yaml notranslate"><div class="highlight"><pre><span></span><span class="nt">project</span><span class="p">:</span>
+<span class="w">  </span><span class="c1"># &#39;name&#39; is used for package and directory names.</span>
+<span class="w">  </span><span class="nt">name</span><span class="p">:</span><span class="w"> </span><span class="l l-Scalar l-Scalar-Plain">your_project_name</span>
+<span class="w">  </span><span class="c1"># List one or more software packages below.</span>
+<span class="w">  </span><span class="nt">packages</span><span class="p">:</span>
+<span class="w">      </span><span class="c1"># &#39;dist_name&#39; is required and there is no default value.</span>
+<span class="w">      </span><span class="c1"># It must be unique in case of multiple package.</span>
+<span class="w">    </span><span class="p p-Indicator">-</span><span class="w"> </span><span class="nt">dist_name</span><span class="p">:</span><span class="w"> </span><span class="s">&#39;name_for_distribution_packages&#39;</span>
+<span class="w">      </span><span class="c1"># An optional package name, must not be unique.</span>
+<span class="w">      </span><span class="c1"># The default is the project name.</span>
+<span class="w">      </span><span class="nt">name</span><span class="p">:</span><span class="w"> </span><span class="s">&#39;package_name&#39;</span>
+<span class="w">      </span><span class="c1"># An optional subdirectory of the source tree.</span>
+<span class="w">      </span><span class="c1"># Defaults to &#39;.&#39;</span>
+<span class="w">      </span><span class="nt">path</span><span class="p">:</span><span class="w"> </span><span class="l l-Scalar l-Scalar-Plain">.</span>
+<span class="w">      </span><span class="c1"># List one or more tools below.</span>
+<span class="w">      </span><span class="c1"># Using all tools is probably not sensible</span>
+<span class="w">      </span><span class="c1"># because some are geared towards CMake</span>
+<span class="w">      </span><span class="c1"># packages, while others are only</span>
+<span class="w">      </span><span class="c1"># useful for Python packages.</span>
+<span class="w">      </span><span class="nt">tools</span><span class="p">:</span>
+<span class="w">        </span><span class="p p-Indicator">-</span><span class="w"> </span><span class="l l-Scalar l-Scalar-Plain">write-py-version</span>
+<span class="w">        </span><span class="p p-Indicator">-</span><span class="w"> </span><span class="l l-Scalar l-Scalar-Plain">cardboardlint-static</span>
+<span class="w">        </span><span class="c1"># ...</span>
+<span class="w">    </span><span class="c1"># You can add multiple packages.</span>
+<span class="w">    </span><span class="p p-Indicator">-</span><span class="w"> </span><span class="nt">dist_name</span><span class="p">:</span><span class="w"> </span><span class="s">&#39;...&#39;</span>
+<span class="w">      </span><span class="c1"># ...</span>
+</pre></div>
+</div>
+<p>Each tool of each package will be executed in one task in the overall work
+flow. See section <a class="reference internal" href="workflow.html#workflow"><span class="std std-ref">Work flow</span></a> for a more detailed description. A complete
+list of the built-in tools and configuration options can be found in the
+<a class="reference external" href="https://github.com/theochem/roberto/blob/master/roberto/default_config.yaml">default configuration file</a>.</p>
+<p>Other sections can be added as well, e.g. to define new tools as explained
+below, or to change other settings from
+<a class="reference external" href="https://github.com/theochem/roberto/blob/master/roberto/default_config.yaml">default configuration file</a>.</p>
+</div>
+<div class="section" id="python-example">
+<h2>Python example<a class="headerlink" href="#python-example" title="Permalink to this heading">¶</a></h2>
+<p>This is a basic configuration for a Python project, e.g. called <cite>spammer</cite>:</p>
+<div class="literal-block-wrapper docutils container" id="id5">
+<div class="code-block-caption"><span class="caption-text">.roberto.yaml</span><a class="headerlink" href="#id5" title="Permalink to this code">¶</a></div>
+<div class="highlight-yaml notranslate"><div class="highlight"><pre><span></span><span class="nt">project</span><span class="p">:</span>
+<span class="w">  </span><span class="nt">name</span><span class="p">:</span><span class="w"> </span><span class="l l-Scalar l-Scalar-Plain">spammer</span>
+<span class="w">  </span><span class="nt">packages</span><span class="p">:</span>
+<span class="w">    </span><span class="p p-Indicator">-</span><span class="w"> </span><span class="nt">dist_name</span><span class="p">:</span><span class="w"> </span><span class="l l-Scalar l-Scalar-Plain">spammer</span>
+<span class="w">      </span><span class="nt">tools</span><span class="p">:</span>
+<span class="w">        </span><span class="p p-Indicator">-</span><span class="w"> </span><span class="l l-Scalar l-Scalar-Plain">write-py-version</span>
+<span class="w">        </span><span class="p p-Indicator">-</span><span class="w"> </span><span class="l l-Scalar l-Scalar-Plain">cardboardlint-static</span>
+<span class="w">        </span><span class="p p-Indicator">-</span><span class="w"> </span><span class="l l-Scalar l-Scalar-Plain">build-py-inplace</span>
+<span class="w">        </span><span class="p p-Indicator">-</span><span class="w"> </span><span class="l l-Scalar l-Scalar-Plain">pytest</span>
+<span class="w">        </span><span class="p p-Indicator">-</span><span class="w"> </span><span class="l l-Scalar l-Scalar-Plain">upload-codecov</span>
+<span class="w">        </span><span class="p p-Indicator">-</span><span class="w"> </span><span class="l l-Scalar l-Scalar-Plain">cardboardlint-dynamic</span>
+<span class="w">        </span><span class="p p-Indicator">-</span><span class="w"> </span><span class="l l-Scalar l-Scalar-Plain">build-sphinx-doc</span>
+<span class="w">        </span><span class="p p-Indicator">-</span><span class="w"> </span><span class="l l-Scalar l-Scalar-Plain">upload-docs-gh</span>
+<span class="w">        </span><span class="p p-Indicator">-</span><span class="w"> </span><span class="l l-Scalar l-Scalar-Plain">build-py-source</span>
+<span class="w">        </span><span class="p p-Indicator">-</span><span class="w"> </span><span class="l l-Scalar l-Scalar-Plain">build-conda</span>
+<span class="w">        </span><span class="p p-Indicator">-</span><span class="w"> </span><span class="l l-Scalar l-Scalar-Plain">deploy-pypi</span>
+<span class="w">        </span><span class="p p-Indicator">-</span><span class="w"> </span><span class="l l-Scalar l-Scalar-Plain">deploy-conda</span>
+<span class="w">        </span><span class="p p-Indicator">-</span><span class="w"> </span><span class="l l-Scalar l-Scalar-Plain">deploy-github</span>
+</pre></div>
+</div>
+</div>
+<p>This configuration assumes that you have at least the following files in your
+Git repository:</p>
+<div class="highlight-bash notranslate"><div class="highlight"><pre><span></span>.cardboardlint.yaml
+setup.py
+spammer/__init__.py
+tools/conda/meta.yaml
+</pre></div>
+</div>
+</div>
+<div class="section" id="cmake-and-python-wrapper-example">
+<h2>CMake and Python wrapper example<a class="headerlink" href="#cmake-and-python-wrapper-example" title="Permalink to this heading">¶</a></h2>
+<p>A basic configuration for a CMake (e.g. C++) project and a Python wrapper, here
+called <cite>bummer</cite> can be done as follows:</p>
+<div class="literal-block-wrapper docutils container" id="id6">
+<div class="code-block-caption"><span class="caption-text">.roberto.yaml</span><a class="headerlink" href="#id6" title="Permalink to this code">¶</a></div>
+<div class="highlight-yaml notranslate"><div class="highlight"><pre><span></span><span class="nt">project</span><span class="p">:</span>
+<span class="w">  </span><span class="nt">name</span><span class="p">:</span><span class="w"> </span><span class="l l-Scalar l-Scalar-Plain">bummer</span>
+<span class="w">  </span><span class="nt">packages</span><span class="p">:</span>
+<span class="w">    </span><span class="p p-Indicator">-</span><span class="w"> </span><span class="nt">dist_name</span><span class="p">:</span><span class="w"> </span><span class="l l-Scalar l-Scalar-Plain">bummer</span>
+<span class="w">      </span><span class="nt">tools</span><span class="p">:</span>
+<span class="w">        </span><span class="p p-Indicator">-</span><span class="w"> </span><span class="l l-Scalar l-Scalar-Plain">write-cmake-version</span>
+<span class="w">        </span><span class="p p-Indicator">-</span><span class="w"> </span><span class="l l-Scalar l-Scalar-Plain">cardboardlint-static</span>
+<span class="w">        </span><span class="p p-Indicator">-</span><span class="w"> </span><span class="l l-Scalar l-Scalar-Plain">build-cmake-inplace</span>
+<span class="w">        </span><span class="p p-Indicator">-</span><span class="w"> </span><span class="l l-Scalar l-Scalar-Plain">maketest</span>
+<span class="w">        </span><span class="p p-Indicator">-</span><span class="w"> </span><span class="l l-Scalar l-Scalar-Plain">upload-codecov</span>
+<span class="w">        </span><span class="p p-Indicator">-</span><span class="w"> </span><span class="l l-Scalar l-Scalar-Plain">cardboardlint-dynamic</span>
+<span class="w">        </span><span class="p p-Indicator">-</span><span class="w"> </span><span class="l l-Scalar l-Scalar-Plain">build-cmake-source</span>
+<span class="w">        </span><span class="p p-Indicator">-</span><span class="w"> </span><span class="l l-Scalar l-Scalar-Plain">build-conda</span>
+<span class="w">        </span><span class="p p-Indicator">-</span><span class="w"> </span><span class="l l-Scalar l-Scalar-Plain">deploy-conda</span>
+<span class="w">        </span><span class="p p-Indicator">-</span><span class="w"> </span><span class="l l-Scalar l-Scalar-Plain">deploy-github</span>
+<span class="w">    </span><span class="p p-Indicator">-</span><span class="w"> </span><span class="nt">dist_name</span><span class="p">:</span><span class="w"> </span><span class="l l-Scalar l-Scalar-Plain">python-bummer</span>
+<span class="w">      </span><span class="nt">path</span><span class="p">:</span><span class="w"> </span><span class="l l-Scalar l-Scalar-Plain">python-bummer</span>
+<span class="w">      </span><span class="nt">tools</span><span class="p">:</span>
+<span class="w">        </span><span class="p p-Indicator">-</span><span class="w"> </span><span class="l l-Scalar l-Scalar-Plain">write-py-version</span>
+<span class="w">        </span><span class="p p-Indicator">-</span><span class="w"> </span><span class="l l-Scalar l-Scalar-Plain">cardboardlint-static</span>
+<span class="w">        </span><span class="p p-Indicator">-</span><span class="w"> </span><span class="l l-Scalar l-Scalar-Plain">build-py-inplace</span>
+<span class="w">        </span><span class="p p-Indicator">-</span><span class="w"> </span><span class="l l-Scalar l-Scalar-Plain">pytest</span>
+<span class="w">        </span><span class="p p-Indicator">-</span><span class="w"> </span><span class="l l-Scalar l-Scalar-Plain">upload-codecov</span>
+<span class="w">        </span><span class="p p-Indicator">-</span><span class="w"> </span><span class="l l-Scalar l-Scalar-Plain">cardboardlint-dynamic</span>
+<span class="w">        </span><span class="p p-Indicator">-</span><span class="w"> </span><span class="l l-Scalar l-Scalar-Plain">build-py-source</span>
+<span class="w">        </span><span class="p p-Indicator">-</span><span class="w"> </span><span class="l l-Scalar l-Scalar-Plain">build-conda</span>
+<span class="w">        </span><span class="p p-Indicator">-</span><span class="w"> </span><span class="l l-Scalar l-Scalar-Plain">deploy-conda</span>
+<span class="w">        </span><span class="p p-Indicator">-</span><span class="w"> </span><span class="l l-Scalar l-Scalar-Plain">deploy-github</span>
+</pre></div>
+</div>
+</div>
+<p>This configuration assumes you have at least the following files in your Git
+repository:</p>
+<div class="highlight-bash notranslate"><div class="highlight"><pre><span></span>.cardboardlint.yaml
+CMakeLists.txt
+tools/conda/meta.yaml
+python-bummer/setup.py
+python-bummer/bummer/__init__.py
+python-bummer/tools/conda/meta.yaml
+</pre></div>
+</div>
+</div>
+<div class="section" id="working-with-git-tag-for-versions">
+<h2>Working with git tag for versions<a class="headerlink" href="#working-with-git-tag-for-versions" title="Permalink to this heading">¶</a></h2>
+<p>When Roberto starts, it will run <code class="docutils literal notranslate"><span class="pre">git</span> <span class="pre">describe</span> <span class="pre">--tags</span></code> to determine the
+version number and add this version information in various forms in the <code class="docutils literal notranslate"><span class="pre">git</span></code>
+section of the
+<a class="reference external" href="https://github.com/theochem/roberto/blob/master/roberto/default_config.yaml">default configuration file</a>.
+From there, all tasks
+can access version information when they need it. Below the most important of
+these tasks are discussed.</p>
+<div class="section" id="python-projects">
+<h3>Python projects<a class="headerlink" href="#python-projects" title="Permalink to this heading">¶</a></h3>
+<p>Use the tool <code class="docutils literal notranslate"><span class="pre">write-py-version</span></code> to make sure the file <code class="docutils literal notranslate"><span class="pre">_version.py</span></code> exists
+before <code class="docutils literal notranslate"><span class="pre">setup.py</span></code> is called.</p>
+<p>In <code class="docutils literal notranslate"><span class="pre">setup.py</span></code>, use the following code to derive the version instead of
+hard-coding it:</p>
+<blockquote>
+<div><div class="highlight-python notranslate"><div class="highlight"><pre><span></span><span class="kn">import</span> <span class="nn">os</span>
+
+<span class="n">NAME</span> <span class="o">=</span> <span class="s1">&#39;spammer&#39;</span>  <span class="c1"># &lt;-- change this name.</span>
+
+<span class="k">def</span> <span class="nf">get_version</span><span class="p">():</span>
+<span class="w">    </span><span class="sd">&quot;&quot;&quot;Read __version__ from version.py, with exec to avoid importing it.&quot;&quot;&quot;</span>
+    <span class="k">with</span> <span class="nb">open</span><span class="p">(</span><span class="n">os</span><span class="o">.</span><span class="n">path</span><span class="o">.</span><span class="n">join</span><span class="p">(</span><span class="n">NAME</span><span class="p">,</span> <span class="s1">&#39;version.py&#39;</span><span class="p">),</span> <span class="s1">&#39;r&#39;</span><span class="p">)</span> <span class="k">as</span> <span class="n">f</span><span class="p">:</span>
+        <span class="n">myglobals</span> <span class="o">=</span> <span class="p">{</span><span class="s2">&quot;__name__&quot;</span><span class="p">:</span> <span class="sa">f</span><span class="s2">&quot;</span><span class="si">{</span><span class="n">NAME</span><span class="si">}</span><span class="s2">.version&quot;</span><span class="p">}</span>
+        <span class="c1"># pylint: disable=exec-used</span>
+        <span class="n">exec</span><span class="p">(</span><span class="n">f</span><span class="o">.</span><span class="n">read</span><span class="p">(),</span> <span class="n">myglobals</span><span class="p">)</span>
+    <span class="k">return</span> <span class="n">myglobals</span><span class="p">[</span><span class="s1">&#39;__version__&#39;</span><span class="p">],</span> <span class="n">myglobals</span><span class="p">[</span><span class="s1">&#39;DEV_CLASSIFIER&#39;</span><span class="p">]</span>
+
+<span class="n">VERSION</span><span class="p">,</span> <span class="n">DEV_CLASSIFIER</span> <span class="o">=</span> <span class="n">get_version_info</span><span class="p">()</span>
+
+<span class="n">setup</span><span class="p">(</span>
+    <span class="n">name</span><span class="o">=</span><span class="n">NAME</span><span class="p">,</span>
+    <span class="n">version</span><span class="o">=</span><span class="n">VERSION</span><span class="p">,</span>
+    <span class="n">package_dir</span><span class="o">=</span><span class="p">{</span><span class="n">NAME</span><span class="p">:</span> <span class="n">NAME</span><span class="p">},</span>
+    <span class="n">packages</span><span class="o">=</span><span class="p">[</span><span class="n">NAME</span><span class="p">,</span> <span class="n">NAME</span> <span class="o">+</span> <span class="s1">&#39;.test&#39;</span><span class="p">],</span>
+    <span class="n">classifiers</span><span class="o">=</span><span class="p">[</span>
+        <span class="n">DEV_CLASSIFIER</span><span class="p">,</span>
+        <span class="c1"># ...</span>
+    <span class="p">],</span>
+    <span class="c1"># ...</span>
+<span class="p">)</span>
+</pre></div>
+</div>
+</div></blockquote>
+<p>The file <code class="docutils literal notranslate"><span class="pre">version.py</span></code> contains the following</p>
+<blockquote>
+<div><div class="highlight-python notranslate"><div class="highlight"><pre><span></span><span class="k">try</span><span class="p">:</span>
+    <span class="c1"># pylint: disable=unused-import</span>
+    <span class="kn">from</span> <span class="nn">._version</span> <span class="kn">import</span> <span class="n">__version__</span><span class="p">,</span> <span class="n">DEV_CLASSIFIER</span>
+<span class="k">except</span> <span class="ne">ImportError</span><span class="p">:</span>
+    <span class="n">__version__</span> <span class="o">=</span> <span class="s1">&#39;0.0.0.post0&#39;</span>
+    <span class="n">DEV_CLASSIFIER</span> <span class="o">=</span> <span class="s1">&#39;Development Status :: 2 - Pre-Alpha&#39;</span>
+</pre></div>
+</div>
+</div></blockquote>
+<p>This is automates all versioning tasks but still works when Roberto has not
+been used to write the version file.</p>
+<p>When the Sphinx documentation is built, one can assume an in-place built has
+succeeded and one can simply import the version in <code class="docutils literal notranslate"><span class="pre">doc/conf.py</span></code> as follows:</p>
+<blockquote>
+<div><div class="highlight-python notranslate"><div class="highlight"><pre><span></span><span class="kn">from</span> <span class="nn">spammer.version</span> <span class="kn">import</span> <span class="n">__version__</span>  <span class="c1"># &lt;-- change name spammer</span>
+
+<span class="c1"># ...</span>
+
+<span class="n">release</span> <span class="o">=</span> <span class="n">__version__</span>
+<span class="n">version</span> <span class="o">=</span> <span class="s1">&#39;.&#39;</span><span class="o">.</span><span class="n">join</span><span class="p">(</span><span class="n">release</span><span class="o">.</span><span class="n">split</span><span class="p">(</span><span class="s1">&#39;.&#39;</span><span class="p">)[:</span><span class="mi">2</span><span class="p">])</span>
+</pre></div>
+</div>
+</div></blockquote>
+</div>
+<div class="section" id="cmake-projects">
+<h3>CMake projects<a class="headerlink" href="#cmake-projects" title="Permalink to this heading">¶</a></h3>
+<p>With the tool <code class="docutils literal notranslate"><span class="pre">write-cmake-version</span></code>, one can generate a file
+<code class="docutils literal notranslate"><span class="pre">CMakeListsVersion.txt.in</span></code>, which can be included from the main
+<code class="docutils literal notranslate"><span class="pre">CMakeLists.txt</span></code> file as follows:</p>
+<blockquote>
+<div><div class="highlight-cmake notranslate"><div class="highlight"><pre><span></span><span class="nb">include</span><span class="p">(</span><span class="s">CMakeListsVersion.txt.in</span><span class="p">)</span>
+</pre></div>
+</div>
+</div></blockquote>
+</div>
+<div class="section" id="conda-package-specifications-meta-yaml">
+<h3>Conda package specifications (<code class="docutils literal notranslate"><span class="pre">meta.yaml</span></code>)<a class="headerlink" href="#conda-package-specifications-meta-yaml" title="Permalink to this heading">¶</a></h3>
+<p>In the file <code class="docutils literal notranslate"><span class="pre">tools/conda.recipe/meta.yaml</span></code>, one can make use of Jinja
+templating to insert the version number:</p>
+<blockquote>
+<div><div class="highlight-yaml notranslate"><div class="highlight"><pre><span></span><span class="nt">package</span><span class="p">:</span>
+<span class="w">  </span><span class="nt">version</span><span class="p">:</span><span class="w"> </span><span class="s">&quot;{{</span><span class="nv"> </span><span class="s">PROJECT_VERSION</span><span class="nv"> </span><span class="s">}}&quot;</span>
+</pre></div>
+</div>
+</div></blockquote>
+<p>When Roberto sets up a conda environment, environment variable
+<code class="docutils literal notranslate"><span class="pre">${PROJECT_VERSION}</span></code> will be set.</p>
+</div>
+</div>
+<div class="section" id="adding-tools">
+<h2>Adding tools<a class="headerlink" href="#adding-tools" title="Permalink to this heading">¶</a></h2>
+<p>One can add custom tools to the workflow, by adding a <cite>tools</cite> section to the
+configuration file:</p>
+<div class="highlight-yaml notranslate"><div class="highlight"><pre><span></span><span class="nt">tools</span><span class="p">:</span>
+<span class="w">  </span><span class="nt">&lt;name of the tool&gt;</span><span class="p">:</span>
+<span class="w">    </span><span class="nt">cls</span><span class="p">:</span><span class="w"> </span><span class="l l-Scalar l-Scalar-Plain">&lt;Class name from roberto/tools.py&gt;</span>
+<span class="w">    </span><span class="c1"># ...</span>
+</pre></div>
+</div>
+<p>Additional fields can be added after <code class="docutils literal notranslate"><span class="pre">cls</span></code>, and the details of these
+additional settings depend on the selected <code class="docutils literal notranslate"><span class="pre">cls</span></code>.</p>
+<p>Filenames and most other fields in the tool settings can make use of
+other confiruaton values, e.g. with <code class="docutils literal notranslate"><span class="pre">{config.project.name}</span></code>, package-specific
+configuration, e.g. <code class="docutils literal notranslate"><span class="pre">{package.dist_name}</span></code>, or tool-specific settings, e.g.
+<code class="docutils literal notranslate"><span class="pre">{tool.destination}</span></code>. These substitutions are not carried out recursively.</p>
+<p>The fields in the tool section are (almost) all constructor arguments for a
+corresponding class in <cite>roberto/tools.py</cite>. Refer to their docstrings for more
+details. There are two optional fields not used as constructor arguments:</p>
+<ul class="simple">
+<li><p><code class="docutils literal notranslate"><span class="pre">requirements</span></code>: a list of 2-tuples, in which the first string is the
+conda package name and the second is the pip package name (if available).</p></li>
+<li><p><code class="docutils literal notranslate"><span class="pre">suported_envs</span></code>: present when a tool is only supported by conda, in which
+case the corresponding value is <code class="docutils literal notranslate"><span class="pre">[conda]</span></code>. When not present, the tool is
+assumed to work for both types of virtual environments.</p></li>
+</ul>
+</div>
+</div>
+
+
+          </div>
+          
+        </div>
+      </div>
+      <div class="sphinxsidebar" role="navigation" aria-label="main navigation">
+        <div class="sphinxsidebarwrapper">
+<h1 class="logo"><a href="index.html">Roberto</a></h1>
+
+
+
+<p class="blurb">Automated development workflow</p>
+
+
+
+
+<p>
+<iframe src="https://ghbtns.com/github-btn.html?user=theochem&repo=roberto&type=watch&count=true&size=large&v=2"
+  allowtransparency="true" frameborder="0" scrolling="0" width="200px" height="35px"></iframe>
+</p>
+
+
+
+
+
+    
+
+<p>
+<a class="badge" href="https://travis-ci.org/theochem/roberto">
+    <img
+        alt="https://secure.travis-ci.org/theochem/roberto.svg?branch=master"
+        src="https://secure.travis-ci.org/theochem/roberto.svg?branch=master"
+    />
+</a>
+</p>
+
+
+
+
+    
+
+<p>
+<a class="badge" href="https://codecov.io/github/theochem/roberto">
+    <img
+    alt="https://codecov.io/github/theochem/roberto/coverage.svg?branch=master"
+    src="https://codecov.io/github/theochem/roberto/coverage.svg?branch=master"
+    />
+</a>
+</p>
+<h3>Navigation</h3>
+<p class="caption" role="heading"><span class="caption-text">User documentation</span></p>
+<ul class="current">
+<li class="toctree-l1"><a class="reference internal" href="readme.html">Read me first</a></li>
+<li class="toctree-l1"><a class="reference internal" href="workflow.html">Work flow</a></li>
+<li class="toctree-l1 current"><a class="current reference internal" href="#">Configuration</a><ul>
+<li class="toctree-l2"><a class="reference internal" href="#basic-configuration">Basic configuration</a></li>
+<li class="toctree-l2"><a class="reference internal" href="#python-example">Python example</a></li>
+<li class="toctree-l2"><a class="reference internal" href="#cmake-and-python-wrapper-example">CMake and Python wrapper example</a></li>
+<li class="toctree-l2"><a class="reference internal" href="#working-with-git-tag-for-versions">Working with git tag for versions</a></li>
+<li class="toctree-l2"><a class="reference internal" href="#adding-tools">Adding tools</a></li>
+</ul>
+</li>
+<li class="toctree-l1"><a class="reference internal" href="setupci.html">CI Setup</a></li>
+<li class="toctree-l1"><a class="reference internal" href="changelog.html">Change log</a></li>
+</ul>
+<p class="caption" role="heading"><span class="caption-text">Developer documentation</span></p>
+<ul>
+<li class="toctree-l1"><a class="reference internal" href="contributing.html">How to contribute?</a></li>
+<li class="toctree-l1"><a class="reference internal" href="api/roberto.html">roberto package</a></li>
+</ul>
+
+<div class="relations">
+<h3>Related Topics</h3>
+<ul>
+  <li><a href="index.html">Documentation overview</a><ul>
+      <li>Previous: <a href="workflow.html" title="previous chapter">Work flow</a></li>
+      <li>Next: <a href="setupci.html" title="next chapter">CI Setup</a></li>
+  </ul></li>
+</ul>
+</div>
+<div id="searchbox" style="display: none" role="search">
+  <h3 id="searchlabel">Quick search</h3>
+    <div class="searchformwrapper">
+    <form class="search" action="search.html" method="get">
+      <input type="text" name="q" aria-labelledby="searchlabel" autocomplete="off" autocorrect="off" autocapitalize="off" spellcheck="false"/>
+      <input type="submit" value="Go" />
+    </form>
+    </div>
+</div>
+<script>document.getElementById('searchbox').style.display = "block"</script>
+
+
+
+
+
+
+
+
+        </div>
+      </div>
+      <div class="clearer"></div>
+    </div>
+    <div class="footer">
+      &copy;2023 The Roberto Development Team.
+      
+      |
+      Powered by <a href="http://sphinx-doc.org/">Sphinx 5.3.0</a>
+      &amp; <a href="https://github.com/bitprophet/alabaster">Alabaster 0.7.13</a>
+      
+      |
+      <a href="_sources/configuration.rst.txt"
+          rel="nofollow">Page source</a>
+    </div>
+
+    
+
+    
+  </body>
+</html>

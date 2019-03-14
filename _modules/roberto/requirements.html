@@ -1,0 +1,397 @@
+
+<!DOCTYPE html>
+
+<html lang="en">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>roberto.requirements &#8212; Roberto 2.0.4 documentation</title>
+    <link rel="stylesheet" type="text/css" href="../../_static/pygments.css" />
+    <link rel="stylesheet" type="text/css" href="../../_static/alabaster.css" />
+    <script data-url_root="../../" id="documentation_options" src="../../_static/documentation_options.js"></script>
+    <script src="../../_static/jquery.js"></script>
+    <script src="../../_static/underscore.js"></script>
+    <script src="../../_static/_sphinx_javascript_frameworks_compat.js"></script>
+    <script src="../../_static/doctools.js"></script>
+    <script src="../../_static/sphinx_highlight.js"></script>
+    <link rel="index" title="Index" href="../../genindex.html" />
+    <link rel="search" title="Search" href="../../search.html" />
+   
+  <link rel="stylesheet" href="../../_static/custom.css" type="text/css" />
+  
+  
+  <meta name="viewport" content="width=device-width, initial-scale=0.9, maximum-scale=0.9" />
+
+  </head><body>
+  
+
+    <div class="document">
+      <div class="documentwrapper">
+        <div class="bodywrapper">
+          
+
+          <div class="body" role="main">
+            
+  <h1>Source code for roberto.requirements</h1><div class="highlight"><pre>
+<span></span><span class="c1"># Collection of configurable development workflows</span>
+<span class="c1"># Copyright (C) 2011-2019 The Roberto Development Team</span>
+<span class="c1">#</span>
+<span class="c1"># This file is part of Roberto.</span>
+<span class="c1">#</span>
+<span class="c1"># Roberto is free software; you can redistribute it and/or</span>
+<span class="c1"># modify it under the terms of the GNU General Public License</span>
+<span class="c1"># as published by the Free Software Foundation; either version 3</span>
+<span class="c1"># of the License, or (at your option) any later version.</span>
+<span class="c1">#</span>
+<span class="c1"># Roberto is distributed in the hope that it will be useful,</span>
+<span class="c1"># but WITHOUT ANY WARRANTY; without even the implied warranty of</span>
+<span class="c1"># MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the</span>
+<span class="c1"># GNU General Public License for more details.</span>
+<span class="c1">#</span>
+<span class="c1"># You should have received a copy of the GNU General Public License</span>
+<span class="c1"># along with this program; if not, see &lt;http://www.gnu.org/licenses/&gt;</span>
+<span class="c1"># --</span>
+<span class="sd">&quot;&quot;&quot;Installation of requirements.&quot;&quot;&quot;</span>
+
+
+<span class="kn">from</span> <span class="nn">glob</span> <span class="kn">import</span> <span class="n">glob</span>
+<span class="kn">import</span> <span class="nn">hashlib</span>
+<span class="kn">import</span> <span class="nn">os</span>
+<span class="kn">import</span> <span class="nn">tempfile</span>
+<span class="kn">import</span> <span class="nn">time</span>
+<span class="kn">from</span> <span class="nn">typing</span> <span class="kn">import</span> <span class="n">Set</span>
+
+<span class="kn">from</span> <span class="nn">invoke</span> <span class="kn">import</span> <span class="n">Context</span>
+<span class="kn">import</span> <span class="nn">yaml</span>
+
+<span class="kn">from</span> <span class="nn">.tools</span> <span class="kn">import</span> <span class="n">TOOLS</span>
+
+
+<div class="viewcode-block" id="compute_req_hash"><a class="viewcode-back" href="../../api/roberto.html#roberto.requirements.compute_req_hash">[docs]</a><span class="k">def</span> <span class="nf">compute_req_hash</span><span class="p">(</span><span class="n">req_items</span><span class="p">:</span> <span class="n">Set</span><span class="p">[</span><span class="nb">str</span><span class="p">],</span> <span class="n">req_fns</span><span class="p">:</span> <span class="n">Set</span><span class="p">[</span><span class="nb">str</span><span class="p">])</span> <span class="o">-&gt;</span> <span class="nb">str</span><span class="p">:</span>
+<span class="w">    </span><span class="sd">&quot;&quot;&quot;Compute a hash from all parameters that affect installed packages.</span>
+
+<span class="sd">    Parameters</span>
+<span class="sd">    ----------</span>
+<span class="sd">    req_items</span>
+<span class="sd">        A set of requirement items.</span>
+<span class="sd">    req_fns</span>
+<span class="sd">        A set of requirement files.</span>
+
+<span class="sd">    Returns</span>
+<span class="sd">    -------</span>
+<span class="sd">    hashdigest : str</span>
+<span class="sd">        The hex digest of the sha256 hash of all development requirements.</span>
+
+<span class="sd">    &quot;&quot;&quot;</span>
+    <span class="n">hasher</span> <span class="o">=</span> <span class="n">hashlib</span><span class="o">.</span><span class="n">sha256</span><span class="p">()</span>
+    <span class="k">for</span> <span class="n">req_item</span> <span class="ow">in</span> <span class="nb">sorted</span><span class="p">(</span><span class="n">req_items</span><span class="p">):</span>
+        <span class="n">hasher</span><span class="o">.</span><span class="n">update</span><span class="p">(</span><span class="n">req_item</span><span class="o">.</span><span class="n">encode</span><span class="p">(</span><span class="s1">&#39;utf-8&#39;</span><span class="p">))</span>
+    <span class="k">for</span> <span class="n">req_fn</span> <span class="ow">in</span> <span class="nb">sorted</span><span class="p">(</span><span class="n">req_fns</span><span class="p">):</span>
+        <span class="n">hasher</span><span class="o">.</span><span class="n">update</span><span class="p">(</span><span class="n">req_fn</span><span class="o">.</span><span class="n">encode</span><span class="p">(</span><span class="s2">&quot;utf-8&quot;</span><span class="p">))</span>
+        <span class="k">if</span> <span class="n">os</span><span class="o">.</span><span class="n">path</span><span class="o">.</span><span class="n">isfile</span><span class="p">(</span><span class="n">req_fn</span><span class="p">):</span>
+            <span class="k">with</span> <span class="nb">open</span><span class="p">(</span><span class="n">req_fn</span><span class="p">,</span> <span class="s1">&#39;br&#39;</span><span class="p">)</span> <span class="k">as</span> <span class="n">f</span><span class="p">:</span>
+                <span class="n">hasher</span><span class="o">.</span><span class="n">update</span><span class="p">(</span><span class="n">f</span><span class="o">.</span><span class="n">read</span><span class="p">())</span>
+    <span class="k">return</span> <span class="n">hasher</span><span class="o">.</span><span class="n">hexdigest</span><span class="p">()</span></div>
+
+
+<div class="viewcode-block" id="check_install_requirements"><a class="viewcode-back" href="../../api/roberto.html#roberto.requirements.check_install_requirements">[docs]</a><span class="k">def</span> <span class="nf">check_install_requirements</span><span class="p">(</span><span class="n">fn_skip</span><span class="p">:</span> <span class="nb">str</span><span class="p">,</span> <span class="n">req_hash</span><span class="p">:</span> <span class="nb">str</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="nb">bool</span><span class="p">:</span>
+<span class="w">    </span><span class="sd">&quot;&quot;&quot;Check if reinstallation of requirements is desired.</span>
+
+<span class="sd">    Parameters</span>
+<span class="sd">    ----------</span>
+<span class="sd">    fn_skip</span>
+<span class="sd">        File where the requirements hash is stored.</span>
+<span class="sd">    req_has</span>
+<span class="sd">        The (new) requirement hash.</span>
+
+<span class="sd">    Returns</span>
+<span class="sd">    -------</span>
+<span class="sd">    install</span>
+<span class="sd">        True if reinstallation is desired.</span>
+
+<span class="sd">    &quot;&quot;&quot;</span>
+    <span class="c1"># The install and update will be skipped if it was done already once,</span>
+    <span class="c1"># less than 24 hours ago and the req_hash has not changed.</span>
+    <span class="k">if</span> <span class="n">os</span><span class="o">.</span><span class="n">path</span><span class="o">.</span><span class="n">isfile</span><span class="p">(</span><span class="n">fn_skip</span><span class="p">):</span>
+        <span class="k">if</span> <span class="p">(</span><span class="n">time</span><span class="o">.</span><span class="n">time</span><span class="p">()</span> <span class="o">-</span> <span class="n">os</span><span class="o">.</span><span class="n">path</span><span class="o">.</span><span class="n">getmtime</span><span class="p">(</span><span class="n">fn_skip</span><span class="p">))</span> <span class="o">&lt;</span> <span class="mi">24</span><span class="o">*</span><span class="mi">3600</span><span class="p">:</span>
+            <span class="k">with</span> <span class="nb">open</span><span class="p">(</span><span class="n">fn_skip</span><span class="p">)</span> <span class="k">as</span> <span class="n">f</span><span class="p">:</span>
+                <span class="k">if</span> <span class="n">f</span><span class="o">.</span><span class="n">read</span><span class="p">()</span><span class="o">.</span><span class="n">strip</span><span class="p">()</span> <span class="o">==</span> <span class="n">req_hash</span><span class="p">:</span>
+                    <span class="nb">print</span><span class="p">(</span><span class="s2">&quot;Skipping install+update of requirements.&quot;</span><span class="p">)</span>
+                    <span class="nb">print</span><span class="p">(</span><span class="sa">f</span><span class="s2">&quot;To force install+update: rm </span><span class="si">{</span><span class="n">fn_skip</span><span class="si">}</span><span class="s2">&quot;</span><span class="p">)</span>
+                    <span class="k">return</span> <span class="kc">False</span>
+    <span class="nb">print</span><span class="p">(</span><span class="s2">&quot;Starting install+update of requirements.&quot;</span><span class="p">)</span>
+    <span class="nb">print</span><span class="p">(</span><span class="sa">f</span><span class="s2">&quot;To skip install+update: echo </span><span class="si">{</span><span class="n">req_hash</span><span class="si">}</span><span class="s2"> &gt; </span><span class="si">{</span><span class="n">fn_skip</span><span class="si">}</span><span class="s2">&quot;</span><span class="p">)</span>
+    <span class="k">return</span> <span class="kc">True</span></div>
+
+
+<span class="c1"># pylint: disable=too-many-branches,too-many-statements</span>
+<div class="viewcode-block" id="install_requirements_conda"><a class="viewcode-back" href="../../api/roberto.html#roberto.requirements.install_requirements_conda">[docs]</a><span class="k">def</span> <span class="nf">install_requirements_conda</span><span class="p">(</span><span class="n">ctx</span><span class="p">:</span> <span class="n">Context</span><span class="p">):</span>
+<span class="w">    </span><span class="sd">&quot;&quot;&quot;Install all requirements, including tools used by Roberto.&quot;&quot;&quot;</span>
+    <span class="c1"># Collect all parameters determining the install commands (to good</span>
+    <span class="c1"># approximation) and turn them into a hash.</span>
+    <span class="c1"># Some conda requirements are included by default because they must be present:</span>
+    <span class="c1"># - conda: to make sure it is always up to date.</span>
+    <span class="c1"># - conda-build: to have conda-render for getting requirements from recipes.</span>
+    <span class="n">conda_reqs</span> <span class="o">=</span> <span class="nb">set</span><span class="p">([</span><span class="s2">&quot;conda&quot;</span><span class="p">])</span>
+    <span class="n">pip_reqs</span> <span class="o">=</span> <span class="nb">set</span><span class="p">([])</span>
+    <span class="n">recipe_dirs</span> <span class="o">=</span> <span class="p">[]</span>
+    <span class="c1"># Add project as a tool because it also contains requirements.</span>
+    <span class="n">tools</span> <span class="o">=</span> <span class="p">[</span><span class="n">ctx</span><span class="o">.</span><span class="n">project</span><span class="p">]</span>
+    <span class="k">for</span> <span class="n">package</span> <span class="ow">in</span> <span class="n">ctx</span><span class="o">.</span><span class="n">project</span><span class="o">.</span><span class="n">packages</span><span class="p">:</span>
+        <span class="k">for</span> <span class="n">toolname</span> <span class="ow">in</span> <span class="n">package</span><span class="o">.</span><span class="n">tools</span><span class="p">:</span>
+            <span class="n">tools</span><span class="o">.</span><span class="n">append</span><span class="p">(</span><span class="n">ctx</span><span class="o">.</span><span class="n">tools</span><span class="p">[</span><span class="n">toolname</span><span class="p">])</span>
+        <span class="n">recipe_dir</span> <span class="o">=</span> <span class="n">os</span><span class="o">.</span><span class="n">path</span><span class="o">.</span><span class="n">join</span><span class="p">(</span><span class="n">package</span><span class="o">.</span><span class="n">path</span><span class="p">,</span> <span class="s2">&quot;tools&quot;</span><span class="p">,</span> <span class="s2">&quot;conda.recipe&quot;</span><span class="p">)</span>
+        <span class="k">if</span> <span class="n">os</span><span class="o">.</span><span class="n">path</span><span class="o">.</span><span class="n">isdir</span><span class="p">(</span><span class="n">recipe_dir</span><span class="p">):</span>
+            <span class="n">recipe_dirs</span><span class="o">.</span><span class="n">append</span><span class="p">(</span><span class="n">recipe_dir</span><span class="p">)</span>
+        <span class="k">else</span><span class="p">:</span>
+            <span class="nb">print</span><span class="p">(</span><span class="sa">f</span><span class="s2">&quot;Skipping recipe </span><span class="si">{</span><span class="n">recipe_dir</span><span class="si">}</span><span class="s2">. (directory does not exist)&quot;</span><span class="p">)</span>
+    <span class="k">for</span> <span class="n">tool</span> <span class="ow">in</span> <span class="n">tools</span><span class="p">:</span>
+        <span class="k">for</span> <span class="n">conda_req</span><span class="p">,</span> <span class="n">pip_req</span> <span class="ow">in</span> <span class="n">tool</span><span class="o">.</span><span class="n">get</span><span class="p">(</span><span class="s2">&quot;requirements&quot;</span><span class="p">,</span> <span class="p">[]):</span>
+            <span class="k">if</span> <span class="n">conda_req</span> <span class="ow">is</span> <span class="kc">None</span><span class="p">:</span>
+                <span class="n">pip_reqs</span><span class="o">.</span><span class="n">add</span><span class="p">(</span><span class="n">pip_req</span><span class="p">)</span>
+                <span class="n">conda_reqs</span><span class="o">.</span><span class="n">add</span><span class="p">(</span><span class="s2">&quot;pip&quot;</span><span class="p">)</span>
+            <span class="k">else</span><span class="p">:</span>
+                <span class="n">conda_reqs</span><span class="o">.</span><span class="n">add</span><span class="p">(</span><span class="n">conda_req</span><span class="p">)</span>
+    <span class="n">req_hash</span> <span class="o">=</span> <span class="n">compute_req_hash</span><span class="p">(</span>
+        <span class="nb">set</span><span class="p">(</span><span class="s2">&quot;conda:&quot;</span> <span class="o">+</span> <span class="n">conda_req</span> <span class="k">for</span> <span class="n">conda_req</span> <span class="ow">in</span> <span class="n">conda_reqs</span><span class="p">)</span> <span class="o">|</span>
+        <span class="nb">set</span><span class="p">(</span><span class="s2">&quot;pip:&quot;</span> <span class="o">+</span> <span class="n">pip_req</span> <span class="k">for</span> <span class="n">pip_req</span> <span class="ow">in</span> <span class="n">pip_reqs</span><span class="p">),</span>
+        <span class="nb">sum</span><span class="p">([</span><span class="n">glob</span><span class="p">(</span><span class="n">os</span><span class="o">.</span><span class="n">path</span><span class="o">.</span><span class="n">join</span><span class="p">(</span><span class="n">recipe_dir</span><span class="p">,</span> <span class="s2">&quot;*&quot;</span><span class="p">))</span> <span class="k">for</span> <span class="n">recipe_dir</span> <span class="ow">in</span> <span class="n">recipe_dirs</span><span class="p">],</span> <span class="p">[])</span>
+    <span class="p">)</span>
+
+    <span class="n">fn_skip</span> <span class="o">=</span> <span class="n">os</span><span class="o">.</span><span class="n">path</span><span class="o">.</span><span class="n">join</span><span class="p">(</span><span class="n">ctx</span><span class="o">.</span><span class="n">testenv</span><span class="o">.</span><span class="n">path</span><span class="p">,</span> <span class="s2">&quot;.skip_install&quot;</span><span class="p">)</span>
+    <span class="k">if</span> <span class="n">check_install_requirements</span><span class="p">(</span><span class="n">fn_skip</span><span class="p">,</span> <span class="n">req_hash</span><span class="p">):</span>
+        <span class="k">with</span> <span class="n">ctx</span><span class="o">.</span><span class="n">prefix</span><span class="p">(</span><span class="n">ctx</span><span class="o">.</span><span class="n">conda</span><span class="o">.</span><span class="n">activate_base</span><span class="p">):</span>
+            <span class="c1"># Update conda packages in the base env. Conda packages in the dev env</span>
+            <span class="c1"># tend to be ignored.</span>
+            <span class="n">conda_reqs_base_str</span> <span class="o">=</span> <span class="s2">&quot; &quot;</span><span class="o">.</span><span class="n">join</span><span class="p">(</span>
+                <span class="sa">f</span><span class="s2">&quot;&#39;</span><span class="si">{</span><span class="n">conda_req</span><span class="si">}</span><span class="s2">&#39;&quot;</span> <span class="k">for</span> <span class="n">conda_req</span>
+                <span class="ow">in</span> <span class="n">conda_reqs</span> <span class="k">if</span> <span class="n">conda_req</span><span class="o">.</span><span class="n">startswith</span><span class="p">(</span><span class="s1">&#39;conda&#39;</span><span class="p">)</span>
+            <span class="p">)</span>
+            <span class="n">ctx</span><span class="o">.</span><span class="n">run</span><span class="p">(</span><span class="sa">f</span><span class="s2">&quot;conda install --update-deps -y </span><span class="si">{</span><span class="n">conda_reqs_base_str</span><span class="si">}</span><span class="s2">&quot;</span><span class="p">)</span>
+
+        <span class="k">with</span> <span class="n">ctx</span><span class="o">.</span><span class="n">prefix</span><span class="p">(</span><span class="n">ctx</span><span class="o">.</span><span class="n">testenv</span><span class="o">.</span><span class="n">activate</span><span class="p">):</span>
+            <span class="c1"># Update packages already installed</span>
+            <span class="n">ctx</span><span class="o">.</span><span class="n">run</span><span class="p">(</span><span class="s2">&quot;conda update --all -y&quot;</span><span class="p">)</span>
+
+            <span class="c1"># Update and install other requirements for Roberto, in the dev env.</span>
+            <span class="n">conda_reqs_dev_str</span> <span class="o">=</span> <span class="s2">&quot; &quot;</span><span class="o">.</span><span class="n">join</span><span class="p">(</span>
+                <span class="sa">f</span><span class="s2">&quot;&#39;</span><span class="si">{</span><span class="n">conda_req</span><span class="si">}</span><span class="s2">&#39;&quot;</span> <span class="k">for</span> <span class="n">conda_req</span> <span class="ow">in</span> <span class="n">conda_reqs</span>
+                <span class="k">if</span> <span class="ow">not</span> <span class="n">conda_req</span><span class="o">.</span><span class="n">startswith</span><span class="p">(</span><span class="s1">&#39;conda&#39;</span><span class="p">)</span>
+            <span class="p">)</span>
+            <span class="n">ctx</span><span class="o">.</span><span class="n">run</span><span class="p">(</span><span class="sa">f</span><span class="s2">&quot;conda install --update-deps -y </span><span class="si">{</span><span class="n">conda_reqs_dev_str</span><span class="si">}</span><span class="s2">&quot;</span><span class="p">)</span>
+
+            <span class="nb">print</span><span class="p">(</span><span class="s2">&quot;Rendering conda package, extracting requirements, which will be installed.&quot;</span><span class="p">)</span>
+
+            <span class="c1"># Install dependencies from recipes, excluding own packages.</span>
+            <span class="n">own_conda_reqs</span> <span class="o">=</span> <span class="p">[</span><span class="n">package</span><span class="o">.</span><span class="n">dist_name</span> <span class="k">for</span> <span class="n">package</span> <span class="ow">in</span> <span class="n">ctx</span><span class="o">.</span><span class="n">project</span><span class="o">.</span><span class="n">packages</span><span class="p">]</span>
+            <span class="k">for</span> <span class="n">recipe_dir</span> <span class="ow">in</span> <span class="n">recipe_dirs</span><span class="p">:</span>
+                <span class="c1"># Send the output of conda render to a temporary directory.</span>
+                <span class="k">with</span> <span class="n">tempfile</span><span class="o">.</span><span class="n">TemporaryDirectory</span><span class="p">()</span> <span class="k">as</span> <span class="n">tmpdir</span><span class="p">:</span>
+                    <span class="n">rendered_path</span> <span class="o">=</span> <span class="n">os</span><span class="o">.</span><span class="n">path</span><span class="o">.</span><span class="n">join</span><span class="p">(</span><span class="n">tmpdir</span><span class="p">,</span> <span class="s2">&quot;rendered.yml&quot;</span><span class="p">)</span>
+                    <span class="n">ctx</span><span class="o">.</span><span class="n">run</span><span class="p">(</span>
+                        <span class="sa">f</span><span class="s2">&quot;conda render -f </span><span class="si">{</span><span class="n">rendered_path</span><span class="si">}</span><span class="s2"> </span><span class="si">{</span><span class="n">recipe_dir</span><span class="si">}</span><span class="s2"> &quot;</span>
+                        <span class="sa">f</span><span class="s2">&quot;--variants </span><span class="si">{</span><span class="n">ctx</span><span class="o">.</span><span class="n">conda</span><span class="o">.</span><span class="n">variants</span><span class="si">}</span><span class="s2">&quot;</span>
+                    <span class="p">)</span>
+                    <span class="k">with</span> <span class="nb">open</span><span class="p">(</span><span class="n">rendered_path</span><span class="p">)</span> <span class="k">as</span> <span class="n">f</span><span class="p">:</span>
+                        <span class="n">rendered</span> <span class="o">=</span> <span class="n">yaml</span><span class="o">.</span><span class="n">safe_load</span><span class="p">(</span><span class="n">f</span><span class="p">)</span>
+                <span class="c1"># Build a (simplified) list of requirements and install.</span>
+                <span class="n">dep_conda_reqs</span> <span class="o">=</span> <span class="nb">set</span><span class="p">([])</span>
+                <span class="n">req_sources</span> <span class="o">=</span> <span class="p">[</span>
+                    <span class="p">(</span><span class="s2">&quot;requirements&quot;</span><span class="p">,</span> <span class="s1">&#39;build&#39;</span><span class="p">),</span>
+                    <span class="p">(</span><span class="s2">&quot;requirements&quot;</span><span class="p">,</span> <span class="s1">&#39;host&#39;</span><span class="p">),</span>
+                    <span class="p">(</span><span class="s2">&quot;requirements&quot;</span><span class="p">,</span> <span class="s1">&#39;run&#39;</span><span class="p">),</span>
+                    <span class="p">(</span><span class="s2">&quot;test&quot;</span><span class="p">,</span> <span class="s1">&#39;requires&#39;</span><span class="p">),</span>
+                <span class="p">]</span>
+                <span class="k">for</span> <span class="n">req_section</span><span class="p">,</span> <span class="n">req_type</span> <span class="ow">in</span> <span class="n">req_sources</span><span class="p">:</span>
+                    <span class="k">for</span> <span class="n">recipe_req</span> <span class="ow">in</span> <span class="n">rendered</span><span class="o">.</span><span class="n">get</span><span class="p">(</span><span class="n">req_section</span><span class="p">,</span> <span class="p">{})</span><span class="o">.</span><span class="n">get</span><span class="p">(</span><span class="n">req_type</span><span class="p">,</span> <span class="p">[]):</span>
+                        <span class="n">words</span> <span class="o">=</span> <span class="n">recipe_req</span><span class="o">.</span><span class="n">split</span><span class="p">()</span>
+                        <span class="k">if</span> <span class="n">words</span><span class="p">[</span><span class="mi">0</span><span class="p">]</span> <span class="ow">not</span> <span class="ow">in</span> <span class="n">own_conda_reqs</span><span class="p">:</span>
+                            <span class="n">dep_conda_req</span> <span class="o">=</span> <span class="n">words</span><span class="p">[</span><span class="mi">0</span><span class="p">]</span>
+                            <span class="k">if</span> <span class="nb">len</span><span class="p">(</span><span class="n">words</span><span class="p">)</span> <span class="o">&gt;</span> <span class="mi">1</span> <span class="ow">and</span> <span class="nb">any</span><span class="p">(</span><span class="n">char</span> <span class="ow">in</span> <span class="n">words</span><span class="p">[</span><span class="mi">1</span><span class="p">]</span> <span class="k">for</span> <span class="n">char</span> <span class="ow">in</span> <span class="s2">&quot;&lt;&gt;!=&quot;</span><span class="p">):</span>
+                                <span class="n">dep_conda_req</span> <span class="o">+=</span> <span class="s2">&quot; &quot;</span> <span class="o">+</span> <span class="n">words</span><span class="p">[</span><span class="mi">1</span><span class="p">]</span>
+                            <span class="n">dep_conda_reqs</span><span class="o">.</span><span class="n">add</span><span class="p">(</span><span class="n">dep_conda_req</span><span class="p">)</span>
+                <span class="n">conda_reqs_render_str</span> <span class="o">=</span> <span class="s2">&quot; &quot;</span><span class="o">.</span><span class="n">join</span><span class="p">(</span>
+                    <span class="sa">f</span><span class="s2">&quot;&#39;</span><span class="si">{</span><span class="n">conda_req</span><span class="si">}</span><span class="s2">&#39;&quot;</span> <span class="k">for</span> <span class="n">conda_req</span> <span class="ow">in</span> <span class="n">dep_conda_reqs</span>
+                <span class="p">)</span>
+                <span class="n">ctx</span><span class="o">.</span><span class="n">run</span><span class="p">(</span><span class="sa">f</span><span class="s2">&quot;conda install --update-deps -y </span><span class="si">{</span><span class="n">conda_reqs_render_str</span><span class="si">}</span><span class="s2">&quot;</span><span class="p">)</span>
+
+            <span class="c1"># Update and install requirements for Roberto from pip, if any.</span>
+            <span class="k">if</span> <span class="n">pip_reqs</span><span class="p">:</span>
+                <span class="n">pip_reqs_str</span> <span class="o">=</span> <span class="s2">&quot; &quot;</span><span class="o">.</span><span class="n">join</span><span class="p">(</span><span class="sa">f</span><span class="s2">&quot;&#39;</span><span class="si">{</span><span class="n">pip_req</span><span class="si">}</span><span class="s2">&#39;&quot;</span> <span class="k">for</span> <span class="n">pip_req</span> <span class="ow">in</span> <span class="n">pip_reqs</span><span class="p">)</span>
+                <span class="n">ctx</span><span class="o">.</span><span class="n">run</span><span class="p">(</span><span class="sa">f</span><span class="s2">&quot;pip install --upgrade </span><span class="si">{</span><span class="n">pip_reqs_str</span><span class="si">}</span><span class="s2">&quot;</span><span class="p">)</span>
+
+        <span class="c1"># Update the timestamp on the skip file.</span>
+        <span class="k">with</span> <span class="nb">open</span><span class="p">(</span><span class="n">fn_skip</span><span class="p">,</span> <span class="s1">&#39;w&#39;</span><span class="p">)</span> <span class="k">as</span> <span class="n">f</span><span class="p">:</span>
+            <span class="n">f</span><span class="o">.</span><span class="n">write</span><span class="p">(</span><span class="n">req_hash</span> <span class="o">+</span> <span class="s1">&#39;</span><span class="se">\n</span><span class="s1">&#39;</span><span class="p">)</span></div>
+
+
+<div class="viewcode-block" id="convert_requires"><a class="viewcode-back" href="../../api/roberto.html#roberto.requirements.convert_requires">[docs]</a><span class="k">def</span> <span class="nf">convert_requires</span><span class="p">(</span><span class="n">fn_requires</span><span class="p">,</span> <span class="n">fn_requirements</span><span class="p">):</span>
+<span class="w">    </span><span class="sd">&quot;&quot;&quot;Convert requires.txt from an egg-info to a requirements.txt file.&quot;&quot;&quot;</span>
+    <span class="n">requires</span> <span class="o">=</span> <span class="p">[]</span>
+    <span class="n">suffix</span> <span class="o">=</span> <span class="s2">&quot;&quot;</span>
+    <span class="k">with</span> <span class="nb">open</span><span class="p">(</span><span class="n">fn_requires</span><span class="p">)</span> <span class="k">as</span> <span class="n">f</span><span class="p">:</span>
+        <span class="k">for</span> <span class="n">line</span> <span class="ow">in</span> <span class="n">f</span><span class="p">:</span>
+            <span class="n">line</span> <span class="o">=</span> <span class="n">line</span><span class="o">.</span><span class="n">strip</span><span class="p">()</span>
+            <span class="k">if</span> <span class="nb">len</span><span class="p">(</span><span class="n">line</span><span class="p">)</span> <span class="o">==</span> <span class="mi">0</span><span class="p">:</span>
+                <span class="k">continue</span>
+            <span class="k">if</span> <span class="n">line</span><span class="o">.</span><span class="n">startswith</span><span class="p">(</span><span class="s2">&quot;[:&quot;</span><span class="p">):</span>
+                <span class="n">suffix</span> <span class="o">=</span> <span class="s2">&quot;; &quot;</span> <span class="o">+</span> <span class="n">line</span><span class="p">[</span><span class="mi">2</span><span class="p">:</span><span class="o">-</span><span class="mi">1</span><span class="p">]</span>
+            <span class="k">else</span><span class="p">:</span>
+                <span class="n">requires</span><span class="o">.</span><span class="n">append</span><span class="p">(</span><span class="n">line</span> <span class="o">+</span> <span class="n">suffix</span><span class="p">)</span>
+    <span class="nb">print</span><span class="p">(</span><span class="s2">&quot;Extracted requirements:&quot;</span><span class="p">)</span>
+    <span class="k">with</span> <span class="nb">open</span><span class="p">(</span><span class="n">fn_requirements</span><span class="p">,</span> <span class="s2">&quot;w&quot;</span><span class="p">)</span> <span class="k">as</span> <span class="n">f</span><span class="p">:</span>
+        <span class="k">for</span> <span class="n">require</span> <span class="ow">in</span> <span class="n">requires</span><span class="p">:</span>
+            <span class="nb">print</span><span class="p">(</span><span class="n">require</span><span class="p">)</span>
+            <span class="n">f</span><span class="o">.</span><span class="n">write</span><span class="p">(</span><span class="n">require</span> <span class="o">+</span> <span class="s2">&quot;</span><span class="se">\n</span><span class="s2">&quot;</span><span class="p">)</span></div>
+
+
+<div class="viewcode-block" id="install_requirements_pip"><a class="viewcode-back" href="../../api/roberto.html#roberto.requirements.install_requirements_pip">[docs]</a><span class="k">def</span> <span class="nf">install_requirements_pip</span><span class="p">(</span><span class="n">ctx</span><span class="p">:</span> <span class="n">Context</span><span class="p">):</span>
+<span class="w">    </span><span class="sd">&quot;&quot;&quot;Install requirements in the virtual environment.&quot;&quot;&quot;</span>
+    <span class="c1"># Collect all parameters determining installation of requirements</span>
+    <span class="n">pip_reqs</span> <span class="o">=</span> <span class="nb">set</span><span class="p">([])</span>
+    <span class="n">req_fns</span> <span class="o">=</span> <span class="nb">set</span><span class="p">([])</span>
+    <span class="k">for</span> <span class="n">_conda_req</span><span class="p">,</span> <span class="n">pip_req</span> <span class="ow">in</span> <span class="n">ctx</span><span class="o">.</span><span class="n">project</span><span class="o">.</span><span class="n">requirements</span><span class="p">:</span>
+        <span class="k">if</span> <span class="n">pip_req</span> <span class="ow">is</span> <span class="ow">not</span> <span class="kc">None</span><span class="p">:</span>
+            <span class="n">pip_reqs</span><span class="o">.</span><span class="n">add</span><span class="p">(</span><span class="n">pip_req</span><span class="p">)</span>
+    <span class="k">for</span> <span class="n">package</span> <span class="ow">in</span> <span class="n">ctx</span><span class="o">.</span><span class="n">project</span><span class="o">.</span><span class="n">packages</span><span class="p">:</span>
+        <span class="k">for</span> <span class="n">toolname</span> <span class="ow">in</span> <span class="n">package</span><span class="o">.</span><span class="n">tools</span><span class="p">:</span>
+            <span class="n">tool</span> <span class="o">=</span> <span class="n">TOOLS</span><span class="p">[</span><span class="n">toolname</span><span class="p">]</span>
+            <span class="k">for</span> <span class="n">_conda_req</span><span class="p">,</span> <span class="n">pip_req</span> <span class="ow">in</span> <span class="n">tool</span><span class="o">.</span><span class="n">requirements</span><span class="p">:</span>
+                <span class="k">if</span> <span class="n">pip_req</span> <span class="ow">is</span> <span class="ow">not</span> <span class="kc">None</span><span class="p">:</span>
+                    <span class="n">pip_reqs</span><span class="o">.</span><span class="n">add</span><span class="p">(</span><span class="n">pip_req</span><span class="p">)</span>
+        <span class="n">req_fns</span><span class="o">.</span><span class="n">add</span><span class="p">(</span><span class="n">os</span><span class="o">.</span><span class="n">path</span><span class="o">.</span><span class="n">join</span><span class="p">(</span><span class="n">package</span><span class="o">.</span><span class="n">path</span><span class="p">,</span> <span class="s2">&quot;setup.py&quot;</span><span class="p">))</span>
+    <span class="n">req_hash</span> <span class="o">=</span> <span class="n">compute_req_hash</span><span class="p">(</span><span class="n">pip_reqs</span><span class="p">,</span> <span class="n">req_fns</span><span class="p">)</span>
+
+    <span class="n">fn_skip</span> <span class="o">=</span> <span class="n">os</span><span class="o">.</span><span class="n">path</span><span class="o">.</span><span class="n">join</span><span class="p">(</span><span class="n">ctx</span><span class="o">.</span><span class="n">testenv</span><span class="o">.</span><span class="n">path</span><span class="p">,</span> <span class="s2">&quot;.skip_install&quot;</span><span class="p">)</span>
+    <span class="k">if</span> <span class="n">check_install_requirements</span><span class="p">(</span><span class="n">fn_skip</span><span class="p">,</span> <span class="n">req_hash</span><span class="p">):</span>
+        <span class="k">with</span> <span class="n">ctx</span><span class="o">.</span><span class="n">prefix</span><span class="p">(</span><span class="n">ctx</span><span class="o">.</span><span class="n">testenv</span><span class="o">.</span><span class="n">activate</span><span class="p">):</span>
+            <span class="k">if</span> <span class="nb">len</span><span class="p">(</span><span class="n">pip_reqs</span><span class="p">)</span> <span class="o">&gt;</span> <span class="mi">0</span><span class="p">:</span>
+                <span class="c1"># Upgrade pip</span>
+                <span class="n">ctx</span><span class="o">.</span><span class="n">run</span><span class="p">(</span><span class="s2">&quot;pip install -U pip&quot;</span><span class="p">)</span>
+                <span class="c1"># Install pip packages for the tools</span>
+                <span class="n">pip_reqs_str</span> <span class="o">=</span> <span class="s2">&quot; &quot;</span><span class="o">.</span><span class="n">join</span><span class="p">(</span><span class="sa">f</span><span class="s2">&quot;&#39;</span><span class="si">{</span><span class="n">pip_req</span><span class="si">}</span><span class="s2">&#39;&quot;</span> <span class="k">for</span> <span class="n">pip_req</span> <span class="ow">in</span> <span class="n">pip_reqs</span><span class="p">)</span>
+                <span class="n">ctx</span><span class="o">.</span><span class="n">run</span><span class="p">(</span><span class="sa">f</span><span class="s2">&quot;pip install -U </span><span class="si">{</span><span class="n">pip_reqs_str</span><span class="si">}</span><span class="s2">&quot;</span><span class="p">)</span>
+            <span class="c1"># Install dependencies for the project.</span>
+            <span class="k">for</span> <span class="n">package</span> <span class="ow">in</span> <span class="n">ctx</span><span class="o">.</span><span class="n">project</span><span class="o">.</span><span class="n">packages</span><span class="p">:</span>
+                <span class="k">with</span> <span class="n">ctx</span><span class="o">.</span><span class="n">cd</span><span class="p">(</span><span class="n">package</span><span class="o">.</span><span class="n">path</span><span class="p">):</span>
+                    <span class="n">ctx</span><span class="o">.</span><span class="n">run</span><span class="p">(</span><span class="s2">&quot;python setup.py egg_info&quot;</span><span class="p">)</span>
+                    <span class="n">fn_requires</span> <span class="o">=</span> <span class="n">os</span><span class="o">.</span><span class="n">path</span><span class="o">.</span><span class="n">join</span><span class="p">(</span>
+                        <span class="n">package</span><span class="o">.</span><span class="n">dist_name</span><span class="o">.</span><span class="n">replace</span><span class="p">(</span><span class="s2">&quot;-&quot;</span><span class="p">,</span> <span class="s2">&quot;_&quot;</span><span class="p">)</span> <span class="o">+</span> <span class="s2">&quot;.egg-info&quot;</span><span class="p">,</span>
+                        <span class="s2">&quot;requires.txt&quot;</span><span class="p">)</span>
+                    <span class="k">with</span> <span class="n">tempfile</span><span class="o">.</span><span class="n">TemporaryDirectory</span><span class="p">()</span> <span class="k">as</span> <span class="n">tmpdir</span><span class="p">:</span>
+                        <span class="n">fn_requirements</span> <span class="o">=</span> <span class="n">os</span><span class="o">.</span><span class="n">path</span><span class="o">.</span><span class="n">join</span><span class="p">(</span><span class="n">tmpdir</span><span class="p">,</span> <span class="s2">&quot;requirements.txt&quot;</span><span class="p">)</span>
+                        <span class="n">convert_requires</span><span class="p">(</span><span class="n">fn_requires</span><span class="p">,</span> <span class="n">fn_requirements</span><span class="p">)</span>
+                        <span class="n">ctx</span><span class="o">.</span><span class="n">run</span><span class="p">(</span><span class="s2">&quot;pip install -U -r &quot;</span> <span class="o">+</span> <span class="n">fn_requirements</span><span class="p">)</span>
+        <span class="c1"># Update the timestamp on the skip file.</span>
+        <span class="k">with</span> <span class="nb">open</span><span class="p">(</span><span class="n">fn_skip</span><span class="p">,</span> <span class="s1">&#39;w&#39;</span><span class="p">)</span> <span class="k">as</span> <span class="n">f</span><span class="p">:</span>
+            <span class="n">f</span><span class="o">.</span><span class="n">write</span><span class="p">(</span><span class="n">req_hash</span> <span class="o">+</span> <span class="s1">&#39;</span><span class="se">\n</span><span class="s1">&#39;</span><span class="p">)</span></div>
+</pre></div>
+
+          </div>
+          
+        </div>
+      </div>
+      <div class="sphinxsidebar" role="navigation" aria-label="main navigation">
+        <div class="sphinxsidebarwrapper">
+<h1 class="logo"><a href="../../index.html">Roberto</a></h1>
+
+
+
+<p class="blurb">Automated development workflow</p>
+
+
+
+
+<p>
+<iframe src="https://ghbtns.com/github-btn.html?user=theochem&repo=roberto&type=watch&count=true&size=large&v=2"
+  allowtransparency="true" frameborder="0" scrolling="0" width="200px" height="35px"></iframe>
+</p>
+
+
+
+
+
+    
+
+<p>
+<a class="badge" href="https://travis-ci.org/theochem/roberto">
+    <img
+        alt="https://secure.travis-ci.org/theochem/roberto.svg?branch=master"
+        src="https://secure.travis-ci.org/theochem/roberto.svg?branch=master"
+    />
+</a>
+</p>
+
+
+
+
+    
+
+<p>
+<a class="badge" href="https://codecov.io/github/theochem/roberto">
+    <img
+    alt="https://codecov.io/github/theochem/roberto/coverage.svg?branch=master"
+    src="https://codecov.io/github/theochem/roberto/coverage.svg?branch=master"
+    />
+</a>
+</p>
+<h3>Navigation</h3>
+<p class="caption" role="heading"><span class="caption-text">User documentation</span></p>
+<ul>
+<li class="toctree-l1"><a class="reference internal" href="../../readme.html">Read me first</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../../workflow.html">Work flow</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../../configuration.html">Configuration</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../../setupci.html">CI Setup</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../../changelog.html">Change log</a></li>
+</ul>
+<p class="caption" role="heading"><span class="caption-text">Developer documentation</span></p>
+<ul>
+<li class="toctree-l1"><a class="reference internal" href="../../contributing.html">How to contribute?</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../../api/roberto.html">roberto package</a></li>
+</ul>
+
+<div class="relations">
+<h3>Related Topics</h3>
+<ul>
+  <li><a href="../../index.html">Documentation overview</a><ul>
+  <li><a href="../index.html">Module code</a><ul>
+  </ul></li>
+  </ul></li>
+</ul>
+</div>
+<div id="searchbox" style="display: none" role="search">
+  <h3 id="searchlabel">Quick search</h3>
+    <div class="searchformwrapper">
+    <form class="search" action="../../search.html" method="get">
+      <input type="text" name="q" aria-labelledby="searchlabel" autocomplete="off" autocorrect="off" autocapitalize="off" spellcheck="false"/>
+      <input type="submit" value="Go" />
+    </form>
+    </div>
+</div>
+<script>document.getElementById('searchbox').style.display = "block"</script>
+
+
+
+
+
+
+
+
+        </div>
+      </div>
+      <div class="clearer"></div>
+    </div>
+    <div class="footer">
+      &copy;2023 The Roberto Development Team.
+      
+      |
+      Powered by <a href="http://sphinx-doc.org/">Sphinx 5.3.0</a>
+      &amp; <a href="https://github.com/bitprophet/alabaster">Alabaster 0.7.13</a>
+      
+    </div>
+
+    
+
+    
+  </body>
+</html>
