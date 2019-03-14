@@ -84,7 +84,6 @@ class RobertoConfig(Config):
         self.conda.env_name = env_name
         env_path = os.path.join(self.conda.base_path, 'envs', env_name)
         self.conda.env_path = env_path
-        print("Conda development environment: {}".format(env_name))
 
         # Package default options
         self.project.packages = [
@@ -106,14 +105,12 @@ class RobertoConfig(Config):
         try:
             git_describe = subprocess.run(
                 ['git', 'describe', '--tags'],
-                stdout=subprocess.PIPE, check=True).stdout.decode('utf-8')
+                stdout=subprocess.PIPE, stderr=subprocess.DEVNULL,
+                check=True).stdout.decode('utf-8')
         except subprocess.CalledProcessError:
             # May fail, e.g. when there are no tags.
             git_describe = '0.0.0-0-notag'
         self.git.update(parse_git_describe(git_describe))
-        print('Version number {} derived from `git describe --tags` {}.'.format(
-            self.git.tag_version, self.git.describe))
-
         self.git.branch = subprocess.run(
             ["git", "rev-parse", "--abbrev-ref", "HEAD"],
             stdout=subprocess.PIPE, check=True).stdout.decode('utf-8').strip()
