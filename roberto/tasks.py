@@ -364,9 +364,9 @@ def upload_docs_git(ctx):
         req = urllib.request.Request('https://api.github.com/user')
         req.add_header('Authorization', 'token {}'.format(os.environ['GITHUB_TOKEN']))
         with urllib.request.urlopen(req) as f:
-            info = json.loads(f.read().decode('utf-8'))
-        ctx.run('git config --global user.email "{}@users.noreply.github.com"'.format(info["login"]))
-        ctx.run('git config --global user.name "{}"'.format(info["login"]))
+            login = json.loads(f.read().decode('utf-8'))['login']
+        ctx.run('git config --global user.email "{}@users.noreply.github.com"'.format(login))
+        ctx.run('git config --global user.name "{}"'.format(login))
 
     for tool, package, fmtkargs in iter_packages_tools(ctx, "upload-docs-git"):
         # Check if deployment is needed with deploy_label.
