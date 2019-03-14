@@ -166,7 +166,7 @@ tools:
         - conda-verify
     commands:
       build_packages:
-        - PROJECT_VERSION=ctx.git.tag_version conda build tools/conda.recipe
+        - PROJECT_VERSION={config.git.tag_version} conda build tools/conda.recipe
 
   deploy_pypi:
     config:
