@@ -382,8 +382,8 @@ def upload_docs_git(ctx):
                     ctx.run("git add {}".format(fullfn))
             # Commit, push and go back to the original branch
             ctx.run("git commit -a -m 'Automatic documentation update' --amend")
-            ctx.run("git push -f {0} {1}:{1}".format(tool.docremote, tool.docbranch))
             ctx.run("git checkout {}".format(ctx.git.branch))
+            ctx.run("git push -f {0} {1}:{1}".format(tool.docremote, tool.docbranch))
 
 
 @task(setup_conda_env)
