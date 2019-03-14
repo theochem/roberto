@@ -80,9 +80,8 @@ def conda_deactivate(ctx, iterate=True):
         # See https://github.com/conda/conda/issues/7031
         if "HOST" in os.environ:
             del os.environ['HOST']
-        for name, value in list(os.environ.items()):
-            if ("CONDA_" in name
-                and not ("ROBERTO" in name or "ANACONDA" in name)):
+        for name in list(os.environ.keys()):
+            if ("CONDA_" in name and not ("ROBERTO" in name or "ANACONDA" in name)):
                 print("Unsetting environment variable {}".format(name))
                 del os.environ[name]
 
