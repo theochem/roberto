@@ -115,8 +115,11 @@ def conda_activate(ctx, env):
 
     """
     # Load the correct base environment. We need to source conda.sh as explained
-    # in the conda_deactivate function.
-    command = ". {}/etc/profile.d/conda.sh; conda activate {}".format(
+    # in the conda_deactivate function. These commands define bash functions
+    # which are not exported, but we need them for future conda commands to
+    # work, hence "set -a" to export all variables and functions, also those not
+    # marked for export.
+    command = ("set -a && . {}/etc/profile.d/conda.sh; conda activate {}").format(
         ctx.conda.base_path, env)
     update_env_command(ctx, command)
 

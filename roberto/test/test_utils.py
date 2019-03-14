@@ -38,6 +38,7 @@ def test_update_env_command():
 
 
 def test_req_hash(tmpdir):
+    tmpdir = str(tmpdir)  # for python-3.5 compatibility
     conda_packages = ["conda-build", "anaconda-client", "conda-verify"]
     pip_packages = ["codecov"]
     # Use a fake but safe recipe dir
