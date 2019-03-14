@@ -43,7 +43,7 @@ matrix:
       language: generic
       env:
         - ROBERTO_CONDA_PINNING="python 3.7"
-        - ROBERTO_DEPLOY=true
+        - ROBERTO_DEPLOY=1
     - os: osx
       osx_image: xcode9.4
       language: generic
@@ -150,6 +150,8 @@ cache:
     - $HOME/cache
 
 install:
+  # Disable deployment when TRAVIS_TAG is not set. This avoids duplicate deployments.
+  - if [[ -z $TRAVIS_TAG ]]; then ROBERTO_DEPLOY=0 foo; fi
   # Get a basic python 3 with pip to run roberto
   - python3 --version
   - wget --no-clobber -O ${HOME}/cache/get-pip.py https://bootstrap.pypa.io/get-pip.py || true
