@@ -173,11 +173,11 @@ script:
   - bash <(curl -s https://codecov.io/bash)
 
 before_cache:
-  - rm -rf ${ROBERTO_CONDA_INSTALL_PATH}/conda-bld
-  - rm -rf ${ROBERTO_CONDA_INSTALL_PATH}/locks
-  - rm -rf ${ROBERTO_CONDA_INSTALL_PATH}/pkgs
-  - rm -rf ${ROBERTO_CONDA_INSTALL_PATH}/var
-  - rm -rf ${ROBERTO_CONDA_INSTALL_PATH}/envs/*/conda-bld
-  - rm -rf ${ROBERTO_CONDA_INSTALL_PATH}/envs/*/locks
-  - rm -rf ${ROBERTO_CONDA_INSTALL_PATH}/envs/*/pkgs
-  - rm -rf ${ROBERTO_CONDA_INSTALL_PATH}/envs/*/var
+  - rm -rf ${ROBERTO_CONDA_BASE_PATH}/conda-bld
+  - rm -rf ${ROBERTO_CONDA_BASE_PATH}/locks
+  - rm -rf ${ROBERTO_CONDA_BASE_PATH}/pkgs
+  - rm -rf ${ROBERTO_CONDA_BASE_PATH}/var
+  - rm -rf ${ROBERTO_CONDA_BASE_PATH}/envs/*/conda-bld
+  - rm -rf ${ROBERTO_CONDA_BASE_PATH}/envs/*/locks
+  - rm -rf ${ROBERTO_CONDA_BASE_PATH}/envs/*/pkgs
+  - rm -rf ${ROBERTO_CONDA_BASE_PATH}/envs/*/var
