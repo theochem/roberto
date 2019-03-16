@@ -161,13 +161,22 @@ def install_requirements(ctx):
         ctx.run("conda install --update-deps -y {}".format(" ".join(conda_packages)))
 
         print("Rendering conda package, extracting requirements, which will be installed.")
+
+        # First convert pinning to yaml code
+        pinned_words = ctx.conda.pinning.split()
+        variants = '{' + ','.join(
+            "{}: '{}'".format(name, version) for name, version
+            in zip(pinned_words[::2], pinned_words[1::2])) + '}'
+
         own_conda_packages = [package.conda_name for package in ctx.project.packages]
         for recipe_dir in recipe_dirs:
             # Send the output of conda render to a temporary directory.
             with tempfile.TemporaryDirectory() as tmpdir:
                 rendered_path = os.path.join(tmpdir, "rendered.yml")
-                ctx.run("conda render -f {} {}".format(rendered_path, recipe_dir),
-                        env={"PROJECT_VERSION": ctx.git.tag_version})
+                ctx.run(
+                    "conda render -f {} {} --variants \"{}\"".format(
+                        rendered_path, recipe_dir, variants),
+                    env={"PROJECT_VERSION": ctx.git.tag_version})
                 with open(rendered_path) as f:
                     rendered = yaml.load(f)
             # Build a (simplified) list of requirements and install.
