@@ -280,3 +280,17 @@ def parse_git_describe(git_describe: str) -> dict:
     else:
         version_info['deploy_label'] = None
     return version_info
+
+
+def write_sha256_sum(fn_asset):
+    """Make a sha256 checksum file, print it and return the checksum filename."""
+    hasher = hashlib.sha256()
+    with open(fn_asset, 'br') as f:
+        for chunck in iter(lambda: f.read(4096), b""):
+            hasher.update(chunck)
+    fn_sha256 = fn_asset + '.sha256'
+    with open(fn_sha256, 'w') as f:
+        line = '{}  {}'.format(hasher.hexdigest(), fn_asset)
+        f.write(line + '\n')
+        print(line)
+    return fn_sha256

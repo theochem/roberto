@@ -33,7 +33,7 @@ from invoke import task, Failure
 import yaml
 
 from .utils import (conda_deactivate, conda_activate, compute_req_hash,
-                    iter_packages_tools, run_all_commands)
+                    iter_packages_tools, run_all_commands, write_sha256_sum)
 
 
 def sanitize_branch(ctx, branch):
@@ -363,6 +363,13 @@ def deploy(ctx):
         if not assets:
             raise Failure("Could not find assets for {}: {}".format(
                 tool.name, ' '.join(tool.asset_patterns)))
+        # Make sha256 checksums
+        asset_hashes = set([])
+        for asset in assets:
+            fn_sha256 = write_sha256_sum(asset)
+            asset_hashes.add(fn_sha256)
+        if tool.get('include_sha256', False):
+            assets.update(asset_hashes)
         # Set extra formatting variables.
         fmtkargs.update({
             'assets': ' '.join(assets),

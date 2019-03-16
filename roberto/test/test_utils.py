@@ -25,7 +25,7 @@ from invoke import Context
 from invoke.config import DataProxy
 
 from ..utils import (update_env_command, compute_req_hash, parse_git_describe,
-                     iter_packages_tools)
+                     iter_packages_tools, write_sha256_sum)
 
 
 def test_update_env_command():
@@ -234,3 +234,26 @@ def test_iter_packages_tools():
           pk1, {'config': ctx.config, 'package': pk1}),
          ({'task': 'second', 'option2': 'egg', 'name': 'c'},
           pk2, {'config': ctx.config, 'package': pk2})]
+
+
+def test_write_sha256_sum_1(tmpdir):
+    fn_test = os.path.join(tmpdir, 'a.bin')
+    with open(fn_test, "wb") as f:
+        f.write(b"foobar\n")
+    fn_hash = write_sha256_sum(fn_test)
+    assert os.path.isfile(fn_hash)
+    with open(fn_hash, 'r') as f:
+        assert f.read() == ("aec070645fe53ee3b3763059376134f058cc337247c978add1"
+                            "78b6ccdfb0019f  {}\n").format(fn_test)
+
+
+def test_write_sha256_sum_1000(tmpdir):
+    fn_test = os.path.join(tmpdir, 'a.bin')
+    with open(fn_test, "wb") as f:
+        f.write(b"eggspam\n"*1000)
+    fn_hash = write_sha256_sum(fn_test)
+    assert os.path.isfile(fn_hash)
+    os.system("sha256sum {}".format(fn_test))
+    with open(fn_hash, 'r') as f:
+        assert f.read() == ("e3cf7ad45677ef171d77ec47e2dea492ba32e36b9d9fbcd0c9"
+                            "0951421d78bcc9  {}\n").format(fn_test)

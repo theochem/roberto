@@ -198,6 +198,7 @@ tools:
       - TWINE_USERNAME
       - TWINE_PASSWORD
     binary: false
+    include_sha256: true
     asset_patterns:
       - '{package.path}/dist/{package.name}-{config.git.tag_version}.*'
     deploy_labels:
@@ -212,6 +213,7 @@ tools:
     deploy_vars:
       - GITHUB_TOKEN
     binary: false
+    include_sha256: true
     asset_patterns:
       - '{package.path}/dist/{package.name}-{config.git.tag_version}.*'
     deploy_labels:
