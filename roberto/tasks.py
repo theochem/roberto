@@ -37,7 +37,19 @@ from .utils import (conda_deactivate, conda_activate, compute_req_hash,
 
 
 def sanitize_branch(ctx, branch):
-    """Take some basic steps to reasonably assure the presence of a branch."""
+    """Attempt to fix the presence of a branch.
+
+    The branch is checked with rev-parse. If not present, try to set it to
+    origin/branch. If that does not work, try to fetch it.
+
+    Parameters
+    ----------
+    ctx
+        A invoke.Context instance.
+    branch
+        The branch to resurrect.
+
+    """
     # Test if merge branch is present
     try:
         ctx.run("git rev-parse --verify {}".format(branch))
