@@ -14,14 +14,15 @@ docstrings. We need the output of:
 
 ``grep '^@task' tasks.py -A 2 -B 1 | grep -v -- --``
 
-The tasks `sanitize-git`, `install-conda`, `setup-conda-env` and `nuclear` are
-rather hard-coded and make sure a proper development environment is set up for
-the remaining tasks. In case of `nuclear`, the purpose is exactly the opposite,
-to tear down the development environment and to clean the repository.
+The tasks `sanitize-git`, `install-conda`, `setup-conda-env`,
+`install-requirements` and `nuclear` are rather hard-coded and make sure a
+proper development environment is set up for the remaining tasks. In case of
+`nuclear`, the purpose is exactly the opposite, to tear down the development
+environment and to clean the repository.
 
-The other tasks are controlled by the tools specified in the configuration file
-`.roberto.yml`, see :ref:`configuration`. Without this configuration, such tasks
-won't do much.
+The other tasks are controlled more by the tools specified in the configuration
+file `.roberto.yml`, see :ref:`configuration`. Without this configuration, such
+tasks won't do much.
 
 When `rob` is executed without arguments, the `robot` task is executed, which
 runs everything except nuclear. Alternatiely, you may provide one or more tasks

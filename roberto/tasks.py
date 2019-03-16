@@ -32,39 +32,8 @@ from invoke import task, Failure
 import yaml
 
 from .utils import (conda_deactivate, conda_activate, compute_req_hash,
-                    iter_packages_tools, run_all_commands, write_sha256_sum)
-
-
-def sanitize_branch(ctx, branch):
-    """Attempt to fix the presence of a branch.
-
-    The branch is checked with rev-parse. If not present, try to set it to
-    origin/branch. If that does not work, try to fetch it.
-
-    Parameters
-    ----------
-    ctx
-        A invoke.Context instance.
-    branch
-        The branch to resurrect.
-
-    """
-    # Test if merge branch is present
-    try:
-        ctx.run("git rev-parse --verify {}".format(branch))
-        return
-    except Failure:
-        print("Merge branch \"{}\" not found.".format(branch))
-
-    # Try to create it without connection to origin
-    try:
-        ctx.run("git branch --track {0} origin/{0}".format(branch))
-        return
-    except Failure:
-        print("Local copy of remote merge branch \"{}\" not found.".format(branch))
-
-    # Last resort: fetch the merge branch
-    ctx.run("git fetch origin {0}:{0}".format(branch))
+                    iter_packages_tools, run_all_commands, write_sha256_sum,
+                    sanitize_branch, need_deployment, check_env_var)
 
 
 @task()
@@ -294,94 +263,9 @@ def lint_dynamic(ctx):
 
 
 @task(install_requirements, write_version)
-def build_packages(ctx):
-    """Build software package(s)."""
-    run_all_commands(ctx, "build-packages")
-
-
-@task(install_requirements, write_version)
 def build_docs(ctx):
     """Build documentation."""
     run_all_commands(ctx, "build-docs")
-
-
-def need_deployment(ctx, prefix, binary, deploy_labels):
-    """Return True if deployment is needed.
-
-    Parameters
-    ----------
-    ctx
-        A invoke.Context instance.
-    prefix
-        The type of deployment, used for message printed to stdout.
-    binary
-        Whether or not a binary is being deployment. If binary, it may be of
-        interest to deploy for different architectures, which is controlled by
-        a config.deploy_binary, intead of config.deploy_source.
-    deploy_labels
-        A list of valid deploy labels for this release. If the current deploy
-        label matches any of the ones in the list, deployment is needed.
-
-    """
-    if binary and not ctx.deploy_binary:
-        print("{} not requested in configuration. (binary)".format(prefix))
-        return False
-    if not binary and not ctx.deploy_noarch:
-        print("{} not requested in configuration. (noarch)".format(prefix))
-        return False
-    if ctx.git.deploy_label not in deploy_labels:
-        print("{} skipped, because of deploy label {}.".format(prefix, ctx.git.deploy_label))
-        return False
-    return True
-
-
-def check_env_var(name):
-    """Check if an environment variable is set and non-empty."""
-    if name not in os.environ:
-        print('The environment variable {} is not set.'.format(name))
-    elif os.environ[name] == "":
-        print('The environment variable {} is empty.'.format(name))
-    else:
-        print('The environment variable {} is not empty.'.format(name))
-
-
-@task(install_requirements, build_packages)
-def deploy(ctx):
-    """Run all deployment tasks."""
-    checked_deploy_vars = set([])
-    for tool, package, fmtkargs in iter_packages_tools(ctx, "deploy"):
-        # Check if and how deployment vars are set.
-        for deploy_var in tool.deploy_vars:
-            if deploy_var not in checked_deploy_vars:
-                check_env_var(deploy_var)
-                checked_deploy_vars.add(deploy_var)
-        # Collect assets for each tool.
-        assets = set([])
-        for pattern in tool.asset_patterns:
-            assets.update(glob(pattern.format(**fmtkargs)))
-        if not assets:
-            raise Failure("Could not find assets for {}: {}".format(
-                tool.name, ' '.join(tool.asset_patterns)))
-        # Make sha256 checksums
-        asset_hashes = set([])
-        for asset in assets:
-            fn_sha256 = write_sha256_sum(asset)
-            asset_hashes.add(fn_sha256)
-        if tool.get('include_sha256', False):
-            assets.update(asset_hashes)
-        # Set extra formatting variables.
-        fmtkargs.update({
-            'assets': ' '.join(assets),
-            'hub_assets': ' '.join('-a {}'.format(asset) for asset in assets),
-        })
-        # Check if deployment is needed before running commands. This check
-        # is maximally postponed to increase the coverage of the code above.
-        prefix = '{} of {}'.format(tool.name, package.conda_name)
-        if need_deployment(ctx, prefix, tool.binary, tool.deploy_labels):
-            # Run deployment commands.
-            with ctx.cd(package.path):
-                for command in tool.commands:
-                    ctx.run(command.format(**fmtkargs), warn=True)
 
 
 @task(install_requirements, build_docs)
@@ -435,6 +319,51 @@ def upload_docs_git(ctx):
             else:
                 # Fallback for local doc updates.
                 ctx.run("git push -f {0} {1}:{1}".format(tool.docremote, tool.docbranch))
+
+
+@task(install_requirements, write_version)
+def build_packages(ctx):
+    """Build software package(s)."""
+    run_all_commands(ctx, "build-packages")
+
+
+@task(install_requirements, build_packages)
+def deploy(ctx):
+    """Run all deployment tasks."""
+    checked_deploy_vars = set([])
+    for tool, package, fmtkargs in iter_packages_tools(ctx, "deploy"):
+        # Check if and how deployment vars are set.
+        for deploy_var in tool.deploy_vars:
+            if deploy_var not in checked_deploy_vars:
+                check_env_var(deploy_var)
+                checked_deploy_vars.add(deploy_var)
+        # Collect assets for each tool.
+        assets = set([])
+        for pattern in tool.asset_patterns:
+            assets.update(glob(pattern.format(**fmtkargs)))
+        if not assets:
+            raise Failure("Could not find assets for {}: {}".format(
+                tool.name, ' '.join(tool.asset_patterns)))
+        # Make sha256 checksums
+        asset_hashes = set([])
+        for asset in assets:
+            fn_sha256 = write_sha256_sum(asset)
+            asset_hashes.add(fn_sha256)
+        if tool.get('include_sha256', False):
+            assets.update(asset_hashes)
+        # Set extra formatting variables.
+        fmtkargs.update({
+            'assets': ' '.join(assets),
+            'hub_assets': ' '.join('-a {}'.format(asset) for asset in assets),
+        })
+        # Check if deployment is needed before running commands. This check
+        # is maximally postponed to increase the coverage of the code above.
+        prefix = '{} of {}'.format(tool.name, package.conda_name)
+        if need_deployment(ctx, prefix, tool.binary, tool.deploy_labels):
+            # Run deployment commands.
+            with ctx.cd(package.path):
+                for command in tool.commands:
+                    ctx.run(command.format(**fmtkargs), warn=True)
 
 
 @task(setup_conda_env)

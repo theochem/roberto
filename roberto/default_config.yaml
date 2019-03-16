@@ -101,24 +101,6 @@ tools:
     commands_feature:
       - 'cardboardlinter -r {config.git.merge_branch} -f static'
 
-  cardboardlint-dynamic:
-    # The task lint-static performs linting that does require interpretation
-    # or compilation of the source code.
-    task: lint-dynamic
-    pip_requirements:
-      - git+https://github.com/theochem/cardboardlint.git@master#egg=cardboardlint
-    conda_requirements:
-      - pylint
-    # Commands to be executed when working in the merge_branch, usually
-    # this is the master branch.
-    commands_master:
-      - cardboardlinter -f dynamic
-    # Commdands to be executed when working in a feature banch, which is to
-    # be merged into the merge_branch. This makes it possible to filter out
-    # linting messages that are unrelated to the changes in the feature branch.
-    commands_feature:
-      - 'cardboardlinter -r {config.git.merge_branch} -f dynamic'
-
   build-py-inplace:
     # The task build-inplace builds the source code inside the repository and
     # it sets environment variables to use this in-place build. It also generates
@@ -185,6 +167,52 @@ tools:
         cd {package.name}; gcovr -r . --gcov-executable ${{HOST}}-gcov
         --object-directory ../build/{package.name}/CMakeFiles/{package.name}.dir
 
+  cardboardlint-dynamic:
+    # The task lint-static performs linting that does require interpretation
+    # or compilation of the source code.
+    task: lint-dynamic
+    pip_requirements:
+      - git+https://github.com/theochem/cardboardlint.git@master#egg=cardboardlint
+    conda_requirements:
+      - pylint
+    # Commands to be executed when working in the merge_branch, usually
+    # this is the master branch.
+    commands_master:
+      - cardboardlinter -f dynamic
+    # Commdands to be executed when working in a feature banch, which is to
+    # be merged into the merge_branch. This makes it possible to filter out
+    # linting messages that are unrelated to the changes in the feature branch.
+    commands_feature:
+      - 'cardboardlinter -r {config.git.merge_branch} -f dynamic'
+
+  build-sphinx-doc:
+    # The task build-docs compiles the (online) documentation.
+    task: build-docs
+    conda_requirements:
+      - sphinx
+    pip_requirements:
+      - sphinxcontrib-napoleon
+      - sphinx-autodoc-typehints
+      - sphinx-rtd-theme
+    # Bash commands to build the documentation
+    commands:
+      - cd doc; make html
+
+  upload-docs-gh:
+    # The task upload-docs-git pushes the previously built documentation to a
+    # git branch of choice.
+    task: upload-docs-git
+    # The root of the documentation website.
+    docroot: '{package.path}/doc/_build/html'
+    # The branch to push to. Changes will be amended and force-pushed.
+    docbranch: gh-pages
+    # The name of the git remote to push to.
+    docremote: origin
+    # Use labels to decide for which releases an upload is needed.
+    deploy_labels:
+      - main
+      - test
+
   build-py-source:
     # The task build-packages prepares packages for deployment.
     task: build-packages
@@ -213,19 +241,6 @@ tools:
         PROJECT_VERSION={config.git.tag_version}
         conda build tools/conda.recipe --override-channel --skip-existing
         --no-anaconda-upload
-
-  build-sphinx-doc:
-    # The task build-docs compiles the (online) documentation.
-    task: build-docs
-    conda_requirements:
-      - sphinx
-    pip_requirements:
-      - sphinxcontrib-napoleon
-      - sphinx-autodoc-typehints
-      - sphinx-rtd-theme
-    # Bash commands to build the documentation
-    commands:
-      - cd doc; make html
 
   deploy-pypi:
     # The task deploy uploads software packages to distribution servers.
@@ -285,18 +300,3 @@ tools:
       - dev
     commands:
       - 'anaconda -v upload --force -l {config.git.deploy_label} {assets}'
-
-  upload-docs-gh:
-    # The task upload-docs-git pushes the previously built documentation to a
-    # git branch of choice.
-    task: upload-docs-git
-    # The root of the documentation website.
-    docroot: '{package.path}/doc/_build/html'
-    # The branch to push to. Changes will be amended and force-pushed.
-    docbranch: gh-pages
-    # The name of the git remote to push to.
-    docremote: origin
-    # Use labels to decide for which releases an upload is needed.
-    deploy_labels:
-      - main
-      - test
