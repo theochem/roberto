@@ -303,7 +303,7 @@ def test_need_deployment():
 
 
 def test_write_sha256_sum_1(tmpdir):
-    fn_test = os.path.join(tmpdir, 'a.bin')
+    fn_test = os.path.join(str(tmpdir), 'a.bin')
     with open(fn_test, "wb") as f:
         f.write(b"foobar\n")
     fn_hash = write_sha256_sum(fn_test)
@@ -314,7 +314,7 @@ def test_write_sha256_sum_1(tmpdir):
 
 
 def test_write_sha256_sum_1000(tmpdir):
-    fn_test = os.path.join(tmpdir, 'a.bin')
+    fn_test = os.path.join(str(tmpdir), 'a.bin')
     with open(fn_test, "wb") as f:
         f.write(b"eggspam\n"*1000)
     fn_hash = write_sha256_sum(fn_test)
