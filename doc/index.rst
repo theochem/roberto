@@ -3,21 +3,17 @@
    You can adapt this file completely to your liking, but it should at least
    contain the root `toctree` directive.
 
-Welcome to Roberto's documentation!
-===================================
+Roberto |version| documentation
+===============================
 
-There is nothing here yet. This package is experimental and some documentation
-will be added soon.
+If this is the first time you're using Roberto, go to :ref:`readme`.
 
 .. toctree::
    :maxdepth: 2
    :caption: Contents:
 
-
-
-Indices and tables
-==================
-
-* :ref:`genindex`
-* :ref:`modindex`
-* :ref:`search`
+   readme
+   workflow
+   configuration
+   setupci
+   contributing

@@ -67,7 +67,7 @@ def sanitize_branch(ctx, branch):
     ctx.run("git fetch origin {0}:{0}".format(branch))
 
 
-@task
+@task()
 def sanitize_git(ctx):
     """Fetch required git branches when absent."""
     sanitize_branch(ctx, ctx.git.merge_branch)

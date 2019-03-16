@@ -43,7 +43,7 @@ def get_version():
 
 
 def load_readme():
-    """Load README.rst for display on PyPI."""
+    """Load README for display on PyPI."""
     with open('README.rst') as f:
         return f.read()
 
