@@ -233,11 +233,11 @@ tools:
       - conda-build
       - conda-verify
     commands:
-      # CONDA_BUILD_PATH must be set because otherwise local dependencies
+      # CONDA_BLD_PATH must be set because otherwise local dependencies
       # cannot be found when working in any other environment than base.
       # See https://github.com/conda/conda-build/issues/2592
       - >-
-        CONDA_BUILD_PATH={config.conda.build_path}
+        CONDA_BLD_PATH={config.conda.build_path}
         PROJECT_VERSION={config.git.tag_version}
         conda build tools/conda.recipe --override-channel --skip-existing
         --no-anaconda-upload
