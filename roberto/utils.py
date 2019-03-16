@@ -54,7 +54,7 @@ def parse_git_describe(git_describe: str) -> dict:
     git_describe = git_describe.strip()
     version_words = git_describe.split('-')
     tag = version_words[0]
-    version_parts = tag.split('.', 2)
+    version_parts = tag.split('.')
     if len(version_parts) != 3:
         raise TagError('A version tag must at least contain two dots.', tag)
 

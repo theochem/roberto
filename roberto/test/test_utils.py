@@ -20,11 +20,13 @@
 
 import os
 
+from pytest import raises
+
 from invoke import Context
 from invoke.config import DataProxy
 
 from ..utils import (update_env_command, compute_req_hash, parse_git_describe,
-                     iter_packages_tools, write_sha256_sum)
+                     iter_packages_tools, write_sha256_sum, TagError)
 
 
 def test_update_env_command():
@@ -206,6 +208,16 @@ def test_parse_git_describe():
         'tag_release': False,
         'deploy_label': None,
     }
+    with raises(TagError):
+        parse_git_describe('1.2')
+    with raises(TagError):
+        parse_git_describe('0.0.0.1')
+    with raises(TagError):
+        parse_git_describe('0.0.foo')
+    with raises(TagError):
+        parse_git_describe('0.foo.0')
+    with raises(TagError):
+        parse_git_describe('foo.0.0')
 
 
 def test_iter_packages_tools():
