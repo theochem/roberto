@@ -26,7 +26,8 @@ from invoke import Context
 from invoke.config import DataProxy
 
 from ..utils import (update_env_command, compute_req_hash, parse_git_describe,
-                     iter_packages_tools, write_sha256_sum, TagError)
+                     iter_packages_tools, write_sha256_sum, TagError,
+                     check_env_var, need_deployment)
 
 
 def test_update_env_command():
@@ -245,6 +246,60 @@ def test_iter_packages_tools():
           pk1, {'config': ctx.config, 'package': pk1}),
          ({'task': 'second', 'option2': 'egg', 'name': 'c'},
           pk2, {'config': ctx.config, 'package': pk2})]
+
+
+def test_check_env_var():
+    # This test assumes the following variable is not defined in the environment.
+    name = "d2f400557595b05b39dc6153567b2493c75b132114571b2bdd5d375c88ea732c"
+    assert name not in os.environ
+    assert check_env_var(name) == 'The environment variable {} is not set.'.format(name)
+    os.environ[name] = ''
+    assert check_env_var(name) == 'The environment variable {} is empty.'.format(name)
+    os.environ[name] = '1'
+    assert check_env_var(name) == 'The environment variable {} is not empty.'.format(name)
+
+
+def test_need_deployment():
+    ctx = DataProxy.from_data({
+        'deploy_binary': False,
+        'deploy_noarch': False,
+        'git': {'deploy_label': 'foo'}})
+    assert not need_deployment(ctx, '', True, ['foo', 'bar'])
+    assert not need_deployment(ctx, '', True, ['egg', 'foo'])
+    assert not need_deployment(ctx, '', True, ['bar', 'egg'])
+    assert not need_deployment(ctx, '', False, ['foo', 'bar'])
+    assert not need_deployment(ctx, '', False, ['egg', 'foo'])
+    assert not need_deployment(ctx, '', False, ['bar', 'egg'])
+    ctx = DataProxy.from_data({
+        'deploy_binary': True,
+        'deploy_noarch': False,
+        'git': {'deploy_label': 'foo'}})
+    assert need_deployment(ctx, '', True, ['foo', 'bar'])
+    assert need_deployment(ctx, '', True, ['egg', 'foo'])
+    assert not need_deployment(ctx, '', True, ['bar', 'egg'])
+    assert not need_deployment(ctx, '', False, ['foo', 'bar'])
+    assert not need_deployment(ctx, '', False, ['egg', 'foo'])
+    assert not need_deployment(ctx, '', False, ['bar', 'egg'])
+    ctx = DataProxy.from_data({
+        'deploy_binary': False,
+        'deploy_noarch': True,
+        'git': {'deploy_label': 'foo'}})
+    assert not need_deployment(ctx, '', True, ['foo', 'bar'])
+    assert not need_deployment(ctx, '', True, ['egg', 'foo'])
+    assert not need_deployment(ctx, '', True, ['bar', 'egg'])
+    assert need_deployment(ctx, '', False, ['foo', 'bar'])
+    assert need_deployment(ctx, '', False, ['egg', 'foo'])
+    assert not need_deployment(ctx, '', False, ['bar', 'egg'])
+    ctx = DataProxy.from_data({
+        'deploy_binary': True,
+        'deploy_noarch': True,
+        'git': {'deploy_label': 'foo'}})
+    assert need_deployment(ctx, '', True, ['foo', 'bar'])
+    assert need_deployment(ctx, '', True, ['egg', 'foo'])
+    assert not need_deployment(ctx, '', True, ['bar', 'egg'])
+    assert need_deployment(ctx, '', False, ['foo', 'bar'])
+    assert need_deployment(ctx, '', False, ['egg', 'foo'])
+    assert not need_deployment(ctx, '', False, ['bar', 'egg'])
 
 
 def test_write_sha256_sum_1(tmpdir):

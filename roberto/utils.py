@@ -326,11 +326,10 @@ def run_all_commands(ctx: Context, task: str, commands_name='commands', env=None
 def check_env_var(name):
     """Check if an environment variable is set and non-empty."""
     if name not in os.environ:
-        print('The environment variable {} is not set.'.format(name))
-    elif os.environ[name] == "":
-        print('The environment variable {} is empty.'.format(name))
-    else:
-        print('The environment variable {} is not empty.'.format(name))
+        return 'The environment variable {} is not set.'.format(name)
+    if os.environ[name] == "":
+        return 'The environment variable {} is empty.'.format(name)
+    return 'The environment variable {} is not empty.'.format(name)
 
 
 def need_deployment(ctx, prefix, binary, deploy_labels):

@@ -335,7 +335,7 @@ def deploy(ctx):
         # Check if and how deployment vars are set.
         for deploy_var in tool.deploy_vars:
             if deploy_var not in checked_deploy_vars:
-                check_env_var(deploy_var)
+                print(check_env_var(deploy_var))
                 checked_deploy_vars.add(deploy_var)
         # Collect assets for each tool.
         assets = set([])
