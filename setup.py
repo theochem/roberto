@@ -35,15 +35,12 @@ from setuptools import setup
 
 
 def get_version():
-    """Load the version from version.py, without importing it.
-
-    This function assumes that the last line in the file contains a variable defining the
-    version string with single quotes.
-
-    """
+    """Read __version__ from version.py, with exec to avoid importing ti."""
     try:
         with open('roberto/version.py', 'r') as f:
-            return f.read().split('=')[-1].replace('\'', '').strip()
+            myglobals = {}
+            exec(f.read(), myglobals)  # pylint: disable=exec-used
+        return myglobals['__version__']
     except IOError:
         return "0.0.0"
 
