@@ -26,7 +26,8 @@ conda:
   # The following are set automatically...
   env_name: null  # The name of the conda development environment.
   env_path: null  # The path of the conda development environment.
-deploy: false
+deploy_noarch: false  # Set to true for deployment of architecture-independent files.
+deploy_binary: false  # Set to true for deployment of architecture-dependent files.
 upload_coverage: false
 git:
   # Name of the branch being merged into, may be same as git.branch, if not a PR.
@@ -195,6 +196,7 @@ tools:
     deploy_vars:
       - TWINE_USERNAME
       - TWINE_PASSWORD
+    binary: false
     asset_patterns:
       - '{package.path}/dist/{package.name}-{config.git.tag_version}.*'
     deploy_labels:
@@ -208,6 +210,7 @@ tools:
       - hub
     deploy_vars:
       - GITHUB_TOKEN
+    binary: false
     asset_patterns:
       - '{package.path}/dist/{package.name}-{config.git.tag_version}.*'
     deploy_labels:
@@ -224,6 +227,7 @@ tools:
       - anaconda-client
     deploy_vars:
       - ANACONDA_API_TOKEN
+    binary: true
     asset_patterns:
       - '{config.conda.build_path}/*/{package.name}-{config.git.tag_version}-*.*'
     deploy_labels:
@@ -240,3 +244,4 @@ tools:
     docremote: origin
     deploy_labels:
       - main
+      - test

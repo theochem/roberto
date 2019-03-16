@@ -294,14 +294,32 @@ def build_docs(ctx):
     run_all_commands(ctx, "build-docs")
 
 
-def need_deployment(ctx, prefix):
-    """Return True if deployment is needed, globally speaking."""
-    if not ctx.deploy:
-        print("{} not requested in configuration.".format(prefix))
+def need_deployment(ctx, prefix, binary, deploy_labels):
+    """Return True if deployment is needed.
+
+    Parameters
+    ----------
+    ctx
+        A invoke.Context instance.
+    prefix
+        The type of deployment, used for message printed to stdout.
+    binary
+        Whether or not a binary is being deployment. If binary, it may be of
+        interest to deploy for different architectures, which is controlled by
+        a config.deploy_binary, intead of config.deploy_source.
+    deploy_labels
+        A list of valid deploy labels for this release. If the current deploy
+        label matches any of the ones in the list, deployment is needed.
+
+    """
+    if binary and not ctx.deploy_binary:
+        print("{} not requested in configuration. (binary)".format(prefix))
         return False
-    if ctx.git.deploy_label is None:
-        print("{} skipped because the version is not for release: {}".format(
-            prefix, ctx.git.tag_version))
+    if not binary and not ctx.deploy_noarch:
+        print("{} not requested in configuration. (noarch)".format(prefix))
+        return False
+    if ctx.git.deploy_label not in deploy_labels:
+        print("{} skipped, because of deploy label {}.".format(prefix, ctx.git.deploy_label))
         return False
     return True
 
@@ -319,9 +337,6 @@ def check_env_var(name):
 @task(install_requirements, build_packages)
 def deploy(ctx):
     """Run all deployment tasks."""
-    if not need_deployment(ctx, "Deployment"):
-        return
-
     checked_deploy_vars = set([])
     for tool, package, fmtkargs in iter_packages_tools(ctx, "deploy"):
         # Check if and how deployment vars are set.
@@ -336,28 +351,24 @@ def deploy(ctx):
         if not assets:
             raise Failure("Could not find assets for {}: {}".format(
                 tool.name, ' '.join(tool.asset_patterns)))
-        # Check if deployment is needed with deploy_label.
-        if ctx.git.deploy_label not in tool.deploy_labels:
-            print("Skipping {} for package {}, because of deploy label {}.".format(
-                tool.name, package.name, ctx.git.deploy_label))
-            continue
         # Set extra formatting variables.
         fmtkargs.update({
             'assets': ' '.join(assets),
             'hub_assets': ' '.join('-a {}'.format(asset) for asset in assets),
         })
-        # Run deployment commands.
-        with ctx.cd(package.path):
-            for command in tool.commands:
-                ctx.run(command.format(**fmtkargs), warn=True)
+        # Check if deployment is needed before running commands. This check
+        # is maximally postponed to increase the coverage of the code above.
+        prefix = '{} of {}'.format(tool.name, package.conda_name)
+        if need_deployment(ctx, prefix, tool.binary, tool.deploy_labels):
+            # Run deployment commands.
+            with ctx.cd(package.path):
+                for command in tool.commands:
+                    ctx.run(command.format(**fmtkargs), warn=True)
 
 
 @task(install_requirements, build_docs)
 def upload_docs_git(ctx):
     """Squash-push documentation to a git branch."""
-    if not need_deployment(ctx, "Doc upload"):
-        return
-
     # Try to get a git username and author argument for the doc commit.
     if 'GITHUB_TOKEN' in os.environ:
         # First get user info from the owner of the token
@@ -370,9 +381,8 @@ def upload_docs_git(ctx):
 
     for tool, package, fmtkargs in iter_packages_tools(ctx, "upload-docs-git"):
         # Check if deployment is needed with deploy_label.
-        if ctx.git.deploy_label not in tool.deploy_labels:
-            print("Skipping {} for package {}, because of deploy label {}.".format(
-                tool.name, package.name, ctx.git.deploy_label))
+        prefix = '{} of {}'.format(tool.name, package.conda_name)
+        if not need_deployment(ctx, prefix, False, tool.deploy_labels):
             continue
 
         with ctx.cd(package.path):

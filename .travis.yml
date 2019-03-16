@@ -33,27 +33,32 @@ matrix:
       language: generic
       env:
         - ROBERTO_CONDA_PINNING="python 3.5"
+        - ROBERTO_DEPLOY_BINARY=1
     - os: linux
       dist: xenial
       language: generic
       env:
         - ROBERTO_CONDA_PINNING="python 3.6"
+        - ROBERTO_DEPLOY_BINARY=1
     - os: linux
       dist: xenial
       language: generic
       env:
         - ROBERTO_CONDA_PINNING="python 3.7"
-        - ROBERTO_DEPLOY=1
+        - ROBERTO_DEPLOY_NOARCH=1
+        - ROBERTO_DEPLOY_BINARY=1
     - os: osx
       osx_image: xcode9.4
       language: generic
       env:
         - ROBERTO_CONDA_PINNING="python 3.6"
+        - ROBERTO_DEPLOY_BINARY=1
     - os: osx
       osx_image: xcode9.4
       language: generic
       env:
         - ROBERTO_CONDA_PINNING="python 3.7"
+        - ROBERTO_DEPLOY_BINARY=1
 
 # Debugging issues with encrypted tokens and passwords can be very tricky.
 # Here are some hints to overcome the most common problems:
@@ -151,7 +156,10 @@ cache:
 
 install:
   # Disable deployment when TRAVIS_TAG is not set. This avoids duplicate deployments.
-  - if [[ -z $TRAVIS_TAG ]]; then export ROBERTO_DEPLOY=0; fi
+  - >-
+    if [[ -z $TRAVIS_TAG ]]; then
+      export ROBERTO_DEPLOY_BINARY=0 ROBERTO_DEPLOY_NOARCH=0;
+    fi
   # Get a basic python 3 with pip to run roberto
   - python3 --version
   - wget --no-clobber -O ${HOME}/cache/get-pip.py https://bootstrap.pypa.io/get-pip.py || true
