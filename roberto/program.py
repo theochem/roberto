@@ -1,4 +1,3 @@
-# -*- coding: utf-8 -*-
 # Collection of configurable development workflows
 # Copyright (C) 2011-2019 The Roberto Development Team
 #

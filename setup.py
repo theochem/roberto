@@ -1,5 +1,4 @@
 #!/usr/bin/env python3
-# -*- coding: utf-8 -*-
 # Collection of configurable development workflows
 # Copyright (C) 2011-2019 The Roberto Development Team
 #
@@ -28,8 +27,6 @@ Alternatively, you can install from source with
 
     ./setup.py install --user
 """
-
-from __future__ import print_function
 
 from setuptools import setup
 

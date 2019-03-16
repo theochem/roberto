@@ -1,4 +1,7 @@
 linters:
+  - header:
+      extra: []
+      shebang: '#!/usr/bin/env python3'
   - import:
       packages: ['roberto']
   - pylint:
@@ -9,4 +12,5 @@ linters:
       config: .pydocstylerc
   - whitespace:
   - yamllint:
+      # meta.yaml is excluded because it contains jinja templating codes
       filefilter: ['- */meta.yaml', '+ *.yaml', '+ *.yml']
