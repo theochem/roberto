@@ -39,7 +39,7 @@ def get_version():
             exec(f.read(), myglobals)  # pylint: disable=exec-used
         return myglobals['__version__']
     except IOError:
-        return "0.0.0"
+        return "0.0.0.post0"
 
 
 def load_readme():
