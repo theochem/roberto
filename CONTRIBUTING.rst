@@ -5,12 +5,14 @@ Longer version:
 
 1. Before diving into technicalities: if you intend to make major changes,
    beyond fixing bugs and small functionality improvements, please open a Github
-   issue first, so we can discuss before coding. That often saves a lot of time
-   and trouble in the long run.
+   issue first, so we can discuss before coding. Please explain what you intend
+   to accomplish and why. That often saves a lot of time and trouble in the long
+   run.
 
    Use the issue to plan your changes. Try to solve only one problem at a time,
    instead of fixing several issues and adding different features in a single
-   shot. (Small changes are easier to review in the last step.)
+   shot. Small changes are easier to handle, also for the reviewer in the last
+   step below.
 
    Mention in the corresponding issue when you are working on it. "Claim" the
    issue to avoid duplicate efforts.
@@ -68,14 +70,16 @@ Longer version:
    If you feel the summary line is too short to describe what you did, it
    may be better to split your changes into multiple commits.
 
-9. Run Roberto on itself and fix all problems it reports. Style issues, failing
-   tests and packaging issues should all be detected at this stage. Either one
-   of the following should work
+9. Run Roberto on itself and fix all problems it reports. Either one of the
+   following should work
 
    .. code-block:: bash
 
     rob                 # Normal case
     python3 -m roberto  # Only if your PATH is not set correctly
+
+   Style issues, failing tests and packaging issues should all be detected at
+   this stage.
 
 10. Push your branch to your forked repository on Github:
 

@@ -1,31 +1,3 @@
-# Pro tip: when all else fails, you can debug travis builds on your local machine.
-# 1) Install docker-ce: https://docs.docker.com/install/
-# 2) Get an up-to-date travis-ci docker image. For our linux builds, these can
-#    be found here: https://hub.docker.com/r/travisci/ci-sardonyx/tags
-#    Download as follows:
-#        docker pull travisci/ci-sardonyx:packer-1549881206-387f377
-#    You may want to use a newer tag than packer-1549881206-387f377.
-#    This will take a while (3GB download)
-# 3) Run the headless image:
-#        BUILDID="build-$RANDOM"
-#        docker run --name $BUILDID \
-#            travisci/ci-sardonyx:packer-1549881206-387f377 \
-#            /sbin/init
-#    where you may also need to change the tag to be consistent with step 2.
-# 4) In another terminal window, run the following, to get into the docker
-#    instance:
-#        docker exec -it $BUILDID bash -l
-#    (Note that tab completion can be useful, instead of using env vars.)
-# 5) Once in the image, switch first to the travis user:
-#        su - travis
-# 6) Then run all the commands you encounter in the travis log and debug.
-# 7) When done, log out of the instance (exit two times)
-# 8) Stop the instance
-#        docker stop $BUILDID
-# 9) Clean up
-#        docker rm $BUILDID
-#    This will clean up your experiments, but not the image you downloaded.
-
 matrix:
   include:
     - os: linux
@@ -60,36 +32,12 @@ matrix:
         - ROBERTO_CONDA_PINNING="python 3.7"
         - ROBERTO_DEPLOY_BINARY=1
 
-# Debugging issues with encrypted tokens and passwords can be very tricky.
-# Here are some hints to overcome the most common problems:
-# - When the en- or decryption has somehow failed, the corresponding variables
-#   are not set. You should be able to see this in the header of the build
-#   log (under the section "Setting environment variables from .travis.yml").
-#   It normally shows all veriables, with the encrypted ones masked as
-#   MEANINGFULL_NAME=[secure]. When it failed, you see something like
-#   wPKmdvIo2cOt6SH02fDd=[secure].
-# - The deployment scripts will fail if the necessary tokens or passwords are
-#   not found in the right environment variables. Twine and hub will start
-#   asking for login crediatials. Anaconda will fail without clear error
-#   message. Roberto checks these variables and will print for each one if it is
-#   not set, empty or not empty.
-# - The order of the lines in the build log tends to get mixed up near the
-#   deployment scripts, so it may not be easy to follow what is going on.
-# - The simplest solution to try first, is a second attempt to encrypt the
-#   variables and to try again. If that does not work, try if something else
-#   is causing the problem by running the travis-ci image in a docker instance
-#   as explained on top of this file. In this docker instance, just use
-#   non-encrypted variables. It runs on your machine, so this is normally ok.
-# - We had some issues with encryption before on travis-ci.org that magically
-#   disappaered on travis-ci.com. The "--pro" argument mentioned in the
-#   instructions below is needed for travis-ci.com, not for travis-ci.org.
-#   Given that the .org is being fased out, the --pro option is included below.
-
 env:
   global:
     # Install conda in a *sub*directory of a directory cached by travis.
     - ROBERTO_CONDA_BASE_PATH=${HOME}/cache/miniconda3
-    # Tell Roberto to upload coverage results
+    # Roberto does not need to upload coverage. We will generate more coverage
+    # reports and upload them manually instead.
     # - ROBERTO_UPLOAD_COVERAGE=1
     # Build conda packages outside the miniconda tree, to avoid caching.
     # This makes it possible to still deploy packages after cache cleaning.
@@ -97,54 +45,12 @@ env:
     # Tell roberto which branch is being merged into, in case of a PR.
     - ROBERTO_MERGE_BRANCH=$(TRAVIS_BRANCH)
 
-    # Debugging options
-    # - HUB_VERBOSE=1
-
-    # Instructions for (re)setting up a GITHUB_TOKEN, for theochem admins
-    #   0) Install the travis-ci command-line client.
-    #      https://github.com/travis-ci/travis.rb#installation
-    #   1) Login with the Roberto's account on github.com.
-    #   2) Go to profile settings. (https://github.com/settings/profile)
-    #   3) Select "Developer settings".
-    #   4) Select "Personal access tokens".
-    #   5) Create a new token "automatic releases for theochem/***" and
-    #      activate "public_repo", then save.
-    #   6) Copy the token. It is only shown once.
-    #   7) Encrypt the token on the command line
-    #      travis encrypt --pro GITHUB_TOKEN="[copy-paste-your-github-token]"
-    #      This command asks for a username and password. Roberto's account
-    #      must be used.
-    #   8) Copy-paste the encrypted line below
-    #   9) Add the repository to the list the Buildtools team on theochem and
-    #      enable write permission.
     # GITHUB_TOKEN
     # yamllint disable-line rule:line-length
     - secure: "kHLuS7Znf25Zv0hYRYyHlZEV0X78Dcm6JyfCO0txokEZ/cNaxj/WknAmLVe9QYVx53LJ5pYS+3bL2eZiK3eop5SrriXnjc6P2miB5AAMcZI7o7WAiE6ov3I7SH/pg6ExZ599RG+nTOEQG7Ppio28SQSVMzu/jXHEzL/SY+UsYMAM/m4wSvfoTOgk60lm+EjBI27QGI+ZLbAvMUmHtWWSTTUAU4XgPWNEVIAyVOcFuEknKtjXOmfIF8nRi4Qfg0tCBpfuS762fag8sPpu6O/Vw8XA/ckFyfD2tCP2nOjc8fDfWm66VoDBu/Vm3IZ7Q1nacHezXqXBN3E+7SqMVWtk2LrVIhGx3eedkvPxMqIjU65mG6Xf+3PM1lB52+IJWbEC1OMVD8Z6UfmuCbKbO5d4dYyYUrQh6ASmPHumCaEB5Uf4FWWrcASgSbsdrFn7VfVE0BTPeZ7OVXV/imBRvGPZLoTnb5v08uzqf0VjBit4ZBiZLAc2yiL8UFZUG+V66w8jcG2/1s9zRISEHDcynnU1QkzPTyp0JdI5OPAWLdCxdi0P2EA/f3MjhYrujB6urYPVKISe+Rnwc81zXZANdYUuo6n6VMP1VIQPWO9fS5LVO7H9CyqBwNrpGwkCF0HoXuxG/JD/jn2KBBLJHmaXgGrjY8V4soAD5BFGP2Z0b3w3Pz4="
-    # Instructions for (re)setting up ANACONDA_API_TOKEN, for theochem admins
-    #   0) Install travis-ci command-line client.
-    #      https://github.com/travis-ci/travis.rb#installation
-    #   1) Login with Roberto's account on anaconda.org
-    #   2) Go to profile settings. (https://anaconda.org/theochem/settings/profile)
-    #   3) Select "Access".
-    #   4) Create a new token (Allow all API operations)
-    #   5) Copy the token.
-    #   6) Encrypt the token on the command line
-    #      travis encrypt --pro ANACONDA_API_TOKEN="[copy-paste-your-anaconda-token]"
-    #      This command asks for a username and password. Roberto's account
-    #      must be used.
-    #   7) Copy-paste the encrypted line below
     # ANACONDA_API_TOKEN
     # yamllint disable-line rule:line-length
     - secure: "ie+hspA2SV6eNsX12R84Yk3twT50LwX2p9qI1mIO3LzNLDON88X1zrU/k9uPX1h0tVHTp0gWycdg1g8bQOAsw8h75b6sdLWfWyaNTdP+z2V2daUvF9nLeA22GNDBv6/zlUCGD9n2F7HMQvqhGRa/rPPFX2aVS7QWZU3+WfDrxD09g8gzpdI3LfIk6TxgVXSXZRCwFYxuksnn3R0Hn1HVpHc3NHYNFg1KMG3+4zZluTSkDxJ7uW+8UEGmFfOmICk0J5izLm497KIeB7nrzw1gvMPQ9Y/rigxyIIazKl74dSl34SlCrt08ubcCf8cO9+Ci7SYQrIbfeILiGtDJaT056cc4yw18ryTsCcmGyLHbvguKeRTamkgb+flpA0Ry68iaZAP3CFzXYY+3lNe7DJ0Em60EBz1wfor1+k8GjKgZLv777i3vpND8R0eP9K3vfXYvcdfsYScya1Qh7zHeM/YrWar9hz0nCizoLhYab6jpj8MkygrV+vdDESiBrjhBo4UiYoYIngE/yNyKIixpheQwWYpGFXB7mWZlxnZg9mhBMnY7E6xqC15hOZGySTwdUhyS5hRfNNVePR/wZSoRfYkZdBGquP5so5vJyBZhiRcw2B7Qbz9jnsztN5QuexePBFxwCuVkz+l38RmGtRQ4izSC+6hCmHwa0vhIyQjX0tl9mmA="
-    # Instructions for (re)setting up TWINE_PASSWORD, for theochem admins
-    #   0) Install travis-ci command-line client.
-    #      https://github.com/travis-ci/travis.rb#installation
-    #   1) Encrypt Roberto's Pypi password on the command line
-    #      travis encrypt --pro TWINE_PASSWORD='[copy-paste-pypi-password]'
-    #      This command asks for a username and password. Roberto's account
-    #      must be used.
-    #   2) Copy-paste the encrypted line below
-    #   3) Fill in your username below.
     # TWINE_PASSWORD
     # yamllint disable-line rule:line-length
     - secure: "jlhDSD7sy8vXmdnLZokDTSrqX92oZxAA8Y+Z33mbefISGXsyi+JXprQ0dhOhp2Y7ZpzQT4YlQLHJxH5uc1v493eN6JFin1NsHknpDAaH42OXZHTGoQyuf5zZAtorD/VjuPtQmAPLksu7aIid24RG4qwRl3og9F7UCDs/QnFyPQMw84Xm5brMsNpANyROj5S8qNWk4/GARqr3Lzsq/SG5prXDgrO+FrCkS5OpjZTikDB7/8Ptp3YytgWQVl9RrA0RhFJiBLiVLXupxhLqxu84XFshesuPocFIxTe8jHbDZTQd49mBjDm6DfRQJNxgjg5CvMn+njRrP5aXwcxKM6zd21Vfcl1AoApP5Qd4f1ZUYEPjDm0ax6ipdKu/af4P/fCy99z/S2/Yxmh9JxPu65QqKBV4YEEy1BcflZLdKK3Syz0khspWoMGvDHdVKfcmOmvYQkmuH/QezEPPl49raOfPx8t+oW4nUEWMotMTFkFS9F/ahiKgjlxtLK5ZIIg5clo1gS0XfL85phm+NGBprbVd92JytUm1n/1F4eYquh0d6BRKYffV6ASMSOse5iadNmr30nQy2JIxzf65iZ8zYeYewLH4WOP6SjwkVGDnsRwemOU8oiXGP9EJqW0B3xkCGTj56e7WA7Hga5MUPRw2rYhSCX7c8IVUlf+z2yrG0Xs2Zwo="
@@ -162,6 +68,7 @@ install:
     fi
   # Get a basic python 3 with pip to run roberto
   - python3 --version
+  # TODO check if this is still needed
   - wget --no-clobber -O ${HOME}/cache/get-pip.py https://bootstrap.pypa.io/get-pip.py || true
   - python3 ${HOME}/cache/get-pip.py --user
   # Normally roberto should be installed from pypi, but roberto can take a shortcut.

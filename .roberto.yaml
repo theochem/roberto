@@ -7,6 +7,7 @@ project:
       tools:
         - write-py-version
         - cardboardlint-static
+        - build-py-inplace
         - pytest
         - cardboardlint-dynamic
         - build-sphinx-doc

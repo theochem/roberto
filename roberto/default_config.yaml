@@ -48,9 +48,8 @@ git:
   tag_release: false  # is the current build a release
 
 tools:
+  # Write a version.py file
   write-py-version:
-    # The task write-version writes version information to files in the source
-    # tree.
     task: write-version
     # A template for the file to be written, usually short.
     # You can use python string formatting to insert fields
@@ -66,6 +65,7 @@ tools:
     # The file to be written. Existing files are overwritten.
     destination: '{package.name}/version.py'
 
+  # Write a CMakeListsVersion.txt file
   write-cmake-version:
     task: write-version
     template: |
@@ -78,9 +78,10 @@ tools:
       set(GIT_TAG_VERSION_PATCH "{config.git.tag_version_patch}")
     destination: 'CMakeListsVersion.txt.in'
 
+  # Run the static linters with for cardboardlint as configured in in ~/.cardboardlint.yaml
+  # (Static liners do not require compilation or interpretaton of code.)
+  # See TODO URL Cardboardlint.
   cardboardlint-static:
-    # The task lint-static performs linting that does not require interpretation
-    # or compilation of the source code.
     task: lint-static
     pip_requirements:
       - git+https://github.com/theochem/cardboardlint.git@master#egg=cardboardlint
@@ -101,22 +102,20 @@ tools:
     commands_feature:
       - 'cardboardlinter -r {config.git.merge_branch} -f static'
 
+  # Perform an in-place build of a Python package. This may even be useful for
+  # pure python packages, to generate a suitable activate script.
   build-py-inplace:
-    # The task build-inplace builds the source code inside the repository and
-    # it sets environment variables to use this in-place build. It also generates
-    # an `activate-*.sh` script that can be sourced to use the in-place build
-    # after Roberto has completed. The build should be configured with debug
-    # and coverage settings enabled.
     task: build-inplace
     # Additions to PATH variables needed to use the in-place build.
     paths:
-      PYTHONPATH: '{package.path}/{package.name}'
+      PYTHONPATH: '{package.path}'
     # Bash commands to build in-place.
     commands:
       - >-
         python setup.py build_ext -i -L $LD_LIBRARY_PATH
         -I $CPATH --define CYTHON_TRACE_NOGIL
 
+  # Perform an in-place build of a CMake package.
   build-cmake-inplace:
     task: build-inplace
     paths:
@@ -127,9 +126,8 @@ tools:
       - cd build; cmake .. -DCMAKE_BUILD_TYPE=debug
       - cd build; make
 
+  # Run unit tests on an in-place build with pytest.
   pytest:
-    # The task test-inplace performs unit and other tests after the in-place
-    # build.
     task: test-inplace
     conda_requirements:
       - pytest
@@ -143,6 +141,7 @@ tools:
         --cov-report term-missing
         --cov-branch --color=yes
 
+  # Run unit tests on an in-place build with nosetests.
   nose:
     task: test-inplace
     conda_requirements:
@@ -156,6 +155,7 @@ tools:
         --cover-branches
       - coverage xml -i -o coverage_nose.xml
 
+  # Run unit tests on an in-place build with `make test`.
   maketest:
     task: test-inplace
     pip_requirements:
@@ -167,9 +167,10 @@ tools:
         cd {package.name}; gcovr -r . --gcov-executable ${{HOST}}-gcov
         --object-directory ../build/{package.name}/CMakeFiles/{package.name}.dir
 
+  # Run the dynamic linters with for cardboardlint as configured in in ~/.cardboardlint.yaml
+  # (Dynamic liners require compilation or interpretaton of code.)
+  # See TODO URL Cardboardlint.
   cardboardlint-dynamic:
-    # The task lint-static performs linting that does require interpretation
-    # or compilation of the source code.
     task: lint-dynamic
     pip_requirements:
       - git+https://github.com/theochem/cardboardlint.git@master#egg=cardboardlint
@@ -185,6 +186,7 @@ tools:
     commands_feature:
       - 'cardboardlinter -r {config.git.merge_branch} -f dynamic'
 
+  # Build the sphinx documentation
   build-sphinx-doc:
     # The task build-docs compiles the (online) documentation.
     task: build-docs
@@ -198,6 +200,7 @@ tools:
     commands:
       - cd doc; make html
 
+  # Upload (force-push) the sphinx documentation to gh-pages on github.com
   upload-docs-gh:
     # The task upload-docs-git pushes the previously built documentation to a
     # git branch of choice.
@@ -213,6 +216,7 @@ tools:
       - main
       - test
 
+  # Build a python sdist
   build-py-source:
     # The task build-packages prepares packages for deployment.
     task: build-packages
@@ -220,6 +224,7 @@ tools:
     commands:
       - python setup.py sdist
 
+  # Build a source distribution with cmake
   build-cmake-source:
     task: build-packages
     commands:
@@ -227,6 +232,7 @@ tools:
       - cd dist; cmake .. -DCMAKE_BUILD_TYPE=release
       - cd dist; make sdist
 
+  # Build a conda package
   build-conda:
     task: build-packages
     conda_requirements:
@@ -242,6 +248,7 @@ tools:
         conda build tools/conda.recipe --override-channel --skip-existing
         --no-anaconda-upload
 
+  # Upload python source packages to pypi
   deploy-pypi:
     # The task deploy uploads software packages to distribution servers.
     task: deploy
@@ -267,6 +274,7 @@ tools:
     commands:
       - twine upload {assets}
 
+  # Upload any source packages to github.com
   deploy-github:
     task: deploy
     conda_requirements:
@@ -285,6 +293,7 @@ tools:
         -m "Automatic release of version {config.git.tag_version}"
         {config.git.tag_version}
 
+  # Upload conda packages to anaconda.org
   deploy-conda:
     task: deploy
     conda_requirements:

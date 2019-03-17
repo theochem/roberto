@@ -38,7 +38,7 @@ from .utils import (conda_deactivate, conda_activate, compute_req_hash,
 
 @task()
 def sanitize_git(ctx):
-    """Fetch required git branches when absent."""
+    """Fetch the git branch to be merged into, if it is absent."""
     sanitize_branch(ctx, ctx.git.merge_branch)
 
 
@@ -205,7 +205,7 @@ def install_requirements(ctx):
 
 @task()
 def write_version(ctx):
-    """Derive the version files from git describe."""
+    """Derive the version files from ``git describe --tags``."""
     for tool, package, fmtkargs in iter_packages_tools(ctx, "write-version"):
         fn_version = tool.destination.format(**fmtkargs)
         content = tool.template.format(**fmtkargs)
@@ -224,7 +224,7 @@ def lint_static(ctx):
 
 @task(install_requirements, sanitize_git, write_version)
 def build_inplace(ctx):
-    """Build in-place."""
+    """Build software in-place and update environment variables."""
     # First do all the building.
     inplace_env = {}
     for tool, package, fmtkargs in iter_packages_tools(ctx, "build-inplace"):
@@ -349,7 +349,8 @@ def deploy(ctx):
         # Collect assets for each tool.
         assets = set([])
         for pattern in tool.asset_patterns:
-            assets.update(glob(pattern.format(**fmtkargs)))
+            assets.update([filename for filename in glob(pattern.format(**fmtkargs))
+                           if not filename.endswith("sha256")])
         if not assets:
             raise Failure("Could not find assets for {}: {}".format(
                 tool.name, ' '.join(tool.asset_patterns)))
@@ -377,7 +378,7 @@ def deploy(ctx):
 
 @task(setup_conda_env)
 def nuclear(ctx):
-    """USE AT YOUR OWN RISK. Purge conda env and stale files in source tree."""
+    """Purge the conda environment and stale source files. USE AT YOUR OWN RISK."""
     # Go back to the base env before nuking the development env.
     conda_deactivate(ctx, iterate=False)
     ctx.run("conda uninstall -n {} --all -y".format(ctx.conda.env_name))

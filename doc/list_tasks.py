@@ -44,7 +44,7 @@ def main():
     # Sort them by their dependencies
     todo_names = sorted(taskmap)
     done_names = []
-    while len(todo_names) > 0:
+    while todo_names:
         name = todo_names.pop(0)
         accept = True
         for prename in taskmap[name].prenames:
