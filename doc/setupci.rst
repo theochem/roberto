@@ -350,7 +350,7 @@ a Travis docker image:
 
    .. code-block:: bash
 
-       docker exec -it $BUILDID bash -l
+       docker exec -it foobar bash -l
 
 
 5. Once in the image, switch first to the travis user:

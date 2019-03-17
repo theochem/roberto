@@ -19,7 +19,6 @@
 # pylint: disable=invalid-name,redefined-builtin
 """Sphinx configuration."""
 
-import os
 from roberto.version import __version__
 
 # -- Project information -----------------------------------------------------
