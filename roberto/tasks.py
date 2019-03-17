@@ -381,7 +381,7 @@ def nuclear(ctx):
     # Go back to the base env before nuking the development env.
     conda_deactivate(ctx, iterate=False)
     ctx.run("conda uninstall -n {} --all -y".format(ctx.conda.env_name))
-    ctx.run("git clean -fdx")
+    ctx.run("git clean -fdX")
 
 
 @task(lint_static, build_inplace, test_inplace, lint_dynamic)
