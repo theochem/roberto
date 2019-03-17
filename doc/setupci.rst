@@ -111,15 +111,12 @@ Minimal example of a ``.travis.yaml`` file that uses Roberto
         - ROBERTO_MERGE_BRANCH=$(TRAVIS_BRANCH)
 
         # GITHUB_TOKEN
-        # TODO
         # yamllint disable-line rule:line-length
         # - secure: "..."
         # ANACONDA_API_TOKEN
-        # TODO
         # yamllint disable-line rule:line-length
         # - secure: "..."
         # TWINE_PASSWORD
-        # TODO
         # yamllint disable-line rule:line-length
         # - secure: "..."
         # - TWINE_USERNAME: theochem
@@ -139,7 +136,6 @@ Minimal example of a ``.travis.yaml`` file that uses Roberto
         fi
       # Get a basic python 3 with pip to run roberto
       - python3 --version
-      # TODO test if we really need to install pip on travis
       - wget --no-clobber -O ${HOME}/cache/get-pip.py
         https://bootstrap.pypa.io/get-pip.py || true
       - python3 ${HOME}/cache/get-pip.py --user

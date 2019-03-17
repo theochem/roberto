@@ -62,7 +62,6 @@ install:
     fi
   # Get a basic python 3 with pip to run roberto
   - python3 --version
-  # TODO check if this is still needed
   - wget --no-clobber -O ${HOME}/cache/get-pip.py https://bootstrap.pypa.io/get-pip.py || true
   - python3 ${HOME}/cache/get-pip.py --user
   # Normally roberto should be installed from pypi, but roberto can take a shortcut.
