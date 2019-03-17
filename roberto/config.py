@@ -72,6 +72,10 @@ class RobertoConfig(Config):
 
     def _finalize(self):
         """Derive some config variables for convenience."""
+        # Check if essential configuration is present.
+        if self.project.name is None:
+            raise TypeError("No project name defined in the configuration. Missing .roberty.yaml?")
+
         # Expand stuff in paths
         self.conda.download_path = os.path.expandvars(os.path.expanduser(self.conda.download_path))
         self.conda.base_path = os.path.expandvars(os.path.expanduser(self.conda.base_path))
