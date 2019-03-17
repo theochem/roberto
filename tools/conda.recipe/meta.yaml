@@ -34,8 +34,8 @@ test:
 about:
   dev_url: https://github.com/theochem/roberto
   description: Collection of configurable development workflows
-  license: GNU General Public License v3 or later (GPLv3+)
-  license_family: GPL3
+  license: GPL-3.0
+  license_family: GPL
   home: https://github.com/theochem/roberto
   license_file: LICENSE.txt
   doc_url: https://github.com/theochem/roberto
