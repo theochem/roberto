@@ -6,8 +6,6 @@
 Roberto |version| documentation
 ===============================
 
-TODO: fix version number
-
 If this is the first time you're using Roberto, go to :ref:`readme`.
 
 .. toctree::
