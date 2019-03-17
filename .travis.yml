@@ -4,12 +4,6 @@ matrix:
       dist: xenial
       language: generic
       env:
-        - ROBERTO_CONDA_PINNING="python 3.5"
-        - ROBERTO_DEPLOY_BINARY=1
-    - os: linux
-      dist: xenial
-      language: generic
-      env:
         - ROBERTO_CONDA_PINNING="python 3.6"
         - ROBERTO_DEPLOY_BINARY=1
     - os: linux
