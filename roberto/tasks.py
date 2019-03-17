@@ -356,20 +356,17 @@ def deploy(ctx):
             descr = '{} of {} (binary={})'.format(tool.name, package.conda_name, binary)
             print("Preparing for {}".format(descr))
             # Collect assets, skipping hash files previously generated.
-            assets = set([])
+            assets = []
             for pattern in asset_patterns:
-                assets.update([filename for filename in glob(pattern)
+                assets.extend([filename for filename in glob(pattern)
                                if not filename.endswith("sha256")])
             if not assets:
                 print("No assets found")
                 continue
             # Make sha256 checksums
-            asset_hashes = set([])
-            for asset in assets:
-                fn_sha256 = write_sha256_sum(asset)
-                asset_hashes.add(fn_sha256)
+            asset_hashes = [write_sha256_sum(asset) for asset in assets]
             if tool.get('include_sha256', False):
-                assets.update(asset_hashes)
+                assets.extend(asset_hashes)
             # Print final assets
             print("Assets for upload: {}".format(assets))
             # Set extra formatting variables.
