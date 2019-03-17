@@ -97,7 +97,8 @@ Development
 ===========
 
 If you have questions or ideas, just open an issue on Github. Practical
-information on how to contribute can be found in CONTRIBUTING.rst.
+information on how to contribute can be found in
+`CONTRIBUTING.rst <CONTRIBUTING.rst>`_.
 
 Roberto is intentionally a small code base, so one can easily understand how
 it works by reading the source code. Roberto makes extensive use of `invoke
