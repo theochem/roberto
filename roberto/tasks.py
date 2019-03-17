@@ -339,42 +339,48 @@ def build_packages(ctx):
 @task(install_requirements, build_packages)
 def deploy(ctx):
     """Run all deployment tasks."""
+    # Check if and how deployment vars are set.
     checked_deploy_vars = set([])
     for tool, package, fmtkargs in iter_packages_tools(ctx, "deploy"):
-        # Check if and how deployment vars are set.
         for deploy_var in tool.deploy_vars:
             if deploy_var not in checked_deploy_vars:
                 print(check_env_var(deploy_var))
                 checked_deploy_vars.add(deploy_var)
-        # Collect assets for each tool.
-        assets = set([])
-        asset_patterns = [pattern.format(**fmtkargs) for pattern in tool.asset_patterns]
-        for pattern in asset_patterns:
-            assets.update([filename for filename in glob(pattern)
-                           if not filename.endswith("sha256")])
-        if not assets:
-            raise Failure("Could not find assets for {}: {}".format(
-                tool.name, ' '.join(asset_patterns)))
-        # Make sha256 checksums
-        asset_hashes = set([])
-        for asset in assets:
-            fn_sha256 = write_sha256_sum(asset)
-            asset_hashes.add(fn_sha256)
-        if tool.get('include_sha256', False):
-            assets.update(asset_hashes)
-        # Set extra formatting variables.
-        fmtkargs.update({
-            'assets': ' '.join(assets),
-            'hub_assets': ' '.join('-a {}'.format(asset) for asset in assets),
-        })
-        # Check if deployment is needed before running commands. This check
-        # is maximally postponed to increase the coverage of the code above.
-        prefix = '{} of {}'.format(tool.name, package.conda_name)
-        if need_deployment(ctx, prefix, tool.binary, tool.deploy_labels):
-            # Run deployment commands.
-            with ctx.cd(package.path):
-                for command in tool.commands:
-                    ctx.run(command.format(**fmtkargs), warn=True)
+
+    for tool, package, fmtkargs in iter_packages_tools(ctx, "deploy"):
+        for binary, asset_patterns in [(True, tool.binary_asset_patterns),
+                                       (False, tool.noarch_asset_patterns)]:
+            # Fill in config variables in asset_patterns
+            asset_patterns = [pattern.format(**fmtkargs) for pattern in asset_patterns]
+            descr = '{} of {} (binary={})'.format(tool.name, package.conda_name, binary)
+            print("Preparing for {}".format(descr))
+            # Collect assets, skipping hash files previously generated.
+            assets = set([])
+            for pattern in asset_patterns:
+                assets.update([filename for filename in glob(pattern)
+                               if not filename.endswith("sha256")])
+            if not assets:
+                print("No assets found")
+                continue
+            # Make sha256 checksums
+            asset_hashes = set([])
+            for asset in assets:
+                fn_sha256 = write_sha256_sum(asset)
+                asset_hashes.add(fn_sha256)
+            if tool.get('include_sha256', False):
+                assets.update(asset_hashes)
+            # Set extra formatting variables.
+            fmtkargs.update({
+                'assets': ' '.join(assets),
+                'hub_assets': ' '.join('-a {}'.format(asset) for asset in assets),
+            })
+            # Check if deployment is needed before running commands. This check
+            # is maximally postponed to increase the coverage of the code above.
+            if need_deployment(ctx, descr, binary, tool.deploy_labels):
+                # Run deployment commands.
+                with ctx.cd(package.path):
+                    for command in tool.commands:
+                        ctx.run(command.format(**fmtkargs), warn=True)
 
 
 @task(setup_conda_env)

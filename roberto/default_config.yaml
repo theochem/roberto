@@ -259,13 +259,13 @@ tools:
       - TWINE_PASSWORD
     # If a binary file is uploaded, this can be indicated here. This is useful
     # to let CI servers upload binary packages for different architectures.
-    binary: false
     # Include a file with the sha256 sum when uploading, optional.
     include_sha256: true
-    # Glob patterns to locate the "assets", i.e. the software packages to be
-    # uploaded.
-    asset_patterns:
+    # Glob patterns to locate architecture-independent "assets".
+    noarch_asset_patterns:
       - '{package.path}/dist/{package.name}-{config.git.tag_version}.*'
+    # Glob patterns to locate binary "assets".
+    binary_asset_patterns: []
     # List labels here for when the deployment is required. With main, only
     # stable releases are uploaded.
     deploy_labels:
@@ -281,10 +281,10 @@ tools:
       - hub
     deploy_vars:
       - GITHUB_TOKEN
-    binary: false
     include_sha256: true
-    asset_patterns:
+    noarch_asset_patterns:
       - '{package.path}/dist/{package.name}-{config.git.tag_version}.*'
+    binary_asset_patterns: []
     deploy_labels:
       - main
     commands:
@@ -300,9 +300,12 @@ tools:
       - anaconda-client
     deploy_vars:
       - ANACONDA_API_TOKEN
-    binary: true
+    noarch_asset_patterns:
+      - '{config.conda.build_path}/noarch/{package.name}-{config.git.tag_version}-*.*'
+    binary_asset_patterns:
+      - '{config.conda.build_path}/linux-64/{package.name}-{config.git.tag_version}-*.*'
+      - '{config.conda.build_path}/osx-64/{package.name}-{config.git.tag_version}-*.*'
     asset_patterns:
-      - '{config.conda.build_path}/*/{package.name}-{config.git.tag_version}-*.*'
     deploy_labels:
       - main
       - test
