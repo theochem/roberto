@@ -274,7 +274,7 @@ def lint_dynamic(ctx):
 @task(install_requirements, build_inplace, write_version)
 def build_docs(ctx):
     """Build documentation."""
-    run_all_commands(ctx, "build-docs")
+    run_all_commands(ctx, "build-docs", env=ctx.project.inplace_env)
 
 
 @task(install_requirements, build_docs)
