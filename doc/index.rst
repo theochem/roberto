@@ -19,3 +19,4 @@ If this is the first time you're using Roberto, go to :ref:`readme`.
    configuration
    setupci
    contributing
+   changelog
