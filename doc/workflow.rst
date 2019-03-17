@@ -23,12 +23,11 @@ you specify which software packages need to be built and which tools should be
 used in each task. More details can be found in :ref:`configuration`.
 
 When Roberto starts, it will also run ``git describe --tags`` to determine the
-current version. It is assumed that git tags are complete `semantic version numbers <https://semver.org>`_.
-The expected format of a tag is just three numbers separated by dots, *not*
-prefixed with a ``v``. Roberto will fail when the last tag does not follow these
-conventions. The version information can be used in all tasks.
-
-TODO: fix link to semantic versioning.
+current version. It is assumed that git tags are complete `semantic version
+numbers <https://semver.org>`_. The expected format of a tag is just three
+numbers separated by dots, *not* prefixed with a ``v``. Roberto will fail when
+the last tag does not follow these conventions. The version information can be
+used in all tasks.
 
 For development purposes, it is often sufficient to run ``rob quality`` to
 perform all code quality checks or ``rob build-inplace`` to prepare a function

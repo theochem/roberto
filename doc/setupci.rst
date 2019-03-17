@@ -54,7 +54,7 @@ Tips and tricks for Travis-CI
 =============================
 
 Travis is extensively documented and this section does not replace that
-documentation. See TODO URL
+documentation. See https://docs.travis-ci.com/
 
 
 Minimal example of a ``.travis.yaml`` file that uses Roberto

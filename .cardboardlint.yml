@@ -12,5 +12,3 @@ linters:
       config: .pydocstylerc
   - whitespace:
   - yamllint:
-      # meta.yaml is excluded because it contains jinja templating codes
-      filefilter: ['- */meta.yaml', '+ *.yaml', '+ *.yml']

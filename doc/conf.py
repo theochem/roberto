@@ -20,6 +20,7 @@
 """Sphinx configuration."""
 
 import os
+from roberto.version import __version__
 
 # -- Project information -----------------------------------------------------
 
@@ -27,7 +28,7 @@ project = 'Roberto'
 copyright = '2019, The Roberto Development Team'
 author = 'The Roberto Development Team'
 
-release = os.environ.get('PROJECT_VERSION', '0.0.0')
+release = __version__
 version = '.'.join(release.split('.')[:2])
 
 # -- General configuration ---------------------------------------------------

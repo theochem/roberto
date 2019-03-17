@@ -12,13 +12,12 @@ BUILDDIR      = _build
 help:
 	@$(SPHINXBUILD) -M help "$(SOURCEDIR)" "$(BUILDDIR)" $(SPHINXOPTS) $(O)
 
-autogendoc: list_tasks.py ../roberto/tasks.py
+autogendoc:
 	./list_tasks.py > tasks_generated.rst.inc
 
-.PHONY: help Makefile
+.PHONY: help Makefile autogendoc
 
-# Catch-all target: route all unknown targets to Sphinx using the new
+# Match-anything rule: route all unknown targets to Sphinx using the new
 # "make mode" option.  $(O) is meant as a shortcut for $(SPHINXOPTS).
-# TODO: figure out how to work with % while not breaking autogendoc
-html: Makefile autogendoc
+%:: Makefile autogendoc
 	@$(SPHINXBUILD) -M $@ "$(SOURCEDIR)" "$(BUILDDIR)" $(SPHINXOPTS) $(O)

@@ -65,7 +65,7 @@ tools:
     # The file to be written. Existing files are overwritten.
     destination: '{package.name}/version.py'
 
-  # Write a CMakeListsVersion.txt file
+  # Write a CMakeListsVersion.txt.in file
   write-cmake-version:
     task: write-version
     template: |
@@ -80,7 +80,7 @@ tools:
 
   # Run the static linters with for cardboardlint as configured in in ~/.cardboardlint.yaml
   # (Static liners do not require compilation or interpretaton of code.)
-  # See TODO URL Cardboardlint.
+  # See https://github.com/theochem/cardboardlint/
   cardboardlint-static:
     task: lint-static
     pip_requirements:
@@ -169,7 +169,7 @@ tools:
 
   # Run the dynamic linters with for cardboardlint as configured in in ~/.cardboardlint.yaml
   # (Dynamic liners require compilation or interpretaton of code.)
-  # See TODO URL Cardboardlint.
+  # See https://github.com/theochem/cardboardlint/
   cardboardlint-dynamic:
     task: lint-dynamic
     pip_requirements:

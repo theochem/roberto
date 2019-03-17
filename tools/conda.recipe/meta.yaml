@@ -8,7 +8,7 @@ source:
 build:
   number: 0
   noarch: python
-  script: {{ PYTHON }} -m pip install . --no-deps
+  script: "{{ PYTHON }} -m pip install . --no-deps"
   entry_points:
     - rob = roberto.__main__:main
 

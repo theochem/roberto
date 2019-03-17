@@ -28,13 +28,18 @@ Alternatively, you can install from source with
     ./setup.py install --user
 """
 
+import os
+
 from setuptools import setup
 
 
+NAME = 'roberto'
+
+
 def get_version():
-    """Read __version__ from version.py, with exec to avoid importing ti."""
+    """Read __version__ from version.py, with exec to avoid importing it."""
     try:
-        with open('roberto/version.py', 'r') as f:
+        with open(os.path.join(NAME, 'version.py'), 'r') as f:
             myglobals = {}
             exec(f.read(), myglobals)  # pylint: disable=exec-used
         return myglobals['__version__']
@@ -49,15 +54,15 @@ def load_readme():
 
 
 setup(
-    name='roberto',
+    name=NAME,
     version=get_version(),
+    package_dir={NAME: NAME},
+    packages=[NAME, NAME + '.test'],
     description='Collection of configurable development workflows',
     long_description=load_readme(),
     author='HORTON-ChemTools Dev Team',
     author_email='horton.chemtools@gmail.com',
     url='https://github.com/theochem/roberto',
-    packages=['roberto', 'roberto.test'],
-    package_dir={'roberto': 'roberto'},
     include_package_data=True,
     install_requires=[
         'invoke', 'pyyaml', 'importlib_resources; python_version < "3.7"'],
