@@ -186,7 +186,7 @@ Setting up encrypted tokens and passwords (for theochem admins)
      travis encrypt --pro GITHUB_TOKEN="[copy-paste-your-github-token]"
 
    This command asks for a username and a password of the theochem-ci-bot
-   account.
+   account. (Do not use the ``--add`` feature.)
 
 8. Put the output in ``.travis.yaml``:
 
@@ -225,10 +225,10 @@ Setting up encrypted tokens and passwords (for theochem admins)
 
    .. code-block:: bash
 
-     travis encrypt --pro ANACONDA_API_TOKEN="[copy-paste-your-anaconda-token]" --add
+     travis encrypt --pro ANACONDA_API_TOKEN="[copy-paste-your-anaconda-token]"
 
    This command asks for a username and a password of the theochem-ci-bot
-   account.
+   account. (Do not use the ``--add`` feature.)
 
 7. Put the output in ``.travis.yaml``:
 
@@ -255,10 +255,10 @@ Setting up encrypted tokens and passwords (for theochem admins)
 
    .. code-block:: bash
 
-     travis encrypt --pro TWINE_PASSWORD='[copy-paste-pypi-password]' --add
+     travis encrypt --pro TWINE_PASSWORD='[copy-paste-pypi-password]'
 
    This command asks for a username and a password of the theochem-ci-bot
-   account.
+   account. (Do not use the ``--add`` feature.)
 
 2. Put the output and the username in ``.travis.yaml``:
 
