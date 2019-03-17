@@ -370,6 +370,8 @@ def deploy(ctx):
                 asset_hashes.add(fn_sha256)
             if tool.get('include_sha256', False):
                 assets.update(asset_hashes)
+            # Print final assets
+            print("Assets for upload: {}".format(assets))
             # Set extra formatting variables.
             fmtkargs.update({
                 'assets': ' '.join(assets),
