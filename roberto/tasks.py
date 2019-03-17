@@ -271,7 +271,7 @@ def lint_dynamic(ctx):
         run_all_commands(ctx, "lint-dynamic", 'commands_feature')
 
 
-@task(install_requirements, write_version)
+@task(install_requirements, build_inplace, write_version)
 def build_docs(ctx):
     """Build documentation."""
     run_all_commands(ctx, "build-docs")
