@@ -258,10 +258,8 @@ tools:
     deploy_vars:
       - TWINE_USERNAME
       - TWINE_PASSWORD
-    # If a binary file is uploaded, this can be indicated here. This is useful
-    # to let CI servers upload binary packages for different architectures.
     # Include a file with the sha256 sum when uploading, optional.
-    include_sha256: true
+    include_sha256: false
     # Glob patterns to locate architecture-independent "assets".
     noarch_asset_patterns:
       - '{package.path}/dist/{package.name}-{config.git.tag_version}.*'
@@ -306,7 +304,6 @@ tools:
     binary_asset_patterns:
       - '{config.conda.build_path}/linux-64/{package.name}-{config.git.tag_version}-*.*'
       - '{config.conda.build_path}/osx-64/{package.name}-{config.git.tag_version}-*.*'
-    asset_patterns:
     deploy_labels:
       - main
       - test

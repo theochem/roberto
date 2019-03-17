@@ -139,7 +139,8 @@ Minimal example of a ``.travis.yaml`` file that uses Roberto
       - wget --no-clobber -O ${HOME}/cache/get-pip.py
         https://bootstrap.pypa.io/get-pip.py || true
       - python3 ${HOME}/cache/get-pip.py --user
-      # To avoid surprises, constrain the major version number of roberto.
+      # To avoid surprises, constrain the major
+      # version number of roberto.
       - python3 -m pip install 'roberto<2.0.0' --user
 
     script:
