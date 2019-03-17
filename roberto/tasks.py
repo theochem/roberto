@@ -348,12 +348,13 @@ def deploy(ctx):
                 checked_deploy_vars.add(deploy_var)
         # Collect assets for each tool.
         assets = set([])
-        for pattern in tool.asset_patterns:
-            assets.update([filename for filename in glob(pattern.format(**fmtkargs))
+        asset_patterns = [pattern.format for pattern in tool.asset_patterns]
+        for pattern in asset_patterns:
+            assets.update([filename for filename in glob(pattern)
                            if not filename.endswith("sha256")])
         if not assets:
             raise Failure("Could not find assets for {}: {}".format(
-                tool.name, ' '.join(tool.asset_patterns)))
+                tool.name, ' '.join(asset_patterns)))
         # Make sha256 checksums
         asset_hashes = set([])
         for asset in assets:
