@@ -251,6 +251,7 @@ def build_inplace(ctx):
         for name, value in inplace_env.items():
             f.write('export {0}=${{{0}}}:{1}\n'.format(name, value))
         f.write('export PROJECT_VERSION={}\n'.format(ctx.git.tag_version))
+        f.write('export CONDA_BLD_PATH={}\n'.format(ctx.conda.build_path))
 
 
 @task(build_inplace)
