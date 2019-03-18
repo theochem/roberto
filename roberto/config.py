@@ -115,7 +115,7 @@ class RobertoConfig(Config):
 
         # Load default configuration
         with open_text('roberto', 'default_config.yaml') as f:
-            defaults = merge_dicts(defaults, yaml.load(f))
+            defaults = merge_dicts(defaults, yaml.safe_load(f))
 
         # Git version and branch information
         try:

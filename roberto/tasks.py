@@ -202,7 +202,7 @@ def install_requirements(ctx):
                         rendered_path, recipe_dir, variants),
                     env={"PROJECT_VERSION": ctx.git.tag_version})
                 with open(rendered_path) as f:
-                    rendered = yaml.load(f)
+                    rendered = yaml.safe_load(f)
             # Build a (simplified) list of requirements and install.
             requirements = set([])
             for reqtype in 'build', 'host', 'run':
