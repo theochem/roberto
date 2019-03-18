@@ -265,7 +265,8 @@ def build_inplace(ctx):
     ctx.project.inplace_env = inplace_env
     # Then also write a file, activate-*.sh, which can be sourced to
     # activate the in-place build.
-    with open('activate-{}.sh'.format(ctx.conda.env_name), 'w') as f:
+    fn_activate = 'activate-{}.sh'.format(ctx.conda.env_name)
+    with open(fn_activate, 'w') as f:
         f.write('[[ -n $CONDA_PREFIX_1 ]] && conda deactivate &> /dev/null\n')
         f.write('[[ -n $CONDA_PREFIX ]] && conda deactivate &> /dev/null\n')
         f.write('source {}/bin/activate\n'.format(ctx.conda.base_path))
@@ -279,6 +280,7 @@ def build_inplace(ctx):
             f.write('MACOSX_DEPLOYMENT_TARGET={}\n'.format(ctx.conda.macosx))
             f.write('SDKROOT={}\n'.format(ctx.conda.sdkroot))
             f.write('CONDA_BUILD_SYSROOT={}\n'.format(ctx.conda.sdkroot))
+    ctx.run("cat {}".format(fn_activate))
 
 
 @task(build_inplace)
