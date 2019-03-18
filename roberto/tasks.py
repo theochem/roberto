@@ -184,6 +184,12 @@ def install_requirements(ctx):
         # Update and install requirements for Roberto
         ctx.run("conda install --update-deps -y {}".format(" ".join(conda_packages)))
 
+        # Deactivate and activate conda again after every conda install,
+        # because more environment variables need to be set by the activation
+        # script.
+        conda_deactivate(ctx)
+        conda_activate(ctx, ctx.conda.env_name)
+
         print("Rendering conda package, extracting requirements, which will be installed.")
 
         # First convert pinning to yaml code
@@ -212,6 +218,12 @@ def install_requirements(ctx):
                         requirements.add("'" + " ".join(words[:2]) + "'")
             ctx.run("conda install --update-deps -y {}".format(" ".join(requirements)))
 
+            # Deactivate and activate conda again after every conda install,
+            # because more environment variables need to be set by the activation
+            # script.
+            conda_deactivate(ctx)
+            conda_activate(ctx, ctx.conda.env_name)
+
         # Update and install requirements for Roberto from pip, if any.
         if pip_packages:
             ctx.run("pip install --upgrade {}".format(" ".join(pip_packages)))
@@ -219,12 +231,6 @@ def install_requirements(ctx):
         # Update the timestamp on the skip file.
         with open(fn_skip, 'w') as f:
             f.write(req_hash + '\n')
-
-        # Deactivate and activate conda again, because more environment
-        # variables need to be set by the activation script after compilers
-        # have been installed.
-        conda_deactivate(ctx)
-        conda_activate(ctx, ctx.conda.env_name)
 
 
 @task()
