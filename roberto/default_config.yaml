@@ -170,7 +170,7 @@ tools:
     pip_requirements:
       - gcovr
     commands:
-      - cd build; find | grep '\\.gcda$' | xargs rm -vf
+      - cd build; find . | grep '\\.gcda$' | xargs rm -vf
       - cd build; make test
       - >-
         cd {package.name}; gcovr -r . --gcov-executable ${{HOST}}-gcov
