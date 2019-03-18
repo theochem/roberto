@@ -255,7 +255,7 @@ def build_inplace(ctx):
         paths = tool.get('paths', {})
         for name, dirname in paths.items():
             if dirname is None:
-                if  name not in inplace_env:
+                if name not in inplace_env:
                     inplace_env[name] = ""
             else:
                 dirname = dirname.format(**fmtkargs)
@@ -265,11 +265,7 @@ def build_inplace(ctx):
                 else:
                     inplace_env[name] = dirname
 
-    # Do all the building.
-    run_all_commands(ctx, "build-inplace", env=ctx.project.inplace_env)
-
-    # ctx.project.inplace_env = inplace_env
-    # Then also write a file, activate-*.sh, which can be sourced to
+    # Write a file, activate-*.sh, which can be sourced to
     # activate the in-place build.
     fn_activate = 'activate-{}.sh'.format(ctx.conda.env_name)
     with open(fn_activate, 'w') as f:
@@ -287,6 +283,9 @@ def build_inplace(ctx):
             f.write('SDKROOT={}\n'.format(ctx.conda.sdkroot))
             f.write('CONDA_BUILD_SYSROOT={}\n'.format(ctx.conda.sdkroot))
     ctx.run("cat {}".format(fn_activate))
+
+    # Do all the building.
+    run_all_commands(ctx, "build-inplace", env=ctx.project.inplace_env)
 
 
 @task(build_inplace)

@@ -113,13 +113,14 @@ tools:
     paths:
       # Variables with null will be initialized with an empty value.
       CPATH: null
-      LD_LIBRARY_PATH: null
+      LIBRARY_PATH: null
       PYTHONPATH: '{package.path}'
     # Bash commands to build in-place.
     commands:
       - >-
         python setup.py build_ext -i
-        -L "{config.project.inplace_env.LD_LIBRARY_PATH}"
+        -R "{config.project.inplace_env.LIBRARY_PATH}"
+        -L "{config.project.inplace_env.LIBRARY_PATH}"
         -I "{config.project.inplace_env.CPATH}"
         --define CYTHON_TRACE_NOGIL
 
@@ -128,7 +129,7 @@ tools:
     task: build-inplace
     paths:
       CPATH: '{package.path}'
-      LD_LIBRARY_PATH: '{package.path}/build/{package.name}'
+      LIBRARY_PATH: '{package.path}/build/{package.name}'
     commands:
       - mkdir -p build
       - cd build; cmake .. -DCMAKE_BUILD_TYPE=debug
