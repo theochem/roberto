@@ -27,7 +27,9 @@ conda:
   # The following are set automatically...
   env_name: null  # The name of the conda development environment.
   env_path: null  # The path of the conda development environment.
+  # Needed to make clang happy inside conda...
   macosx: '10.9'
+  maxosx_sdk_release: 'https://github.com/phracker/MacOSX-SDKs/releases/download/10.13'
 deploy_noarch: false  # Set to true for deployment of architecture-independent files.
 deploy_binary: false  # Set to true for deployment of architecture-dependent files.
 upload_coverage: false
@@ -113,14 +115,14 @@ tools:
     paths:
       # Variables with null will be initialized with an empty value.
       CPATH: null
-      LIBRARY_PATH: null
+      MY_LIBRARY_PATH: null
       PYTHONPATH: '{package.path}'
     # Bash commands to build in-place.
     commands:
       - >-
         python setup.py build_ext -i
-        -R "{config.project.inplace_env.LIBRARY_PATH}"
-        -L "{config.project.inplace_env.LIBRARY_PATH}"
+        -R "{config.project.inplace_env.MY_LIBRARY_PATH}"
+        -L "{config.project.inplace_env.MY_LIBRARY_PATH}"
         -I "{config.project.inplace_env.CPATH}"
         --define CYTHON_TRACE_NOGIL
 
@@ -129,7 +131,7 @@ tools:
     task: build-inplace
     paths:
       CPATH: '{package.path}'
-      LIBRARY_PATH: '{package.path}/build/{package.name}'
+      MY_LIBRARY_PATH: '{package.path}/build/{package.name}'
     commands:
       - mkdir -p build
       - cd build; cmake .. -DCMAKE_BUILD_TYPE=debug

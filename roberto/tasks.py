@@ -89,14 +89,16 @@ def install_conda(ctx):
         optdir = os.path.join(ctx.conda.base_path, 'opt')
         if not os.path.isdir(optdir):
             os.makedirs(optdir)
-        sdkroot = os.path.join(optdir, 'MacOSX{}.sdk'.format(ctx.conda.macosx))
+        sdk = 'MacOSX{}.sdk'.format(ctx.conda.macosx)
+        sdkroot = os.path.join(optdir, sdk)
         if not os.path.isdir(sdkroot):
-            dwnlsdk = os.path.join(dwnldir, 'MacOSX{}.sdk.tar.xz'.format(ctx.conda.macosx))
-            sdkurl = ('https://github.com/phracker/MacOSX-SDKs/releases/download/'
-                      '10.13/MacOSX{}.sdk.tar.xz'.format(ctx.conda.macosx))
-            urllib.request.urlretrieve(sdkurl, dwnlsdk)
+            sdktar = '{}.tar.xz'.format(sdk)
+            sdkdwnl = os.path.join(dwnldir, sdktar)
+            sdkurl = '{}/{}'.format(ctx.conda.maxosx_sdk_release, sdktar)
+            print("Downloading {}".format(sdkurl))
+            urllib.request.urlretrieve(sdkurl, sdkdwnl)
             with ctx.cd(optdir):
-                ctx.run('tar -xJf {}'.format(dwnlsdk))
+                ctx.run('tar -xJf {}'.format(sdkdwnl))
         os.environ['MACOSX_DEPLOYMENT_TARGET'] = ctx.conda.macosx
         os.environ['SDKROOT'] = sdkroot
         os.environ['CONDA_BUILD_SYSROOT'] = sdkroot
@@ -285,9 +287,9 @@ def build_inplace(ctx):
         f.write('export CONDA_BLD_PATH={}\n'.format(ctx.conda.build_path))
         if platform.system() == 'Darwin':
             f.write('# MacOSX specific variables\n')
-            f.write('MACOSX_DEPLOYMENT_TARGET={}\n'.format(ctx.conda.macosx))
-            f.write('SDKROOT={}\n'.format(ctx.conda.sdkroot))
-            f.write('CONDA_BUILD_SYSROOT={}\n'.format(ctx.conda.sdkroot))
+            f.write('export MACOSX_DEPLOYMENT_TARGET={}\n'.format(ctx.conda.macosx))
+            f.write('export SDKROOT={}\n'.format(ctx.conda.sdkroot))
+            f.write('export CONDA_BUILD_SYSROOT={}\n'.format(ctx.conda.sdkroot))
     ctx.run("cat {}".format(fn_activate))
 
     # Do all the building.
