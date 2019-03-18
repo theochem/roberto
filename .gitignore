@@ -4,6 +4,7 @@ roberto/version.py
 doc/_build
 coverage*.xml
 *.rst.inc
+.pytest_cache
 
 # Created by .ignore support plugin (hsz.mobi)
 ### macOS template
