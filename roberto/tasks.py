@@ -253,15 +253,15 @@ def build_inplace(ctx):
         with ctx.cd(package.path):
             for command in tool.commands:
                 ctx.run(command.format(**fmtkargs), env=inplace_env)
-                # Update *PATH variables in environment for subsequent paclages.
-                paths = tool.get('paths', {})
-                for name, dirname in paths.items():
-                    dirname = dirname.format(**fmtkargs)
-                    dirname = os.path.abspath(dirname)
-                    if name in inplace_env:
-                        inplace_env[name] += ':' + dirname
-                    else:
-                        inplace_env[name] = dirname
+            # Update *PATH variables in environment for subsequent packages.
+            paths = tool.get('paths', {})
+            for name, dirname in paths.items():
+                dirname = dirname.format(**fmtkargs)
+                dirname = os.path.abspath(dirname)
+                if name in inplace_env:
+                    inplace_env[name] += ':' + dirname
+                else:
+                    inplace_env[name] = dirname
     ctx.project.inplace_env = inplace_env
     # Then also write a file, activate-*.sh, which can be sourced to
     # activate the in-place build.
