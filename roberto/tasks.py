@@ -45,8 +45,6 @@ def sanitize_git(ctx):
 @task()
 def install_conda(ctx):
     """Install miniconda if not present yet. On OSX, also install the SDK."""
-    system = platform.system()
-
     # Prepare the download directory
     dwnldir = ctx.conda.download_dir
     if not os.path.isdir(dwnldir):
@@ -60,12 +58,12 @@ def install_conda(ctx):
             print("Conda installer already present: {}".format(dwnlconda))
         else:
             print("Downloading latest conda to {}.".format(dwnlconda))
-            if system == 'Darwin':
+            if platform.system() == 'Darwin':
                 urllib.request.urlretrieve(ctx.conda.osx_url, dwnlconda)
-            elif system == 'Linux':
+            elif platform.system() == 'Linux':
                 urllib.request.urlretrieve(ctx.conda.linux_url, dwnlconda)
             else:
-                raise Failure("Operating system {} not supported.".format(system))
+                raise Failure("Operating system {} not supported.".format(platform.system()))
 
         # Fix permissions of the conda installer.
         os.chmod(dwnlconda, os.stat(dwnlconda).st_mode | stat.S_IXUSR)
@@ -87,7 +85,7 @@ def install_conda(ctx):
         ctx.run("conda update -n base -c defaults conda -y")
 
     # Install MacOSX SDK if on OSX
-    if system == 'Darwin':
+    if platform.system() == 'Darwin':
         optdir = os.path.join(ctx.conda.base_path, 'opt')
         if not os.path.isdir(optdir):
             os.makedirs(optdir)
@@ -143,6 +141,10 @@ def setup_conda_env(ctx):
         # to avoid pulling in lots of conda-forge packages, which may be
         # lower quality than their counterparts in the default channels.
         ctx.run("conda config --append channels {}".format(channel))
+
+    # Check on OSX if System Integrity Protection (SIP) is enabled
+    if platform.system() == 'Darwin':
+        ctx.run('csrutil status', warn=True)
 
 
 @task(setup_conda_env)
