@@ -44,36 +44,38 @@ def sanitize_git(ctx):
 
 @task()
 def install_conda(ctx):
-    """Install miniconda if not present yet."""
+    """Install miniconda if not present yet. On OSX, also install the SDK."""
+    system = platform.system()
+
+    # Prepare the download directory
+    dwnldir = ctx.conda.download_dir
+    if not os.path.isdir(dwnldir):
+        os.makedirs(dwnldir)
+
+    # Install miniconda if needed.
     dest = ctx.conda.base_path
     if not os.path.isdir(os.path.join(dest, 'bin')):
-        # Prepare download location
-        dwnl = ctx.conda.download_path
-        dwnldir = os.path.dirname(dwnl)
-        if not os.path.isdir(dwnldir):
-            os.makedirs(dwnldir)
-
-        if os.path.isfile(dwnl):
-            print("Conda installer already present: {}".format(dwnl))
+        dwnlconda = os.path.join(dwnldir, 'miniconda.sh')
+        if os.path.isfile(dwnlconda):
+            print("Conda installer already present: {}".format(dwnlconda))
         else:
-            print("Downloading latest conda to {}.".format(dwnl))
-            system = platform.system()
+            print("Downloading latest conda to {}.".format(dwnlconda))
             if system == 'Darwin':
-                urllib.request.urlretrieve(ctx.conda.osx_url, dwnl)
+                urllib.request.urlretrieve(ctx.conda.osx_url, dwnlconda)
             elif system == 'Linux':
-                urllib.request.urlretrieve(ctx.conda.linux_url, dwnl)
+                urllib.request.urlretrieve(ctx.conda.linux_url, dwnlconda)
             else:
                 raise Failure("Operating system {} not supported.".format(system))
 
         # Fix permissions of the conda installer.
-        os.chmod(dwnl, os.stat(dwnl).st_mode | stat.S_IXUSR)
+        os.chmod(dwnlconda, os.stat(dwnlconda).st_mode | stat.S_IXUSR)
 
         # Unload any currently loaded conda environments.
         conda_deactivate(ctx)
 
         # Install
         print("Installing conda in {}.".format(dest))
-        ctx.run("{} -b -p {}".format(dwnl, dest))
+        ctx.run("{} -b -p {}".format(dwnlconda, dest))
 
         # Load our new conda environment
         conda_activate(ctx, "base")
@@ -83,6 +85,26 @@ def install_conda(ctx):
         # latest versions might also have their issues. At the moment, updating
         # is unavoidable becuase we are otherwise hitting bugs.
         ctx.run("conda update -n base -c defaults conda -y")
+
+    # Install MacOSX SDK if on OSX
+    if system == 'Darwin':
+        optdir = os.path.join(ctx.conda.base_path, 'opt')
+        if not os.path.isdir(optdir):
+            os.makedirs(optdir)
+        sdkroot = os.path.join(optdir, 'MacOSX{}.sdk'.format(ctx.conda.macosx))
+        if not os.path.isdir(sdkroot):
+            dwnlsdk = os.path.join(dwnldir, 'MacOSX{}.sdk.tar.xz'.format(ctx.conda.macosx))
+            sdkurl = ('https://github.com/phracker/MacOSX-SDKs/releases/download/'
+                      '10.13/MacOSX{}.sdk.tar.xz'.format(ctx.conda.macosx))
+            urllib.request.urlretrieve(sdkurl, dwnlsdk)
+            with ctx.cd(optdir):
+                ctx.run('tar -xJf {}'.format(dwnlsdk))
+        os.environ['MACOSX_DEPLOYMENT_TARGET'] = ctx.conda.macosx
+        os.environ['SDKROOT'] = sdkroot
+        os.environ['CONDA_BUILD_SYSROOT'] = sdkroot
+        print('MaxOSX sdk in: {}'.format(sdkroot))
+        ctx.run('ls -alh {}'.format(sdkroot))
+        ctx.conda.sdkroot = sdkroot
 
 
 @task(install_conda)
@@ -252,6 +274,11 @@ def build_inplace(ctx):
             f.write('export {0}=${{{0}}}:{1}\n'.format(name, value))
         f.write('export PROJECT_VERSION={}\n'.format(ctx.git.tag_version))
         f.write('export CONDA_BLD_PATH={}\n'.format(ctx.conda.build_path))
+        if platform.system() == 'Darwin':
+            f.write('# MacOSX specific variables\n')
+            f.write('MACOSX_DEPLOYMENT_TARGET={}\n'.format(ctx.conda.macosx))
+            f.write('SDKROOT={}\n'.format(ctx.conda.sdkroot))
+            f.write('CONDA_BUILD_SYSROOT={}\n'.format(ctx.conda.sdkroot))
 
 
 @task(build_inplace)

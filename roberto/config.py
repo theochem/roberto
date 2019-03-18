@@ -77,7 +77,7 @@ class RobertoConfig(Config):
             raise TypeError("No project name defined in the configuration. Missing .roberty.yaml?")
 
         # Expand stuff in paths
-        self.conda.download_path = os.path.expandvars(os.path.expanduser(self.conda.download_path))
+        self.conda.download_dir = os.path.expandvars(os.path.expanduser(self.conda.download_dir))
         self.conda.base_path = os.path.expandvars(os.path.expanduser(self.conda.base_path))
 
         # Derive the name for the conda environment.

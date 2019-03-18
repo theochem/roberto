@@ -14,7 +14,7 @@ project:
 run:
   echo: true
 conda:
-  download_path: '${HOME}/Downloads/miniconda.sh'
+  download_dir: '${HOME}/Downloads/'  # Used for downloading miniconda and optionally macosx sdk
   linux_url: 'https://repo.continuum.io/miniconda/Miniconda3-latest-Linux-x86_64.sh'
   osx_url: 'https://repo.continuum.io/miniconda/Miniconda3-latest-MacOSX-x86_64.sh'
   base_path: '${HOME}/miniconda3'
@@ -26,6 +26,7 @@ conda:
   # The following are set automatically...
   env_name: null  # The name of the conda development environment.
   env_path: null  # The path of the conda development environment.
+  macosx: '10.9'
 deploy_noarch: false  # Set to true for deployment of architecture-independent files.
 deploy_binary: false  # Set to true for deployment of architecture-dependent files.
 upload_coverage: false
@@ -113,8 +114,8 @@ tools:
     # Bash commands to build in-place.
     commands:
       - >-
-        python setup.py build_ext -i -L $LD_LIBRARY_PATH
-        -I $CPATH --define CYTHON_TRACE_NOGIL
+        python setup.py build_ext -i -L "$LD_LIBRARY_PATH"
+        -I "$CPATH" --define CYTHON_TRACE_NOGIL
 
   # Perform an in-place build of a CMake package.
   build-cmake-inplace:
