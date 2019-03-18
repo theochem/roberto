@@ -133,7 +133,7 @@ tools:
     commands:
       - mkdir -p build
       - cd build; cmake .. -DCMAKE_BUILD_TYPE=debug
-      - cd build; make
+      - cd build; VERBOSE=1 make
 
   # Run unit tests on an in-place build with pytest.
   pytest:
