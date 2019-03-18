@@ -139,10 +139,13 @@ class RobertoConfig(Config):
                     ["git", "describe", "--tags", "--exact-match"],
                     stdout=subprocess.PIPE, check=True).stdout.decode('utf-8').strip()
             except subprocess.CalledProcessError:
-                # Final attempt, just the sha, should always work.
-                branch = subprocess.run(
-                    ["git", "rev-parse", "HEAD"],
-                    stdout=subprocess.PIPE, check=True).stdout.decode('utf-8').strip()
+                # Final attempt, just the sha.
+                try:
+                    branch = subprocess.run(
+                        ["git", "rev-parse", "HEAD"],
+                        stdout=subprocess.PIPE, check=True).stdout.decode('utf-8').strip()
+                except subprocess.CalledProcessError:
+                    branch = '__nogit__'
         defaults['git']['branch'] = branch
 
         return defaults
