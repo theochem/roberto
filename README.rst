@@ -13,7 +13,7 @@ theochem organization on Github.
 With a relatively simple configuration file (``.roberto.yaml``), the command
 ``rob`` will take the following steps:
 
-1. Install miniconda.
+1. Install miniconda (and a MacOSX SDK on OSX).
 2. Make a conda environment for development and testing
 3. Install dependencies (for the package being developed and for all
    development tools).
