@@ -1,4 +1,5 @@
 project:
+  inplace_env: {}
   name: null
   packages: [
   # Repeat as many as you like. The order determines the order in which they
@@ -110,12 +111,17 @@ tools:
     task: build-inplace
     # Additions to PATH variables needed to use the in-place build.
     paths:
+      # Variables with null will be initialized with an empty value.
+      CPATH: null
+      LD_LIBRARY_PATH: null
       PYTHONPATH: '{package.path}'
     # Bash commands to build in-place.
     commands:
       - >-
-        python setup.py build_ext -i -L "$LD_LIBRARY_PATH"
-        -I "$CPATH" --define CYTHON_TRACE_NOGIL
+        python setup.py build_ext -i
+        -L "{config.project.inplace_env.LD_LIBRARY_PATH}"
+        -I "{config.project.inplace_env.CPATH}"
+        --define CYTHON_TRACE_NOGIL
 
   # Perform an in-place build of a CMake package.
   build-cmake-inplace:
