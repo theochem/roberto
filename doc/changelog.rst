@@ -3,6 +3,10 @@
 Change log
 ##########
 
+- Version 1.2.0
+
+  - Make pytest run in parallel.
+
 - Versoin 1.1.1 March 18, 2019
 
   - Fix bugs in SDK download and usage on OSX.

@@ -143,6 +143,7 @@ tools:
     conda_requirements:
       - pytest
       - pytest-cov
+      - pytest-xdist
     # Bash commands to perform the tests. Environment variables defined in the
     # in-place build will still be set.
     commands:
@@ -151,6 +152,7 @@ tools:
         --cov-report xml:coverage_pytest.xml
         --cov-report term-missing
         --cov-branch --color=yes
+        -n auto
 
   # Run unit tests on an in-place build with nosetests.
   nose:
