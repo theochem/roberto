@@ -64,14 +64,8 @@ prefer:
     python3 -m pip install roberto
     python3 -m pip install roberto --user
 
-On some platforms, you may have to adapt your ``${PATH}`` variable before you can run ``rob``.
-
-When your ``${PATH}`` is set correctly and if you want tab completion for
-Roberto, put the following file in your ``.bashrc``:
-
-.. code-block:: bash
-
-    source <(rob --print-completion-script bash)
+On some platforms, you may have to adapt your ``${PATH}`` variable before you
+can run ``rob``.
 
 
 Usage
