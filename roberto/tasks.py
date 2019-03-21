@@ -167,7 +167,6 @@ def install_requirements(ctx):
     pip_packages = sorted(pip_packages)
     recipe_dirs = sorted(recipe_dirs)
     req_hash = compute_req_hash(conda_packages, recipe_dirs, pip_packages)
-    print("The requirements hash is: {}".format(req_hash))
 
     # The install and update will be skipped if it was done already once,
     # less than 24 hours ago and the req_hash has not changed.
@@ -183,6 +182,9 @@ def install_requirements(ctx):
         print("Skipping install+update of packages in conda env.")
         print("To force install+update: rm {}".format(fn_skip))
     else:
+        print("Starting install+update of packages in conda env.")
+        print("To skip install+update: echo {} > {}".format(req_hash, fn_skip))
+
         # Update and install requirements for Roberto
         ctx.run("conda install --update-deps -y {}".format(" ".join(conda_packages)))
 
