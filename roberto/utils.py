@@ -301,7 +301,7 @@ def iter_packages_tools(ctx: Context, task: str):
                 yield tool, package, fmtkargs
 
 
-def run_all_commands(ctx: Context, task: str, commands_name='commands', env=None):
+def run_all_commands(ctx: Context, task: str, commands_name='commands'):
     """Run a specific subtask from a list of tools for all packages.
 
     Parameters
@@ -312,15 +312,13 @@ def run_all_commands(ctx: Context, task: str, commands_name='commands', env=None
         A subtask, defined by Roberto's (main) tasks.
     commands_name
         The name of the commands field in the tool to use.
-    env
-        Custom environment variables needed by the tools.
 
     """
     for tool, package, fmtkargs in iter_packages_tools(ctx, task):
         with ctx.cd(package.path):
             commands = tool.get(commands_name, [])
             for command in commands:
-                ctx.run(command.format(**fmtkargs), env=env)
+                ctx.run(command.format(**fmtkargs))
 
 
 def check_env_var(name):

@@ -1,5 +1,4 @@
 project:
-  inplace_env: {}
   name: null
   packages: [
   # Repeat as many as you like. The order determines the order in which they
@@ -111,27 +110,38 @@ tools:
   # pure python packages, to generate a suitable activate script.
   build-py-inplace:
     task: build-inplace
-    # Additions to PATH variables needed to use the in-place build.
-    paths:
+    # Additions to *PATH variables due to this in-place build, possibly needed
+    # by other packages, or when one would like to use the in-place build.
+    export_paths:
       # Variables with null will be initialized with an empty value.
-      CPATH: null
-      MY_LIBRARY_PATH: null
       PYTHONPATH: '{package.path}'
+    # Environment variables that could affect this in-place build. When listed
+    # here, their contents before any in-place build are printed, so one sees
+    # pre-existing variables that may affect the in-place build.
+    check_vars:
+      - RPATH
+      - CPATH
+      - PYTHONPATH
     # Bash commands to build in-place.
     commands:
+      # Note that distutils is not very clever with empty -R, -L and -I
+      # arguments. They would simply result in disfunctional compiler arguments
+      # which we have to avoid. Hence, some ugly bash is needed.
       - >-
         python setup.py build_ext -i
-        -R "{config.project.inplace_env.MY_LIBRARY_PATH}"
-        -L "{config.project.inplace_env.MY_LIBRARY_PATH}"
-        -I "{config.project.inplace_env.CPATH}"
+        $([[ -n "${{RPATH}}" ]] && echo -R \"${{RPATH}}\" -L \"${{RPATH}}\")
+        $([[ -n "${{CPATH}}" ]] && echo -I \"${{CPATH}}\")
         --define CYTHON_TRACE_NOGIL
 
   # Perform an in-place build of a CMake package.
   build-cmake-inplace:
     task: build-inplace
-    paths:
+    export_paths:
       CPATH: '{package.path}'
-      MY_LIBRARY_PATH: '{package.path}/build/{package.name}'
+      RPATH: '{package.path}/build/{package.name}'
+    check_vars:
+      - RPATH
+      - CPATH
     commands:
       - mkdir -p build
       - cd build; cmake .. -DCMAKE_BUILD_TYPE=debug

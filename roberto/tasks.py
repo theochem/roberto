@@ -257,21 +257,30 @@ def lint_static(ctx):
 @task(install_requirements, sanitize_git, write_version)
 def build_inplace(ctx):
     """Build software in-place and update environment variables."""
+    # Check existing variables
+    vars_to_check = set([])
+    for tool, _package, _fmtkargs in iter_packages_tools(ctx, "build-inplace"):
+        for varname in tool.get('check_vars', []):
+            if varname in os.environ:
+                vars_to_check.add(varname)
+    if vars_to_check:
+        print('Pre-existing variables that could affect the in-place build:')
+    for varname in sorted(vars_to_check):
+        print('{}={}'.format(varname, os.environ[varname]))
+
     # Update *PATH environment variables
-    inplace_env = ctx.project.inplace_env
+    extra_paths = {}
     for tool, _package, fmtkargs in iter_packages_tools(ctx, "build-inplace"):
-        paths = tool.get('paths', {})
+        # Update path variables
+        paths = tool.get('export_paths', {})
         for name, dirname in paths.items():
-            if dirname is None:
-                if name not in inplace_env:
-                    inplace_env[name] = ""
+            dirname = dirname.format(**fmtkargs)
+            dirname = os.path.abspath(dirname)
+            extra_paths.setdefault(name, []).append(dirname)
+            if name in os.environ:
+                os.environ[name] += ':' + dirname
             else:
-                dirname = dirname.format(**fmtkargs)
-                dirname = os.path.abspath(dirname)
-                if name in inplace_env:
-                    inplace_env[name] += ':' + dirname
-                else:
-                    inplace_env[name] = dirname
+                os.environ[name] = dirname
 
     # Write a file, activate-*.sh, which can be sourced to
     # activate the in-place build.
@@ -281,26 +290,29 @@ def build_inplace(ctx):
         f.write('[[ -n $CONDA_PREFIX ]] && conda deactivate &> /dev/null\n')
         f.write('source {}/bin/activate\n'.format(ctx.conda.base_path))
         f.write('conda activate {}\n'.format(ctx.conda.env_name))
-        for name, value in inplace_env.items():
-            f.write('export {0}=${{{0}}}:{1}\n'.format(name, value))
+        for name, paths in extra_paths.items():
+            f.write('if [[ -n ${{{}}} ]]; then\n'.format(name))
+            f.write('  export {0}={1}:${{{0}}}\n'.format(name, ':'.join(paths)))
+            f.write('else\n')
+            f.write('  export {0}={1}\n'.format(name, ':'.join(paths)))
+            f.write('fi\n')
         f.write('export PROJECT_VERSION={}\n'.format(ctx.git.tag_version))
         f.write('export CONDA_BLD_PATH={}\n'.format(ctx.conda.build_path))
         if platform.system() == 'Darwin':
             f.write('# MacOSX specific variables\n')
             f.write('export MACOSX_DEPLOYMENT_TARGET={}\n'.format(ctx.conda.macosx))
             f.write('export SDKROOT={}\n'.format(ctx.conda.sdkroot))
-            f.write('export CONDA_BUILD_SYSROOT={}\n'.format(ctx.conda.sdkroot))
     ctx.run("cat {}".format(fn_activate))
 
-    # Do all the building.
-    run_all_commands(ctx, "build-inplace", env=ctx.project.inplace_env)
+    # Finally do all the building
+    run_all_commands(ctx, "build-inplace")
 
 
 @task(build_inplace)
 def test_inplace(ctx):
     """Run tests in-place and upload coverage if requested."""
     # In-place tests need the environment variable changes from the in-place build.
-    run_all_commands(ctx, "test-inplace", env=ctx.project.inplace_env)
+    run_all_commands(ctx, "test-inplace")
     if ctx.upload_coverage:
         ctx.run("bash <(curl -s https://codecov.io/bash)")
 
@@ -317,7 +329,7 @@ def lint_dynamic(ctx):
 @task(install_requirements, build_inplace, write_version)
 def build_docs(ctx):
     """Build documentation."""
-    run_all_commands(ctx, "build-docs", env=ctx.project.inplace_env)
+    run_all_commands(ctx, "build-docs")
 
 
 @task(install_requirements, build_docs)
