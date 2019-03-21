@@ -274,11 +274,19 @@ tools:
       # CONDA_BLD_PATH must be set because otherwise local dependencies
       # cannot be found when working in any other environment than base.
       # See https://github.com/conda/conda-build/issues/2592
+      # Some SDK kung-fu is needed to make everything reproducible on OSX. The
+      # lines below are very sensitive to subtle changes, so don't touch
+      # without proper testing on both Linux and OSX.
       - >-
+        if [[ -n "${{SDKROOT}}" ]]; then
+        printf "CONDA_BUILD_SYSROOT:\n  - ${{SDKROOT}}\n"
+        > {config.conda.env_path}/conda_build_config.yaml;
+        cd {config.conda.env_path};
+        fi;
         CONDA_BLD_PATH={config.conda.build_path}
         PROJECT_VERSION={config.git.tag_version}
-        conda build tools/conda.recipe --override-channel --skip-existing
-        --no-anaconda-upload
+        conda build {package.abspath}/tools/conda.recipe --override-channel
+        --skip-existing --no-anaconda-upload
 
   # Upload python source packages to pypi
   deploy-pypi:
