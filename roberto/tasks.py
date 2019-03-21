@@ -448,11 +448,11 @@ def nuclear(ctx):
     ctx.run("git clean -fdX")
 
 
-@task(lint_static, build_inplace, test_inplace, lint_dynamic)
+@task(lint_static, test_inplace, lint_dynamic, build_docs, default=True)
 def quality(ctx):  # pylint: disable=unused-argument
     """Run all quality assurance tasks: linting and in-place testing."""
 
 
-@task(quality, upload_docs_git, deploy, default=True)
+@task(quality, upload_docs_git, deploy)
 def robot(ctx):  # pylint: disable=unused-argument
     """Run all tasks, except nuclear."""

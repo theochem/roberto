@@ -68,12 +68,6 @@ Minimal example of a ``.travis.yaml`` file that uses Roberto
           dist: xenial
           language: generic
           env:
-            - ROBERTO_CONDA_PINNING="python 3.5"
-            - ROBERTO_DEPLOY_BINARY=1
-        - os: linux
-          dist: xenial
-          language: generic
-          env:
             - ROBERTO_CONDA_PINNING="python 3.6"
             - ROBERTO_DEPLOY_BINARY=1
         - os: linux
@@ -145,8 +139,16 @@ Minimal example of a ``.travis.yaml`` file that uses Roberto
 
     script:
       # Instead of simply calling `rob`, do something that
-      # always works on OSX too.
-      - python3 -m roberto
+      # always works on OSX too. When testing a pull request,
+      # it is sufficient to run only the quality checks on
+      # the in-place build, which should catch 99% of the
+      # problems while it is considerably faster.
+      - >-
+        if [[ "$TRAVIS_PULL_REQUEST" == "true" ]]; then
+          python3 -m roberto;
+        else
+          python3 -m roberto robot;
+        fi
 
     before_cache:
       # Remove things that are not needed in subsequent builds.

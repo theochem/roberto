@@ -21,6 +21,10 @@ With a relatively simple configuration file (``.roberto.yaml``), the command
 5. Run Linters (optionally showing only messages related to your changes).
 6. Run unit and other tests
 7. Build the documentation
+
+When you run ``rob robot``, a few additional steps will be performed, which are
+not done by default because they are slow and have a low risk of failing:
+
 8. Upload the documentation. (disabled by default)
 9. Make source and binary release packages.
 10. Deploy the releases. (disabled by default)
@@ -92,11 +96,11 @@ when Roberto is executed in its own source tree, the conda environment would be
 To use Roberto, just run ``rob`` in the root of the source tree, where also the
 project's ``.roberto.yaml`` is located. Use ``rob --help`` to get a list of
 tasks if you are interested in replicating just a part of the CI process. If
-your ``${PATH}`` variable is not set correctly, which may easily happen on OSX,
-you can also run Roberto as ``python3 -m roberto`` instead of ``rob``.
+your ``${PATH}`` variable is not set correctly, you can also run Roberto as
+``python3 -m roberto`` instead of ``rob``.
 
-It is a good idea to run ``rob`` before every ``git commit`` to make sure the
-committed code is clean and working.
+It is a good practice to run ``rob`` before every ``git commit`` to make sure
+the committed code is clean and working.
 
 More details, e.g. on how to configure Roberto, can be found in the
 documentation: https://theochem.github.com/roberto

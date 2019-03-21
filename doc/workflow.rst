@@ -9,9 +9,11 @@ smaller "tasks", which are listed by ``rob --help`` and which are defined in
 
 .. include:: tasks_generated.rst.inc
 
-When ``rob`` is executed without arguments, the **robot** task is executed, which
-runs everything except **nuclear**. Alternatiely, you may provide one or more
-tasks as positional command-line arguments.
+When ``rob`` is executed without arguments, the **quality** task is executed,
+which runs all the tests related to the in-placed build. You may provide one or
+more task names as positional command-line arguments to change this behavior.
+The **robot** task is a more complete test and runs all tasks except for
+**nuclear**, so also including the packaging.
 
 The tasks **sanitize-git**, **install-conda**, **setup-conda-env**,
 **install-requirements** and **nuclear** are less configurable than the other
