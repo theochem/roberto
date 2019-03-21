@@ -114,34 +114,43 @@ tools:
     # by other packages, or when one would like to use the in-place build.
     export_paths:
       # Variables with null will be initialized with an empty value.
-      PYTHONPATH: '{package.path}'
+      PYTHONPATH: '{package.abspath}'
     # Environment variables that could affect this in-place build. When listed
     # here, their contents before any in-place build are printed, so one sees
     # pre-existing variables that may affect the in-place build.
     check_vars:
-      - RPATH
-      - CPATH
+      - CPPFLAGS
+      - CFLAGS
+      - LDFLAGS
       - PYTHONPATH
+      - RPATH
     # Bash commands to build in-place.
     commands:
-      # Note that distutils is not very clever with empty -R, -L and -I
-      # arguments. They would simply result in disfunctional compiler arguments
+      # Note that distutils is not very clever with an empty -R argument.
+      # This would simply result in a disfunctional compiler argument,
       # which we have to avoid. Hence, some ugly bash is needed.
       - >-
-        python setup.py build_ext -i
-        $([[ -n "${{RPATH}}" ]] && echo -R \"${{RPATH}}\" -L \"${{RPATH}}\")
-        $([[ -n "${{CPATH}}" ]] && echo -I \"${{CPATH}}\")
-        --define CYTHON_TRACE_NOGIL
+        python setup.py build_ext -i --define CYTHON_TRACE_NOGIL
+        $([[ -n "${{RPATH}}" ]] && echo -R "${{RPATH}}")
 
   # Perform an in-place build of a CMake package.
   build-cmake-inplace:
     task: build-inplace
     export_paths:
-      CPATH: '{package.path}'
-      RPATH: '{package.path}/build/{package.name}'
+      # Different compilers have incompatible arguments to set the RPATH
+      # for the linker, so we cannot use LDFLAGS for this, alas.
+      RPATH: '{package.abspath}/build/{package.name}'
+    export_flags:
+      CPPFLAGS: >-
+        -I {package.abspath}
+      CFLAGS: >-
+        -I {package.abspath}
+      LDFLAGS: >-
+        -L {package.abspath}/build/{package.name}
     check_vars:
-      - RPATH
-      - CPATH
+      - CPPFLAGS
+      - CFLAGS
+      - LDFLAGS
     commands:
       - mkdir -p build
       - cd build; cmake .. -DCMAKE_BUILD_TYPE=debug

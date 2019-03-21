@@ -270,44 +270,61 @@ def build_inplace(ctx):
     for varname in sorted(vars_to_check):
         print('{}={}'.format(varname, os.environ[varname]))
 
-    # Update *PATH environment variables
+    # Update *PATH and *FLAGS environment variables after running build commands
     extra_paths = {}
-    for tool, _package, fmtkargs in iter_packages_tools(ctx, "build-inplace"):
-        # Update path variables
+    extra_flags = {}
+    for tool, package, fmtkargs in iter_packages_tools(ctx, "build-inplace"):
+        # Run commands
+        with ctx.cd(package.path):
+            for command in tool.commands:
+                ctx.run(command.format(**fmtkargs))
+        # Update *PATH variables
         paths = tool.get('export_paths', {})
         for name, dirname in paths.items():
             dirname = dirname.format(**fmtkargs)
-            dirname = os.path.abspath(dirname)
             extra_paths.setdefault(name, []).append(dirname)
             if name in os.environ:
                 os.environ[name] += ':' + dirname
             else:
                 os.environ[name] = dirname
+        # Update *FLAGS variables
+        paths = tool.get('export_flags', {})
+        for name, flag in paths.items():
+            flag = flag.format(**fmtkargs)
+            extra_flags.setdefault(name, []).append(flag)
+            if name in os.environ:
+                os.environ[name] += ' ' + flag
+            else:
+                os.environ[name] = flag
 
     # Write a file, activate-*.sh, which can be sourced to
     # activate the in-place build.
     fn_activate = 'activate-{}.sh'.format(ctx.conda.env_name)
     with open(fn_activate, 'w') as f:
-        f.write('[[ -n $CONDA_PREFIX_1 ]] && conda deactivate &> /dev/null\n')
-        f.write('[[ -n $CONDA_PREFIX ]] && conda deactivate &> /dev/null\n')
-        f.write('source {}/bin/activate\n'.format(ctx.conda.base_path))
-        f.write('conda activate {}\n'.format(ctx.conda.env_name))
+        f.write('[[ -n "${CONDA_PREFIX_1}" ]] && conda deactivate &> /dev/null\n')
+        f.write('[[ -n "${CONDA_PREFIX}" ]] && conda deactivate &> /dev/null\n')
+        f.write('source "{}/bin/activate"\n'.format(ctx.conda.base_path))
+        f.write('conda activate "{}"\n'.format(ctx.conda.env_name))
         for name, paths in extra_paths.items():
-            f.write('if [[ -n ${{{}}} ]]; then\n'.format(name))
-            f.write('  export {0}={1}:${{{0}}}\n'.format(name, ':'.join(paths)))
+            f.write('if [[ -n "${{{0}}}" ]]; then\n'.format(name))
+            f.write('  export {0}="{1}:${{{0}}}"\n'.format(name, ':'.join(paths)))
             f.write('else\n')
-            f.write('  export {0}={1}\n'.format(name, ':'.join(paths)))
+            f.write('  export {0}="{1}"\n'.format(name, ':'.join(paths)))
             f.write('fi\n')
-        f.write('export PROJECT_VERSION={}\n'.format(ctx.git.tag_version))
-        f.write('export CONDA_BLD_PATH={}\n'.format(ctx.conda.build_path))
+        for name, flags in extra_flags.items():
+            f.write('if [[ -n "${{{0}}}" ]]; then\n'.format(name))
+            f.write('  export {0}="{1} ${{{0}}}"\n'.format(name, ':'.join(flags)))
+            f.write('else\n')
+            f.write('  export {0}="{1}"\n'.format(name, ':'.join(flags)))
+            f.write('fi\n')
+        f.write('export PROJECT_VERSION="{}"\n'.format(ctx.git.tag_version))
+        f.write('export CONDA_BLD_PATH="{}"\n'.format(ctx.conda.build_path))
         if platform.system() == 'Darwin':
             f.write('# MacOSX specific variables\n')
-            f.write('export MACOSX_DEPLOYMENT_TARGET={}\n'.format(ctx.conda.macosx))
-            f.write('export SDKROOT={}\n'.format(ctx.conda.sdkroot))
-    ctx.run("cat {}".format(fn_activate))
-
-    # Finally do all the building
-    run_all_commands(ctx, "build-inplace")
+            f.write('export MACOSX_DEPLOYMENT_TARGET="{}"\n'.format(ctx.conda.macosx))
+            f.write('export SDKROOT="{}"\n'.format(ctx.conda.sdkroot))
+            f.write('export CONDA_BUILD_SYSROOT="{}"\n'.format(ctx.conda.sdkroot))
+    ctx.run('cat "{}"'.format(fn_activate))
 
 
 @task(build_inplace)

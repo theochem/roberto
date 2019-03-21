@@ -93,6 +93,7 @@ class RobertoConfig(Config):
         for package in self.project.packages:
             if 'path' not in package:
                 package.path = '.'
+            package.abspath = os.path.abspath(package.path)
             if 'name' not in package:
                 package.name = self.project.name
             if 'tools' not in package:
