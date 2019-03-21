@@ -39,7 +39,7 @@ Longer version:
     python3 -m pip install . --user
 
 5. Add your fork as a second remote to your local repository, for which we will
-   use the short name `mine` below, but any short name is fine:
+   use the short name ``mine`` below, but any short name is fine:
 
    .. code-block:: bash
 
