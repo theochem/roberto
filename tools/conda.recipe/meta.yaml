@@ -25,11 +25,13 @@ requirements:
 
 test:
   requires:
+    - python
     - pytest
+    - pytest-xdist
   imports:
     - roberto
   commands:
-    - pytest -v --pyargs roberto
+    - pytest -v --pyargs roberto -n auto
 
 about:
   dev_url: https://github.com/theochem/roberto
