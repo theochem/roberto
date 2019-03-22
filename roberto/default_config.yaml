@@ -132,9 +132,9 @@ tools:
       # In case of OSX, i.e. when SDKROOT is specified, we need to set CFLAGS
       # and CXXFLAGS explicitly because distutils does not pick this up for us.
       - >-
-        if [[ -n "${SDKROOT}" ]]; then
-        export CXXFLAGS="${CXXFLAGS} -isysroot ${CONDA_BUILD_SYSROOT}";
-        export CFLAGS="${CFLAGS} -isysroot ${CONDA_BUILD_SYSROOT}";
+        if [[ -n "${{SDKROOT}}" ]]; then
+        export CXXFLAGS="${{CXXFLAGS}} -isysroot ${{CONDA_BUILD_SYSROOT}}";
+        export CFLAGS="${{CFLAGS}} -isysroot ${{CONDA_BUILD_SYSROOT}}";
         fi;
         python setup.py build_ext -i --define CYTHON_TRACE_NOGIL
         $([[ -n "${{RPATH}}" ]] && echo -R "${{RPATH}}")
