@@ -187,7 +187,8 @@ def install_requirements(ctx):  # pylint: disable=too-many-branches
         print("To skip install+update: echo {} > {}".format(req_hash, fn_skip))
 
         # Update and install requirements for Roberto
-        ctx.run("conda install --update-deps -y {}".format(" ".join(conda_packages)))
+        ctx.run("conda install --update-deps -y {}".format(" ".join(
+            "'{}'".format(conda_package) for conda_package in conda_packages)))
 
         # Deactivate and activate conda again after every conda install,
         # because more environment variables need to be set by the activation
@@ -220,8 +221,9 @@ def install_requirements(ctx):  # pylint: disable=too-many-branches
                 for requirement in rendered.get("requirements", {}).get(reqtype, []):
                     words = requirement.split()
                     if words[0] not in own_conda_packages:
-                        requirements.add("'" + " ".join(words[:2]) + "'")
-            ctx.run("conda install --update-deps -y {}".format(" ".join(requirements)))
+                        requirements.add(" ".join(words[:2]))
+            ctx.run("conda install --update-deps -y {}".format(" ".join(
+                "'{}'".format(conda_package) for conda_package in requirements)))
 
             # Deactivate and activate conda again after every conda install,
             # because more environment variables need to be set by the activation
@@ -231,7 +233,8 @@ def install_requirements(ctx):  # pylint: disable=too-many-branches
 
         # Update and install requirements for Roberto from pip, if any.
         if pip_packages:
-            ctx.run("pip install --upgrade {}".format(" ".join(pip_packages)))
+            ctx.run("pip install --upgrade {}".format(" ".join(
+                "'{}'".format(pip_package) for pip_package in pip_packages)))
 
         # Update the timestamp on the skip file.
         with open(fn_skip, 'w') as f:
