@@ -3,6 +3,10 @@
 Change log
 ##########
 
+- Version 1.2.1 March 22, 2019
+
+  - Fix the detection of a pull request, such that it also works on Travis-CI.
+
 - Version 1.2.0 March 21, 2019
 
   - Make pytest run in parallel.
