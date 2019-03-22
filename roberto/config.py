@@ -132,19 +132,22 @@ class RobertoConfig(Config):
         # First try to get a decent branch name
         branch = subprocess.run(
             ["git", "rev-parse", "--abbrev-ref", "HEAD"],
-            stdout=subprocess.PIPE, check=True).stdout.decode('utf-8').strip()
+            stdout=subprocess.PIPE, stderr=subprocess.DEVNULL,
+            check=True).stdout.decode('utf-8').strip()
         # If that failed, try to get the tag
         if branch == 'HEAD':
             try:
                 branch = subprocess.run(
                     ["git", "describe", "--tags", "--exact-match"],
-                    stdout=subprocess.PIPE, check=True).stdout.decode('utf-8').strip()
+                    stdout=subprocess.PIPE, stderr=subprocess.DEVNULL,
+                    check=True).stdout.decode('utf-8').strip()
             except subprocess.CalledProcessError:
                 # Final attempt, just the sha.
                 try:
                     branch = subprocess.run(
                         ["git", "rev-parse", "HEAD"],
-                        stdout=subprocess.PIPE, check=True).stdout.decode('utf-8').strip()
+                        stdout=subprocess.PIPE, stderr=subprocess.DEVNULL,
+                        check=True).stdout.decode('utf-8').strip()
                 except subprocess.CalledProcessError:
                     branch = '__nogit__'
         defaults['git']['branch'] = branch

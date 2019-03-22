@@ -140,7 +140,7 @@ def setup_conda_env(ctx):
     conda_activate(ctx, ctx.conda.env_name)
 
     # Reset the channels. Removing previous may fail if there were none. That's ok.
-    ctx.run("conda config --remove-key channels", warn=True)
+    ctx.run("conda config --remove-key channels", warn=True, hide='err')
     for channel in ctx.conda.channels:
         # Append is used to keep defaults at highest priority, essentially
         # to avoid pulling in lots of conda-forge packages, which may be
