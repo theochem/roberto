@@ -147,10 +147,6 @@ def setup_conda_env(ctx):
         # lower quality than their counterparts in the default channels.
         ctx.run("conda config --append channels {}".format(channel))
 
-    # Check on OSX if System Integrity Protection (SIP) is enabled
-    if platform.system() == 'Darwin':
-        ctx.run('csrutil status', warn=True)
-
 
 @task(setup_conda_env)
 def install_requirements(ctx):  # pylint: disable=too-many-branches
