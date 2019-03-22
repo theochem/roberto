@@ -131,10 +131,9 @@ tools:
       # which we have to avoid. Hence, some ugly bash is needed.
       # In case of OSX, i.e. when SDKROOT is specified, we need to set CFLAGS
       # and CXXFLAGS explicitly because distutils does not pick this up for us.
-      - >-
-        if [[ -n "${{SDKROOT}}" ]]; then
-        export CXXFLAGS="${{CXXFLAGS}} -isysroot ${{CONDA_BUILD_SYSROOT}}";
-        export CFLAGS="${{CFLAGS}} -isysroot ${{CONDA_BUILD_SYSROOT}}";
+      - if [[ -n "${{SDKROOT}}" ]]; then
+          export CXXFLAGS="${{CXXFLAGS}} -isysroot ${{CONDA_BUILD_SYSROOT}}";
+          export CFLAGS="${{CFLAGS}} -isysroot ${{CONDA_BUILD_SYSROOT}}";
         fi;
         python setup.py build_ext -i --define CYTHON_TRACE_NOGIL
         $([[ -n "${{RPATH}}" ]] && echo -R "${{RPATH}}")
@@ -174,12 +173,11 @@ tools:
     # Bash commands to perform the tests. Environment variables defined in the
     # in-place build will still be set.
     commands:
-      - >-
-        pytest {package.name} -v --cov={package.name}
-        --cov-report xml:coverage_pytest.xml
-        --cov-report term-missing
-        --cov-branch --color=yes
-        -n auto
+      - pytest {package.name} -v --cov={package.name}
+          --cov-report xml:coverage_pytest.xml
+          --cov-report term-missing
+          --cov-branch --color=yes
+          -n auto
 
   # Run unit tests on an in-place build with nosetests.
   nose:
@@ -189,10 +187,9 @@ tools:
       - coverage
     commands:
       - rm -f .coverage
-      - >-
-        nosetests {package.name} -v --detailed-errors --with-coverage
-        --cover-package={package.name} --cover-tests --cover-inclusive
-        --cover-branches
+      - nosetests {package.name} -v --detailed-errors --with-coverage
+          --cover-package={package.name} --cover-tests --cover-inclusive
+          --cover-branches
       - coverage xml -i -o coverage_nose.xml
 
   # Run unit tests on an in-place build with `make test`.
@@ -203,9 +200,8 @@ tools:
     commands:
       - cd build; find . | grep '\\.gcda$' | xargs rm -vf
       - cd build; make test
-      - >-
-        cd {package.name}; gcovr -r . --gcov-executable ${{HOST}}-gcov
-        --object-directory ../build/{package.name}/CMakeFiles/{package.name}.dir
+      - cd {package.name}; gcovr -r . --gcov-executable ${{HOST}}-gcov
+          --object-directory ../build/{package.name}/CMakeFiles/{package.name}.dir
 
   # Run the dynamic linters with for cardboardlint as configured in in ~/.cardboardlint.yaml
   # (Dynamic liners require compilation or interpretaton of code.)
@@ -285,16 +281,15 @@ tools:
       # Some SDK kung-fu is needed to make everything reproducible on OSX. The
       # lines below are very sensitive to subtle changes, so don't touch
       # without proper testing on both Linux and OSX.
-      - >-
-        if [[ -n "${{SDKROOT}}" ]]; then
-        printf "CONDA_BUILD_SYSROOT:\n  - ${{SDKROOT}}\n"
-        > {config.conda.env_path}/conda_build_config.yaml;
-        cd {config.conda.env_path};
+      - if [[ -n "${{SDKROOT}}" ]]; then
+          printf "CONDA_BUILD_SYSROOT:\n  - ${{SDKROOT}}\n"
+          > {config.conda.env_path}/conda_build_config.yaml;
+          cd {config.conda.env_path};
         fi;
         CONDA_BLD_PATH={config.conda.build_path}
         PROJECT_VERSION={config.git.tag_version}
         conda build {package.abspath}/tools/conda.recipe --override-channel
-        --skip-existing --no-anaconda-upload
+          --skip-existing --no-anaconda-upload
 
   # Upload python source packages to pypi
   deploy-pypi:
@@ -334,10 +329,9 @@ tools:
     deploy_labels:
       - main
     commands:
-      - >-
-        hub release create {hub_assets}
-        -m "Automatic release of version {config.git.tag_version}"
-        {config.git.tag_version}
+      - hub release create {hub_assets}
+          -m "Automatic release of version {config.git.tag_version}"
+          {config.git.tag_version}
 
   # Upload conda packages to anaconda.org
   deploy-conda:
