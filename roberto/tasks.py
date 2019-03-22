@@ -101,7 +101,6 @@ def install_conda(ctx):
                 ctx.run('tar -xJf {}'.format(sdkdwnl))
         os.environ['MACOSX_DEPLOYMENT_TARGET'] = ctx.conda.macosx
         os.environ['SDKROOT'] = sdkroot
-        os.environ['CONDA_BUILD_SYSROOT'] = sdkroot
         print('MaxOSX sdk in: {}'.format(sdkroot))
         ctx.run('ls -alh {}'.format(sdkroot))
         ctx.conda.sdkroot = sdkroot
@@ -324,7 +323,6 @@ def build_inplace(ctx):
             f.write('# MacOSX specific variables\n')
             f.write('export MACOSX_DEPLOYMENT_TARGET="{}"\n'.format(ctx.conda.macosx))
             f.write('export SDKROOT="{}"\n'.format(ctx.conda.sdkroot))
-            f.write('export CONDA_BUILD_SYSROOT="{}"\n'.format(ctx.conda.sdkroot))
     ctx.run('cat "{}"'.format(fn_activate))
 
 

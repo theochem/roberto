@@ -129,7 +129,13 @@ tools:
       # Note that distutils is not very clever with an empty -R argument.
       # This would simply result in a disfunctional compiler argument,
       # which we have to avoid. Hence, some ugly bash is needed.
+      # In case of OSX, i.e. when SDKROOT is specified, we need to set CFLAGS
+      # and CXXFLAGS explicitly because distutils does not pick this up for us.
       - >-
+        if [[ -n "${SDKROOT}" ]]; then
+        export CXXFLAGS="${CXXFLAGS} -isysroot ${CONDA_BUILD_SYSROOT}";
+        export CFLAGS="${CFLAGS} -isysroot ${CONDA_BUILD_SYSROOT}";
+        fi;
         python setup.py build_ext -i --define CYTHON_TRACE_NOGIL
         $([[ -n "${{RPATH}}" ]] && echo -R "${{RPATH}}")
 
@@ -152,6 +158,8 @@ tools:
       - CFLAGS
       - LDFLAGS
     commands:
+      # On OSX, CMake will pick up SDKROOT automatically. See CMake docs
+      # https://cmake.org/cmake/help/latest/variable/CMAKE_OSX_SYSROOT.html
       - mkdir -p build
       - cd build; cmake .. -DCMAKE_BUILD_TYPE=debug
       - cd build; VERBOSE=1 make -j $(getconf _NPROCESSORS_ONLN)
