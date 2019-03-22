@@ -234,18 +234,20 @@ def test_iter_packages_tools():
         'config': None
     })
     ctx.config = ctx
-    assert list(iter_packages_tools(ctx, 'first')) == \
-        [({'task': 'first', 'option1': 5, 'foo': 'bar', 'name': 'a'},
-          pk1, {'config': ctx.config, 'package': pk1}),
-         ({'task': 'first', 'name': 'b'},
-          pk1, {'config': ctx.config, 'package': pk1}),
-         ({'task': 'first', 'option1': 5, 'foo': 'bar', 'name': 'a'},
-          pk2, {'config': ctx.config, 'package': pk2})]
-    assert list(iter_packages_tools(ctx, 'second')) == \
-        [({'task': 'second', 'option2': 'egg', 'name': 'c'},
-          pk1, {'config': ctx.config, 'package': pk1}),
-         ({'task': 'second', 'option2': 'egg', 'name': 'c'},
-          pk2, {'config': ctx.config, 'package': pk2})]
+    lfirst = [({'task': 'first', 'option1': 5, 'foo': 'bar', 'name': 'a'},
+               pk1, {'config': ctx.config, 'package': pk1}),
+              ({'task': 'first', 'name': 'b'},
+               pk1, {'config': ctx.config, 'package': pk1}),
+              ({'task': 'first', 'option1': 5, 'foo': 'bar', 'name': 'a'},
+               pk2, {'config': ctx.config, 'package': pk2})]
+    lsecond = [({'task': 'second', 'option2': 'egg', 'name': 'c'},
+                pk1, {'config': ctx.config, 'package': pk1}),
+               ({'task': 'second', 'option2': 'egg', 'name': 'c'},
+                pk2, {'config': ctx.config, 'package': pk2})]
+    assert list(iter_packages_tools(ctx, 'first')) == lfirst
+    assert list(iter_packages_tools(ctx, 'second')) == lsecond
+    assert list(iter_packages_tools(ctx, '__all__')) == [
+        lfirst[0], lfirst[1], lsecond[0], lfirst[2], lsecond[1]]
 
 
 def test_check_env_var():

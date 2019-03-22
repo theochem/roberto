@@ -153,19 +153,21 @@ def setup_conda_env(ctx):
 
 
 @task(setup_conda_env)
-def install_requirements(ctx):
+def install_requirements(ctx):  # pylint: disable=too-many-branches
     """Install all requirements, including tools used by Roberto."""
     # Collect all parameters determining the install commands, to good
     # approximation and turn them into a hash.
     conda_packages = set(["conda", "conda-build", "pip"])
     pip_packages = set([])
     recipe_dirs = []
+    tools = [ctx.project]  # Add project as a tool because it also contains requirements.
     for package in ctx.project.packages:
         for toolname in package.tools:
-            tool = ctx.tools[toolname]
-            conda_packages.update(tool.get('conda_requirements', []))
-            pip_packages.update(tool.get('pip_requirements', []))
+            tools.append(ctx.tools[toolname])
         recipe_dirs.append(os.path.join(package.path, "tools", "conda.recipe"))
+    for tool in tools:
+        conda_packages.update(tool.get('conda_requirements', []))
+        pip_packages.update(tool.get('pip_requirements', []))
     conda_packages = sorted(conda_packages)
     pip_packages = sorted(pip_packages)
     recipe_dirs = sorted(recipe_dirs)

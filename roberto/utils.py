@@ -302,7 +302,7 @@ def iter_packages_tools(ctx: Context, task: str):
         for toolname in package.tools:
             tool = ctx.tools[toolname]
             tool.name = toolname
-            if tool.task == task:
+            if task in ('__all__', tool.task):
                 fmtkargs = {'config': ctx.config, 'package': package}
                 yield tool, package, fmtkargs
 

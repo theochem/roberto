@@ -1,5 +1,10 @@
 project:
   name: null
+  # One can specify project-level extra requirements, but this normally not
+  # needed. Roberto will try to derive all requirements automatically from
+  # the default configuration and the conda recipes present in the project.
+  conda_requirements: []
+  pip_requirements: []
   packages: [
   # Repeat as many as you like. The order determines the order in which they
   # are linted, tested, built, etc.
@@ -227,9 +232,8 @@ tools:
     # The task build-docs compiles the (online) documentation.
     task: build-docs
     conda_requirements:
-      - sphinx
+      - sphinx >=1.8
     pip_requirements:
-      - sphinxcontrib-napoleon
       - sphinx-autodoc-typehints
       - sphinx-rtd-theme
     # Bash commands to build the documentation
