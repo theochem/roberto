@@ -3,9 +3,14 @@
 Change log
 ##########
 
-- Version 1.2.0
+- Version 1.2.0 March 21, 2019
 
   - Make pytest run in parallel.
+  - Parallel in-place build with CMake.
+  - Default task has become "quality", i.e. the in-place subset of the tests.
+  - More configuration options for in-place builds (paths and flags).
+  - Fix SDK blues on OSX.
+  - Various small fixes.
 
 - Versoin 1.1.1 March 18, 2019
 
