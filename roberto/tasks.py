@@ -257,8 +257,11 @@ def lint_static(ctx):
 
 
 @task(install_requirements, sanitize_git, write_version)
-def build_inplace(ctx):
+def build_inplace(ctx):  # pylint: disable=too-many-branches
     """Build software in-place and update environment variables."""
+    # This is a fairly complicated process, so yes too many branches. Clarity
+    # would not improve by splitting this over multiple functions.
+
     # Check existing variables
     vars_to_check = set([])
     for tool, _package, _fmtkargs in iter_packages_tools(ctx, "build-inplace"):
@@ -279,23 +282,15 @@ def build_inplace(ctx):
             for command in tool.commands:
                 ctx.run(command.format(**fmtkargs))
         # Update *PATH variables
-        paths = tool.get('export_paths', {})
-        for name, dirname in paths.items():
-            dirname = dirname.format(**fmtkargs)
-            extra_paths.setdefault(name, []).append(dirname)
-            if name in os.environ:
-                os.environ[name] += ':' + dirname
-            else:
-                os.environ[name] = dirname
-        # Update *FLAGS variables
-        paths = tool.get('export_flags', {})
-        for name, flag in paths.items():
-            flag = flag.format(**fmtkargs)
-            extra_flags.setdefault(name, []).append(flag)
-            if name in os.environ:
-                os.environ[name] += ' ' + flag
-            else:
-                os.environ[name] = flag
+        for export_vars, separator in [(tool.get('export_paths', {}), ':'),
+                                       (tool.get('export_flags', {}), ' ')]:
+            for name, value in export_vars.items():
+                value = value.format(**fmtkargs)
+                extra_paths.setdefault(name, []).append(value)
+                current = os.environ.get(name, "")
+                if current != '':
+                    current += separator
+                os.environ[name] = current + value
 
     # Write a file, activate-*.sh, which can be sourced to
     # activate the in-place build.
@@ -305,18 +300,14 @@ def build_inplace(ctx):
         f.write('[[ -n "${CONDA_PREFIX}" ]] && conda deactivate &> /dev/null\n')
         f.write('source "{}/bin/activate"\n'.format(ctx.conda.base_path))
         f.write('conda activate "{}"\n'.format(ctx.conda.env_name))
-        for name, paths in extra_paths.items():
-            f.write('if [[ -n "${{{0}}}" ]]; then\n'.format(name))
-            f.write('  export {0}="{1}:${{{0}}}"\n'.format(name, ':'.join(paths)))
-            f.write('else\n')
-            f.write('  export {0}="{1}"\n'.format(name, ':'.join(paths)))
-            f.write('fi\n')
-        for name, flags in extra_flags.items():
-            f.write('if [[ -n "${{{0}}}" ]]; then\n'.format(name))
-            f.write('  export {0}="{1} ${{{0}}}"\n'.format(name, ':'.join(flags)))
-            f.write('else\n')
-            f.write('  export {0}="{1}"\n'.format(name, ':'.join(flags)))
-            f.write('fi\n')
+        for extra_vars, separator in [(extra_paths, ':'), (extra_flags, ' ')]:
+            for name, values in extra_vars.items():
+                f.write('if [[ -n "${{{0}}}" ]]; then\n'.format(name))
+                f.write('  export {0}="{1}{2}${{{0}}}"\n'.format(
+                    name, separator.join(values), separator))
+                f.write('else\n')
+                f.write('  export {0}="{1}"\n'.format(name, separator.join(values)))
+                f.write('fi\n')
         f.write('export PROJECT_VERSION="{}"\n'.format(ctx.git.tag_version))
         f.write('export CONDA_BLD_PATH="{}"\n'.format(ctx.conda.build_path))
         if platform.system() == 'Darwin':
