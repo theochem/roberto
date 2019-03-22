@@ -124,8 +124,7 @@ Minimal example of a ``.travis.yaml`` file that uses Roberto
     install:
       # Disable deployment when TRAVIS_TAG is not set.
       # This avoids duplicate deployments.
-      - >-
-        if [[ -z $TRAVIS_TAG ]]; then
+      - if [[ -z $TRAVIS_TAG ]]; then
           export ROBERTO_DEPLOY_BINARY=0 ROBERTO_DEPLOY_NOARCH=0;
         fi
       # Get a basic python 3 with pip to run roberto
@@ -143,11 +142,10 @@ Minimal example of a ``.travis.yaml`` file that uses Roberto
       # it is sufficient to run only the quality checks on
       # the in-place build, which should catch 99% of the
       # problems while it is considerably faster.
-      - >-
-        if [[ "$TRAVIS_PULL_REQUEST" == "true" ]]; then
-          python3 -m roberto;
-        else
+      - if [[ "$TRAVIS_PULL_REQUEST" == "false" ]]; then
           python3 -m roberto robot;
+        else
+          python3 -m roberto;
         fi
 
     before_cache:
