@@ -116,6 +116,9 @@ Minimal example of a ``.travis.yaml`` file that uses Roberto
         # - TWINE_USERNAME: theochem
 
     cache:
+      # More time is needed for caching due to
+      # the sheer size of the conda env.
+      timeout: 1000
       directories:
         # Everything under the cache directory will be archived and made
         # available in subsequent builds to speed them up.
