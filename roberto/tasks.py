@@ -33,7 +33,8 @@ import yaml
 
 from .utils import (conda_deactivate, conda_activate, compute_req_hash,
                     iter_packages_tools, run_all_commands, write_sha256_sum,
-                    sanitize_branch, need_deployment, check_env_var)
+                    sanitize_branch, on_merge_branch, need_deployment,
+                    check_env_var)
 
 
 @task()
@@ -252,7 +253,7 @@ def write_version(ctx):
 @task(install_requirements, sanitize_git, write_version)
 def lint_static(ctx):
     """Run static linters."""
-    if ctx.git.branch == "" or ctx.git.branch == ctx.git.merge_branch:
+    if on_merge_branch(ctx):
         run_all_commands(ctx, "lint-static", 'commands_master')
     else:
         run_all_commands(ctx, "lint-static", 'commands_feature')
@@ -331,7 +332,7 @@ def test_inplace(ctx):
 @task(build_inplace)
 def lint_dynamic(ctx):
     """Run dynamic linters."""
-    if ctx.git.branch == "" or ctx.git.branch == ctx.git.merge_branch:
+    if on_merge_branch(ctx):
         run_all_commands(ctx, "lint-dynamic", 'commands_master')
     else:
         run_all_commands(ctx, "lint-dynamic", 'commands_feature')

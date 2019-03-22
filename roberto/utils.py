@@ -155,6 +155,12 @@ def sanitize_branch(ctx, branch):
     ctx.run("git fetch origin {0}:{0}".format(branch))
 
 
+def on_merge_branch(ctx):
+    """Return True if we are currently on the merge branch."""
+    result = ctx.run('git diff {}..HEAD --stat'.format(ctx.git.merge_branch), hide='out')
+    return result.stdout.strip() == ""
+
+
 def update_env_command(ctx: Context, command: str) -> None:
     """Update the environment variables with a bash command.
 
