@@ -74,7 +74,7 @@ class RobertoConfig(Config):
         """Derive some config variables for convenience."""
         # Check if essential configuration is present.
         if self.project.name is None:
-            raise TypeError("No project name defined in the configuration. Missing .roberty.yaml?")
+            raise TypeError("No project name defined in the configuration. Missing .roberto.yaml?")
 
         # Expand stuff in paths
         self.conda.download_dir = os.path.expandvars(os.path.expanduser(self.conda.download_dir))
