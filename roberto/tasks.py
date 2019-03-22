@@ -40,6 +40,8 @@ from .utils import (conda_deactivate, conda_activate, compute_req_hash,
 def sanitize_git(ctx):
     """Fetch the git branch to be merged into, if it is absent."""
     sanitize_branch(ctx, ctx.git.merge_branch)
+    print("Current branch:", ctx.git.branch)
+    print("Merge branch:", ctx.git.merge_branch)
 
 
 @task()
