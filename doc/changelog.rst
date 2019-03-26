@@ -3,6 +3,19 @@
 Change log
 ##########
 
+- Version 1.3.0 March 26, 2019
+
+  - Option to add project-specific extra requirements, which may be convenient
+    when using certain Sphinx extensions. This was also possible in the previous
+    version by rewriting the corresponding `build-docs` tool, but this was a
+    rather cumbersome approach.
+  - Documentation improvements, also for the CI setup on Travis.
+  - conda* packages are installed and updated in the base environment. This
+    makes sure the most up-to-date versions are used. Upgrading them in a
+    sub-environment may have no effect.
+  - The stderr is hidden for commands that are allowed to fail.
+  - A few minor fixups.
+
 - Version 1.2.1 March 22, 2019
 
   - Fix the detection of a pull request, such that it also works on Travis-CI.
