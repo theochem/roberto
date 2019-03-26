@@ -81,12 +81,6 @@ def install_conda(ctx):
         # Load our new conda environment
         conda_activate(ctx, "base")
 
-        # Update to the latest conda. This is needed upfront because the conda
-        # version from the miniconda installer is easily outdated. However,
-        # latest versions might also have their issues. At the moment, updating
-        # is unavoidable becuase we are otherwise hitting bugs.
-        ctx.run("conda update -n base -c defaults conda -y")
-
     # Install MacOSX SDK if on OSX
     if platform.system() == 'Darwin':
         optdir = os.path.join(ctx.conda.base_path, 'opt')
@@ -153,6 +147,11 @@ def install_requirements(ctx):  # pylint: disable=too-many-branches
     """Install all requirements, including tools used by Roberto."""
     # Collect all parameters determining the install commands, to good
     # approximation and turn them into a hash.
+    # Some conda requirements are included by default because they must be present:
+    # - conda: to make sure it is always up to date.
+    # - conda-build: to have conda-render for getting requirements from recipes.
+    # - pip: to install dependencies for tasks with pip, must be recent to work
+    #        wel with conda.
     conda_packages = set(["conda", "conda-build", "pip"])
     pip_packages = set([])
     recipe_dirs = []
@@ -186,9 +185,17 @@ def install_requirements(ctx):  # pylint: disable=too-many-branches
         print("Starting install+update of packages in conda env.")
         print("To skip install+update: echo {} > {}".format(req_hash, fn_skip))
 
-        # Update and install requirements for Roberto
+        # Update conda packages in the base env. Conda packages in the dev env
+        # tend to be ignored.
+        ctx.run("conda install --update-deps -y -n base -c defaults {}".format(
+            " ".join("'{}'".format(conda_package) for conda_package
+                     in conda_packages if conda_package.startswith('conda'))))
+
+        # Update and install other requirements for Roberto, in the dev env.
+        conda_activate(ctx, ctx.conda.env_name)
         ctx.run("conda install --update-deps -y {}".format(" ".join(
-            "'{}'".format(conda_package) for conda_package in conda_packages)))
+            "'{}'".format(conda_package) for conda_package in conda_packages
+            if not conda_package.startswith('conda'))))
 
         # Deactivate and activate conda again after every conda install,
         # because more environment variables need to be set by the activation
