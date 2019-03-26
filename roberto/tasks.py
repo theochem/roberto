@@ -197,12 +197,6 @@ def install_requirements(ctx):  # pylint: disable=too-many-branches
             "'{}'".format(conda_package) for conda_package in conda_packages
             if not conda_package.startswith('conda'))))
 
-        # Deactivate and activate conda again after every conda install,
-        # because more environment variables need to be set by the activation
-        # script.
-        conda_deactivate(ctx)
-        conda_activate(ctx, ctx.conda.env_name)
-
         print("Rendering conda package, extracting requirements, which will be installed.")
 
         # First convert pinning to yaml code
@@ -232,11 +226,11 @@ def install_requirements(ctx):  # pylint: disable=too-many-branches
             ctx.run("conda install --update-deps -y {}".format(" ".join(
                 "'{}'".format(conda_package) for conda_package in requirements)))
 
-            # Deactivate and activate conda again after every conda install,
-            # because more environment variables need to be set by the activation
-            # script.
-            conda_deactivate(ctx)
-            conda_activate(ctx, ctx.conda.env_name)
+        # Deactivate and activate conda again after installing conda packages,
+        # because new environment variables may need to be set by the activation
+        # script.
+        conda_deactivate(ctx)
+        conda_activate(ctx, ctx.conda.env_name)
 
         # Update and install requirements for Roberto from pip, if any.
         if pip_packages:
