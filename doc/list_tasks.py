@@ -57,14 +57,15 @@ def main():
             todo_names.append(name)
 
     # Print tasks in rst format
-    for name in done_names:
-        tdr = taskmap[name]
-        endsentence = tdr.doc[0][0].lower() + tdr.doc[0][1:]
-        if tdr.prenames:
-            print("- **{}** depends on **{}** and will {}".format(
-                name, "**, **".join(tdr.prenames), endsentence))
-        else:
-            print("- **{}** will {}".format(name, endsentence))
+    with open("tasks_generated.rst.inc", "w") as f:
+        for name in done_names:
+            tdr = taskmap[name]
+            endsentence = tdr.doc[0][0].lower() + tdr.doc[0][1:]
+            if tdr.prenames:
+                f.write("- **{}** depends on **{}** and will {}\n".format(
+                    name, "**, **".join(tdr.prenames), endsentence))
+            else:
+                f.write("- **{}** will {}\n".format(name, endsentence))
 
 
 if __name__ == '__main__':

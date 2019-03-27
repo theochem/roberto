@@ -21,6 +21,12 @@
 
 from roberto.version import __version__
 
+import sys
+sys.path.insert(0, '.')
+from list_tasks import main as main_list_tasks
+
+main_list_tasks()
+
 # -- Project information -----------------------------------------------------
 
 project = 'Roberto'

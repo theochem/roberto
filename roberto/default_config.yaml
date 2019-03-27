@@ -231,7 +231,6 @@ tools:
     task: build-docs
     conda_requirements:
       - sphinx >=1.8
-      - sphinxcontrib-versioning
       - sphinx_rtd_theme
       - sphinx-autodoc-typehints
     # Bash commands to build the documentation
