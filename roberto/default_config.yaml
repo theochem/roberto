@@ -91,9 +91,8 @@ tools:
   # See https://github.com/theochem/cardboardlint/
   cardboardlint-static:
     task: lint-static
-    pip_requirements:
-      - git+https://github.com/theochem/cardboardlint.git@master#egg=cardboardlint
     conda_requirements:
+      - theochem::cardboardlint
       - pycodestyle
       - pydocstyle
       - cppcheck
@@ -213,9 +212,8 @@ tools:
   # See https://github.com/theochem/cardboardlint/
   cardboardlint-dynamic:
     task: lint-dynamic
-    pip_requirements:
-      - git+https://github.com/theochem/cardboardlint.git@master#egg=cardboardlint
     conda_requirements:
+      - theochem::cardboardlint
       - pylint
     # Commands to be executed when working in the merge_branch, usually
     # this is the master branch.
