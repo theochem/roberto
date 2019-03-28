@@ -19,11 +19,17 @@
 # pylint: disable=invalid-name,redefined-builtin
 """Sphinx configuration."""
 
+import sys
+import os
+
 from roberto.version import __version__
 
-import sys
-sys.path.insert(0, '.')
-from list_tasks import main as main_list_tasks
+# This is ugly, but it makes it possible to build the docs by just calling
+# sphinx-build directly without using the Makefile. Cleaner solutions, not
+# requiring tricks outside the conf.py file, are always welcome.
+sys.path.insert(0, os.path.dirname(__file__))
+# pylint: disable=wrong-import-position
+from list_tasks import main as main_list_tasks  # noqa
 
 main_list_tasks()
 
