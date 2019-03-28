@@ -19,6 +19,7 @@
 # pylint: disable=invalid-name,redefined-builtin
 """Sphinx configuration."""
 
+from datetime import datetime
 import runpy
 
 from roberto.version import __version__
@@ -31,9 +32,8 @@ runpy.run_path('./list_tasks.py', run_name='__main__')
 # -- Project information -----------------------------------------------------
 
 project = 'Roberto'
-copyright = '2019, The Roberto Development Team'
+copyright = '{} The Roberto Development Team'.format(datetime.now().year)
 author = 'The Roberto Development Team'
-
 release = __version__
 version = '.'.join(release.split('.')[:2])
 
@@ -56,6 +56,13 @@ pygments_style = 'sphinx'
 
 html_theme = 'alabaster'
 html_static_path = []
+html_theme_options = {
+    "description": "Automated development workflow",
+    "github_user": "theochem",
+    "github_repo": "roberto",
+    "travis_button": True,
+    "codecov_button": True,
+}
 
 # -- Extnensions configuration -----------------------------------------------
 
