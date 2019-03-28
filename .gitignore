@@ -2,6 +2,7 @@
 activate-*-dev-*.sh
 roberto/version.py
 doc/_build
+doc/api
 coverage*.xml
 *.rst.inc
 .pytest_cache

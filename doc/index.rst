@@ -10,11 +10,17 @@ If this is the first time you're using Roberto, go to :ref:`readme`.
 
 .. toctree::
    :maxdepth: 2
-   :caption: Contents:
+   :caption: User documentation
 
    readme
    workflow
    configuration
    setupci
-   contributing
    changelog
+
+.. toctree::
+   :maxdepth: 1
+   :caption: Developer documentation
+
+   contributing
+   api/roberto

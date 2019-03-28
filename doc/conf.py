@@ -24,7 +24,7 @@ import runpy
 from roberto.version import __version__
 
 
-# --  Generate documentation -------------------------------------------------
+# --  Generate files to be included in the documentation ---------------------
 
 runpy.run_path('./list_tasks.py', run_name='__main__')
 
@@ -39,7 +39,14 @@ version = '.'.join(release.split('.')[:2])
 
 # -- General configuration ---------------------------------------------------
 
-extensions = ['sphinx.ext.githubpages']
+extensions = [
+    'sphinx.ext.githubpages',
+    'sphinxcontrib.apidoc',
+    'sphinx.ext.autodoc',
+    'sphinx.ext.viewcode',
+    'sphinx.ext.napoleon',
+    'sphinx_autodoc_typehints',
+]
 source_suffix = '.rst'
 master_doc = 'index'
 exclude_patterns = ['_build']
@@ -49,3 +56,24 @@ pygments_style = 'sphinx'
 
 html_theme = 'alabaster'
 html_static_path = []
+
+# -- Extnensions configuration -----------------------------------------------
+
+napoleon_google_docstring = False
+napoleon_numpy_docstring = True
+napoleon_include_init_with_doc = False
+
+apidoc_module_dir = '../roberto'
+apidoc_excluded_paths = ['test']
+# apidoc_separate_modules = True
+apidoc_toc_file = False
+
+autodoc_member_order = 'bysource'
+
+autodoc_default_options = {
+    'special-members': True,
+    'undoc-members': True,
+    'show-inheritance': True,
+    'members': True,
+    'inherited-members': True,
+}

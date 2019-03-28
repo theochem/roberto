@@ -37,7 +37,7 @@ __all__ = [
 
 
 def parse_git_describe(git_describe: str) -> dict:
-    """Parse the output of `git describe --tags`.
+    """Parse the output of ``git describe --tags``.
 
     Parameters
     ----------
@@ -46,7 +46,7 @@ def parse_git_describe(git_describe: str) -> dict:
 
     Returns
     -------
-    version_info
+    version_info: dict
         A dictionary with version information.
 
     """
@@ -123,7 +123,7 @@ class TagError(Exception):
         super().__init__(message)
 
 
-def sanitize_branch(ctx, branch):
+def sanitize_branch(ctx: Context, branch: str):
     """Attempt to fix the presence of a branch.
 
     The branch is checked with rev-parse. If not present, try to set it to
@@ -155,7 +155,7 @@ def sanitize_branch(ctx, branch):
     ctx.run("git fetch origin {0}:{0}".format(branch))
 
 
-def on_merge_branch(ctx):
+def on_merge_branch(ctx: Context):
     """Return True if we are currently on the merge branch."""
     result = ctx.run('git diff {}..HEAD --stat'.format(ctx.git.merge_branch), hide='out')
     return result.stdout.strip() == ""
@@ -184,7 +184,7 @@ def update_env_command(ctx: Context, command: str) -> None:
         del os.environ[key]
 
 
-def conda_deactivate(ctx, iterate=True):
+def conda_deactivate(ctx: Context, iterate: bool = True):
     """Deactivate the current conda environment, if any.
 
     Parameters
@@ -225,7 +225,7 @@ def conda_deactivate(ctx, iterate=True):
         clean_env()
 
 
-def conda_activate(ctx, env):
+def conda_activate(ctx: Context, env: str):
     """Activate the given conda environment.
 
     Parameters
@@ -261,7 +261,7 @@ def compute_req_hash(conda_packages: List[str], recipe_dirs: List[str],
 
     Returns
     -------
-    req_hash
+    hashdigest : str
         The hex digest of the sha256 hash of all development requirements.
 
     """
@@ -307,14 +307,14 @@ def iter_packages_tools(ctx: Context, task: str):
                 yield tool, package, fmtkargs
 
 
-def run_all_commands(ctx: Context, task: str, commands_name='commands'):
+def run_all_commands(ctx: Context, task: str, commands_name: str = 'commands'):
     """Run a specific subtask from a list of tools for all packages.
 
     Parameters
     ----------
     ctx
         The context object with which to execute the commands.
-    subtask
+    task
         A subtask, defined by Roberto's (main) tasks.
     commands_name
         The name of the commands field in the tool to use.
@@ -327,8 +327,15 @@ def run_all_commands(ctx: Context, task: str, commands_name='commands'):
                 ctx.run(command.format(**fmtkargs))
 
 
-def check_env_var(name):
-    """Check if an environment variable is set and non-empty."""
+def check_env_var(name: str):
+    """Check if an environment variable is set and non-empty.
+
+    Parameters
+    ----------
+    name
+        The environment variable to be checked.
+
+    """
     if name not in os.environ:
         return 'The environment variable {} is not set.'.format(name)
     if os.environ[name] == "":
@@ -336,7 +343,7 @@ def check_env_var(name):
     return 'The environment variable {} is not empty.'.format(name)
 
 
-def need_deployment(ctx, prefix, binary, deploy_labels):
+def need_deployment(ctx: Context, prefix: str, binary: bool, deploy_labels: List[str]) -> bool:
     """Return True if deployment is needed.
 
     Parameters
@@ -366,8 +373,20 @@ def need_deployment(ctx, prefix, binary, deploy_labels):
     return True
 
 
-def write_sha256_sum(fn_asset):
-    """Make a sha256 checksum file, print it and return the checksum filename."""
+def write_sha256_sum(fn_asset: str) -> str:
+    """Make a sha256 checksum file, print it and return the checksum filename.
+
+    Parameters
+    ----------
+    fn_asset
+        The file of which the hash will be computed.
+
+    Returns
+    -------
+    fn_asset_hash : str
+        The filename of the file containing the hash.
+
+    """
     hasher = hashlib.sha256()
     with open(fn_asset, 'br') as f:
         for chunck in iter(lambda: f.read(4096), b""):

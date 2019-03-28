@@ -38,7 +38,7 @@ class RobertoConfig(Config):
 
     - The `roberto` prefix.
     - A project config file `.roberto.*` can be loaded from the current directory.
-    - Default configuration.
+    - Default configuration, which can be extended overridden by user.
     - Config finalization, filling in some blanks with sensible defaults.
 
     """
@@ -46,17 +46,19 @@ class RobertoConfig(Config):
     prefix = 'roberto'
 
     def load_base_conf_files(self):
+        """Load also the local project config file."""
         Config.load_base_conf_files(self)
         # Always try to load the project config file.
         self._load_file(prefix="project", merge=False)
 
-    def set_project_location(self, path):
-        """
-        Set the directory path where a project-level config file may be found.
+    def set_project_location(self, path: str):
+        """Override the default mechanism of Invoke to find project config.
 
-        Does not do any file loading on its own; for that, see `load_project`.
+        Parameters
+        ----------
+        path:
+            This argument is ignored and the local directory is used instead.
 
-        .. versionadded:: 1.0
         """
         # Impose our own project location, config file prefixed with dot.
         self._set(_project_prefix=os.path.join(os.getcwd(), '.'))
@@ -65,6 +67,7 @@ class RobertoConfig(Config):
         self._set(_project={})
 
     def load_shell_env(self):
+        """Call _finalize after Invoke has loaded the complete config."""
         Config.load_shell_env(self)
         # Once everything is loaded, including environment variables, finalize
         # the config, mostly for convenience.
@@ -111,7 +114,7 @@ class RobertoConfig(Config):
 
     @staticmethod
     def global_defaults() -> dict:
-        """Set the global default configuration."""
+        """Set the global default configuration, before loading any other config."""
         defaults = Config.global_defaults()
 
         # Load default configuration

@@ -16,7 +16,11 @@
 # You should have received a copy of the GNU General Public License
 # along with this program; if not, see <http://www.gnu.org/licenses/>
 # --
-"""Tasks in Roberto's workflow."""
+"""Tasks in Roberto's workflow.
+
+Due to the decorators, no documentation is generated for this module. Use
+``rob --help`` to get an overview of Roberto's task.
+"""
 
 
 from glob import glob
