@@ -78,9 +78,9 @@ apidoc_toc_file = False
 autodoc_member_order = 'bysource'
 
 autodoc_default_options = {
-    'special-members': True,
+    'special-members': None,
     'undoc-members': True,
     'show-inheritance': True,
-    'members': True,
+    'members': None,
     'inherited-members': True,
 }
