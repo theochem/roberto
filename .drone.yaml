@@ -18,7 +18,7 @@ steps:
         from_secret: CODECOV_TOKEN
     commands:
       - echo HOME="${HOME}"
-      - python3 -m pip install . coverage codecov --user
+      - python3 -m pip install . coverage codecov
       - python3 -m coverage run --branch --source=roberto -m roberto robot
       # Report and upload also the additional coverage.
       - python3 -m coverage report -m
