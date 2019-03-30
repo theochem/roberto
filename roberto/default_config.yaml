@@ -149,6 +149,9 @@ tools:
   # Perform an in-place build of a CMake package.
   build-cmake-inplace:
     task: build-inplace
+    conda_requirements:
+      - cmake
+      - make
     export_paths:
       # Different compilers have incompatible arguments to set the RPATH
       # for the linker, so we cannot use LDFLAGS for this, alas.
@@ -203,8 +206,9 @@ tools:
   # Run unit tests on an in-place build with `make test`.
   maketest:
     task: test-inplace
-    pip_requirements:
+    conda_requirements:
       - gcovr
+      - make
     commands:
       - cd build; find . | grep '\\.gcda$' | xargs rm -vf
       - cd build; make test
@@ -273,6 +277,9 @@ tools:
   # Build a source distribution with cmake
   build-cmake-source:
     task: build-packages
+    conda_requirements:
+      - cmake
+      - make
     commands:
       - mkdir -p dist
       - cd dist; cmake .. -DCMAKE_BUILD_TYPE=release
