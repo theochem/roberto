@@ -1,27 +1,55 @@
-# Python package
-# Create and test a Python package on multiple Python versions.
-# Add steps that analyze code, save the dist with the build record, publish to a PyPI-compatible index, and more:
-# https://docs.microsoft.com/azure/devops/pipelines/languages/python
-
 jobs:
-- job: 'Test'
+- job: 'Test Linux'
   pool:
     vmImage: 'Ubuntu-16.04'
   strategy:
     matrix:
-      Python36:
-        python.version: '3.6'
-      Python37:
-        python.version: '3.7'
+      py36:
+        ROBERTO_CONDA_PINNING="python 3.6"
+      py37:
+        ROBERTO_CONDA_PINNING="python 3.7"
+  steps:
     maxParallel: 2
 
   steps:
-  - task: UsePythonVersion@0
-    inputs:
-      versionSpec: '$(python.version)'
-      architecture: 'x64'
+  - bash: echo "##vso[task.prependpath]$/{CONDA}/bin"
+    displayName: Add conda to PATH
 
-  - script: |
+  - bash: sudo chown -R $USER ${CONDA}
+    displayName: Take ownership of conda installation
+
+  - bash: |
+      export ROBERTO_CONDA_BASE_PATH=${CONDA}
+      export CONDA_BLD_PATH=${HOME}/conda-bld
+      export ROBERTO_CONDA_PINNING="python $(python.version)"
+      python3 -m pip install . coverage codecov --user
+      python3 -m coverage run --branch --source=roberto -m roberto robot
+      python3 -m coverage report -m
+      python3 -m coverage xml -i -o coverage_run.xml
+    displayName: 'Install and test package'
+
+- job: 'Test MacOSX'
+  pool:
+    vmImage: 'macOS-10.13'
+  strategy:
+    matrix:
+      py36:
+        ROBERTO_CONDA_PINNING="python 3.6"
+      py37:
+        ROBERTO_CONDA_PINNING="python 3.7"
+  steps:
+    maxParallel: 2
+
+  steps:
+  - bash: echo "##vso[task.prependpath]$/{CONDA}/bin"
+    displayName: Add conda to PATH
+
+  - bash: sudo chown -R $USER ${CONDA}
+    displayName: Take ownership of conda installation
+
+  - bash: |
+      export ROBERTO_CONDA_BASE_PATH=${CONDA}
+      export CONDA_BLD_PATH=${HOME}/conda-bld
       export ROBERTO_CONDA_PINNING="python $(python.version)"
       python3 -m pip install . coverage codecov --user
       python3 -m coverage run --branch --source=roberto -m roberto robot
