@@ -1,0 +1,30 @@
+# Python package
+# Create and test a Python package on multiple Python versions.
+# Add steps that analyze code, save the dist with the build record, publish to a PyPI-compatible index, and more:
+# https://docs.microsoft.com/azure/devops/pipelines/languages/python
+
+jobs:
+- job: 'Test'
+  pool:
+    vmImage: 'Ubuntu-16.04'
+  strategy:
+    matrix:
+      Python36:
+        python.version: '3.6'
+      Python37:
+        python.version: '3.7'
+    maxParallel: 2
+
+  steps:
+  - task: UsePythonVersion@0
+    inputs:
+      versionSpec: '$(python.version)'
+      architecture: 'x64'
+
+  - script: |
+      export ROBERTO_CONDA_PINNING="python $(python.version)"
+      python3 -m pip install . coverage codecov --user
+      python3 -m coverage run --branch --source=roberto -m roberto robot
+      python3 -m coverage report -m
+      python3 -m coverage xml -i -o coverage_run.xml
+    displayName: 'Install and test package'
