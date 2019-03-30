@@ -5,9 +5,9 @@ jobs:
   strategy:
     matrix:
       py36:
-        ROBERTO_CONDA_PINNING="python 3.6"
+        ROBERTO_CONDA_PINNING: 'python 3.6'
       py37:
-        ROBERTO_CONDA_PINNING="python 3.7"
+        ROBERTO_CONDA_PINNING: 'python 3.7'
     maxParallel: 2
 
   steps:
@@ -33,9 +33,9 @@ jobs:
   strategy:
     matrix:
       py36:
-        ROBERTO_CONDA_PINNING="python 3.6"
+        ROBERTO_CONDA_PINNING: 'python 3.6'
       py37:
-        ROBERTO_CONDA_PINNING="python 3.7"
+        ROBERTO_CONDA_PINNING: 'python 3.7'
     maxParallel: 2
 
   steps:
