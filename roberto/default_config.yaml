@@ -302,7 +302,7 @@ tools:
         CONDA_BLD_PATH={config.conda.build_path}
         PROJECT_VERSION={config.git.tag_version}
         conda build {package.abspath}/tools/conda.recipe --override-channel
-          --skip-existing --no-anaconda-upload
+          --skip-existing --no-anaconda-upload --variants {config.conda.variants}
 
   # Upload python source packages to pypi
   deploy-pypi:

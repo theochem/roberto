@@ -112,6 +112,12 @@ class RobertoConfig(Config):
         else:
             self.conda.build_path = os.path.join(self.conda.env_path, 'conda-bld')
 
+        # Create the variants argument for render and build
+        pinned_words = self.conda.pinning.split()
+        self.conda.variants = '"{' + ','.join(
+            "{}: '{}'".format(name, version) for name, version
+            in zip(pinned_words[::2], pinned_words[1::2])) + '}"'
+
     @staticmethod
     def global_defaults() -> dict:
         """Set the global default configuration, before loading any other config."""
