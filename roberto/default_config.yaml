@@ -242,10 +242,6 @@ tools:
       - sphinx_rtd_theme
       - sphinx-autodoc-typehints
       - sphinxcontrib-apidoc
-      # pbr is needed by sphinxcontrib-apidoc. Dependency is missing in its conda
-      # recipe. This can be removed after the following PR gets merged
-      # https://github.com/conda-forge/sphinxcontrib-apidoc-feedstock/pull/2
-      - pbr
     # Bash commands to build the documentation
     commands:
       - cd doc; make html
