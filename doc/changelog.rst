@@ -3,6 +3,10 @@
 Change log
 ##########
 
+- Version 1.4.1 March 30, 2019
+
+  - Fix typo in tasks.py
+
 - Version 1.4.0 March 30, 2019
 
   - Only conda requirements in default config. Required packages were added to

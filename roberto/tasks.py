@@ -210,7 +210,7 @@ def install_requirements(ctx):  # pylint: disable=too-many-branches
             with tempfile.TemporaryDirectory() as tmpdir:
                 rendered_path = os.path.join(tmpdir, "rendered.yml")
                 ctx.run(
-                    "conda render -f {} {} --variants \"{}\"".format(
+                    "conda render -f {} {} --variants {}".format(
                         rendered_path, recipe_dir, ctx.conda.variants),
                     env={"PROJECT_VERSION": ctx.git.tag_version})
                 with open(rendered_path) as f:
