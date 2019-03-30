@@ -3,6 +3,17 @@
 Change log
 ##########
 
+- Version 1.4.0 March 30, 2019
+
+  - Only conda requirements in default config. Required packages were added to
+    conda-forge.
+  - Start using stable versions of cardboardlint.
+  - Add more requirements that were missing from default config.
+  - Document API with sphinxcontrib-autodoc.
+  - Generate files for doc from conf.py. Separate script no longer needed.
+  - Various website improvements.
+  - Fix issue with building for python != 3.7.
+
 - Version 1.3.0 March 26, 2019
 
   - Option to add project-specific extra requirements, which may be convenient
