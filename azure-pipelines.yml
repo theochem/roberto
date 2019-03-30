@@ -20,7 +20,6 @@ jobs:
   - bash: |
       export ROBERTO_CONDA_BASE_PATH=${CONDA}
       export CONDA_BLD_PATH=${HOME}/conda-bld
-      export ROBERTO_CONDA_PINNING="python $(python.version)"
       python3 -m pip install . coverage codecov --user
       python3 -m coverage run --branch --source=roberto -m roberto robot
       python3 -m coverage report -m
@@ -48,7 +47,6 @@ jobs:
   - bash: |
       export ROBERTO_CONDA_BASE_PATH=${CONDA}
       export CONDA_BLD_PATH=${HOME}/conda-bld
-      export ROBERTO_CONDA_PINNING="python $(python.version)"
       python3 -m pip install . coverage codecov --user
       python3 -m coverage run --branch --source=roberto -m roberto robot
       python3 -m coverage report -m
