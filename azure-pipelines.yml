@@ -11,14 +11,13 @@ jobs:
       maxParallel: 2
 
     steps:
-      - bash: echo "##vso[task.prependpath]${CONDA}/bin"
-        displayName: Add conda to PATH
-
       - bash: sudo chown -R $USER ${CONDA}
         displayName: Take ownership of conda installation
 
       - bash: |
           set -x
+          echo ${CONDA}
+          source ${CONDA}/etc/profile.d/conda.sh
           conda activate base
           python --version
           export ROBERTO_CONDA_BASE_PATH=${CONDA}
@@ -42,14 +41,13 @@ jobs:
       maxParallel: 2
 
     steps:
-      - bash: echo "##vso[task.prependpath]${CONDA}/bin"
-        displayName: Add conda to PATH
-
       - bash: sudo chown -R $USER ${CONDA}
         displayName: Take ownership of conda installation
 
       - bash: |
           set -x
+          echo ${CONDA}
+          source ${CONDA}/etc/profile.d/conda.sh
           conda activate base
           python --version
           export ROBERTO_CONDA_BASE_PATH=${CONDA}
