@@ -17,20 +17,18 @@ jobs:
       - bash: sudo chown -R $USER ${CONDA}
         displayName: Take ownership of conda installation
 
-      - task: Bash@3
+      - bash: |
+          set -x
+          conda activate base
+          python --version
+          export ROBERTO_CONDA_BASE_PATH=${CONDA}
+          export CONDA_BLD_PATH=${HOME}/conda-bld
+          conda install setuptools coverage pip
+          pip install .
+          coverage run --branch --source=roberto -m roberto robot
+          coverage report -m
+          coverage xml -i -o coverage_run.xml
         displayName: 'Install and test package'
-        inputs:
-          arguments: -x
-          script: |
-            conda activate base
-            python --version
-            export ROBERTO_CONDA_BASE_PATH=${CONDA}
-            export CONDA_BLD_PATH=${HOME}/conda-bld
-            conda install setuptools coverage pip
-            pip install .
-            coverage run --branch --source=roberto -m roberto robot
-            coverage report -m
-            coverage xml -i -o coverage_run.xml
 
   - job: 'MacOSX'
     pool:
@@ -50,17 +48,15 @@ jobs:
       - bash: sudo chown -R $USER ${CONDA}
         displayName: Take ownership of conda installation
 
-      - task: Bash@3
+      - bash: |
+          set -x
+          conda activate base
+          python --version
+          export ROBERTO_CONDA_BASE_PATH=${CONDA}
+          export CONDA_BLD_PATH=${HOME}/conda-bld
+          conda install setuptools coverage pip
+          pip install .
+          coverage run --branch --source=roberto -m roberto robot
+          coverage report -m
+          coverage xml -i -o coverage_run.xml
         displayName: 'Install and test package'
-        inputs:
-          script: |
-            conda activate base
-            python --version
-            export ROBERTO_CONDA_BASE_PATH=${CONDA}
-            export CONDA_BLD_PATH=${HOME}/conda-bld
-            conda install setuptools coverage pip
-            pip install .
-            coverage run --branch --source=roberto -m roberto robot
-            coverage report -m
-            coverage xml -i -o coverage_run.xml
-          arguments: -x
