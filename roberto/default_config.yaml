@@ -212,8 +212,8 @@ tools:
     commands:
       - cd build; find . | grep '\\.gcda$' | xargs rm -vf
       - cd build; make test
-      - gcovr -r cellcutoff --gcov-executable ${{HOST}}-gcov --object-directory build
-      - gcovr -r cellcutoff -x -o coverage_gcovr.xml
+      - gcovr -r {package.name} --gcov-executable ${{HOST}}-gcov --object-directory build
+      - gcovr -r {package.name} -x -o coverage_gcovr.xml
         --gcov-executable ${{HOST}}-gcov --object-directory build
 
   # Upload coverage result to codecov
