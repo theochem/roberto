@@ -212,8 +212,19 @@ tools:
     commands:
       - cd build; find . | grep '\\.gcda$' | xargs rm -vf
       - cd build; make test
-      - cd {package.name}; gcovr -r . --gcov-executable ${{HOST}}-gcov
-          --object-directory ../build/{package.name}/CMakeFiles/{package.name}.dir
+      - gcovr -r {package.name} --gcov-executable ${{HOST}}-gcov --object-directory build
+      - gcovr -r {package.name} -x -o coverage_gcovr.xml
+        --gcov-executable ${{HOST}}-gcov --object-directory build
+
+  # Upload coverage result to codecov
+  upload-codecov:
+    task: upload-coverage
+    pip_requirements:
+      - codecov
+    commands:
+      # Commands to run for the upload. No need for gcov, because this should
+      # already be done by gcovr.
+      - codecov -X gcov -f *.xml
 
   # Run the dynamic linters with for cardboardlint as configured in in ~/.cardboardlint.yaml
   # (Dynamic liners require compilation or interpretaton of code.)

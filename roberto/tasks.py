@@ -326,8 +326,15 @@ def test_inplace(ctx):
     """Run tests in-place and upload coverage if requested."""
     # In-place tests need the environment variable changes from the in-place build.
     run_all_commands(ctx, "test-inplace")
+
+
+@task(test_inplace)
+def upload_coverage(ctx):
+    """Upload coverage reports, if explicitly enabled in config."""
     if ctx.upload_coverage:
-        ctx.run("bash <(curl -s https://codecov.io/bash)")
+        run_all_commands(ctx, "upload-coverage")
+    else:
+        print("Coverage upload disabled by configuration.")
 
 
 @task(build_inplace)
@@ -459,7 +466,7 @@ def nuclear(ctx):
     ctx.run("git clean -fdX")
 
 
-@task(lint_static, test_inplace, lint_dynamic, build_docs, default=True)
+@task(lint_static, test_inplace, upload_coverage, lint_dynamic, build_docs, default=True)
 def quality(ctx):  # pylint: disable=unused-argument
     """Run all quality assurance tasks: linting and in-place testing."""
 

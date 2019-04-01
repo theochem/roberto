@@ -73,15 +73,17 @@ This is a basic configuration for a Python project, e.g. called `spammer`:
           tools:
             - write-py-version
             - cardboardlint-static
-            - cardboardlint-dynamic
+            - build-py-inplace
             - pytest
+            - upload-codecov
+            - cardboardlint-dynamic
             - build-sphinx-doc
+            - upload-docs-gh
             - build-py-source
             - build-conda
             - deploy-pypi
             - deploy-conda
             - deploy-github
-            - upload-docs-gh
 
 This configuration assumes you have at least the following files in your Git
 repository:
@@ -110,9 +112,10 @@ called `bummer` can be done as follows:
           tools:
             - write-cmake-version
             - cardboardlint-static
-            - cardboardlint-dynamic
             - build-cmake-inplace
             - maketest
+            - upload-codecov
+            - cardboardlint-dynamic
             - build-cmake-source
             - build-conda
             - deploy-conda
@@ -122,9 +125,10 @@ called `bummer` can be done as follows:
           tools:
             - write-py-version
             - cardboardlint-static
-            - cardboardlint-dynamic
             - build-py-inplace
             - pytest
+            - upload-codecov
+            - cardboardlint-dynamic
             - build-py-source
             - build-conda
             - deploy-conda

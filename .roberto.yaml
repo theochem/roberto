@@ -9,6 +9,7 @@ project:
         - cardboardlint-static
         - build-py-inplace
         - pytest
+        - upload-codecov
         - cardboardlint-dynamic
         - build-sphinx-doc
         - upload-docs-gh
