@@ -107,12 +107,12 @@ tools:
     # Commands to be executed when working in the merge_branch, usually
     # this is the master branch.
     commands_master:
-      - cardboardlinter -f static
+      - cardboardlinter -f static -n auto
     # Commdands to be executed when working in a feature banch, which is to
     # be merged into the merge_branch. This makes it possible to filter out
     # linting messages that are unrelated to the changes in the feature branch.
     commands_feature:
-      - 'cardboardlinter -r {config.git.merge_branch} -f static'
+      - 'cardboardlinter -r {config.git.merge_branch} -f static -n auto'
 
   # Perform an in-place build of a Python package. This may even be useful for
   # pure python packages, to generate a suitable activate script.
@@ -237,12 +237,12 @@ tools:
     # Commands to be executed when working in the merge_branch, usually
     # this is the master branch.
     commands_master:
-      - cardboardlinter -f dynamic
+      - cardboardlinter -f dynamic -n auto
     # Commdands to be executed when working in a feature banch, which is to
     # be merged into the merge_branch. This makes it possible to filter out
     # linting messages that are unrelated to the changes in the feature branch.
     commands_feature:
-      - 'cardboardlinter -r {config.git.merge_branch} -f dynamic'
+      - 'cardboardlinter -r {config.git.merge_branch} -f dynamic -n auto'
 
   # Build the sphinx documentation
   build-sphinx-doc:
