@@ -4,6 +4,12 @@
     :target: https://anaconda.org/theochem/roberto
 .. image:: https://codecov.io/gh/theochem/roberto/branch/master/graph/badge.svg
     :target: https://codecov.io/gh/theochem/roberto
+.. image:: https://img.shields.io/pypi/v/roberto.svg
+    :target: https://pypi.org/project/roberto
+.. image:: https://img.shields.io/pypi/pyversions/roberto.svg
+    :target: https://pypi.org/project/roberto
+.. image:: https://img.shields.io/github/release/theochem/roberto.svg
+    :target: https://github.com/theochem/roberto/releases
 
 
 Roberto is a collection of configurable development work flows. Its goal is to

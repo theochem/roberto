@@ -4,5 +4,5 @@ Read me first
 #############
 
 .. include:: ../README.rst
-  :start-line: 7
+  :start-line: 13
   :end-line: -15
