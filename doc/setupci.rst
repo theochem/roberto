@@ -102,7 +102,7 @@ Minimal example of a ``.travis.yaml`` file that uses Roberto
         - CONDA_BLD_PATH=${HOME}/conda-bld
         # Tell roberto which branch is being
         # merged into, in case of a PR.
-        - ROBERTO_MERGE_BRANCH=${TRAVIS_BRANCH}
+        - ROBERTO_GIT_MERGE_BRANCH=${TRAVIS_BRANCH}
 
         # GITHUB_TOKEN
         # yamllint disable-line rule:line-length
