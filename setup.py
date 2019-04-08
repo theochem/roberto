@@ -69,5 +69,13 @@ setup(
     python_requires='>=3.5',
     entry_points={
         'console_scripts': ['rob = roberto.__main__:main']
-    }
+    },
+    classifiers=[
+        'Environment :: Console',
+        'License :: OSI Approved :: GNU General Public License v3 or later (GPLv3+)',
+        'Operating System :: POSIX :: Linux',
+        'Programming Language :: Python :: 3.5',
+        'Programming Language :: Python :: 3.6',
+        'Programming Language :: Python :: 3.7',
+    ],
 )
