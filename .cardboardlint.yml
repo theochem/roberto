@@ -12,3 +12,4 @@ linters:
       config: .pydocstylerc
   - whitespace:
   - yamllint:
+      filefilter: ['- *conda.recipe/meta.yaml', '+ *.yml', '+ *.yaml']
