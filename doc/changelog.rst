@@ -3,6 +3,12 @@
 Change log
 ##########
 
+- Version 1.5.0 April 09, 2019
+
+  - Call cardboardlinter with parallel option.
+  - Improved processing of coverage resutls for C++ code.
+  - Minor fixes.
+
 - Version 1.4.1 March 30, 2019
 
   - Fix typo in tasks.py
