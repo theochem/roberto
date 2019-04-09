@@ -210,11 +210,19 @@ tools:
       - gcovr
       - make
     commands:
+      # Remove old coverage results, if any.
       - cd build; find . | grep '\\.gcda$' | xargs rm -vf
+      # Run the tests.
       - cd build; make test
-      - gcovr -r {package.name} --gcov-executable ${{HOST}}-gcov --object-directory build
-      - gcovr -r {package.name} -x -o coverage_gcovr.xml
-        --gcov-executable ${{HOST}}-gcov --object-directory build
+      # Run gcov manually, only on Linux for now.
+      - if [[ -z "${{SDKROOT}}" ]]; then
+          cd build; find . -type f -name '*.gcno' -exec ${{HOST}}-gcov -pbc {{}} +;
+        fi
+      # Remove coverage files related to libraries in the conda env.
+      - cd build; rm -vf *'#envs#{config.conda.env_name}#'*.gcov
+      # gcovr searches for all *.gcov files and produces a nice text report on
+      # stdout.
+      - gcovr -gk
 
   # Upload coverage result to codecov
   upload-codecov:
@@ -222,9 +230,8 @@ tools:
     pip_requirements:
       - codecov
     commands:
-      # Commands to run for the upload. No need for gcov, because this should
-      # already be done by gcovr.
-      - codecov -X gcov -f *.xml
+      # We have already executed gcov previously, so no need to run it again.
+      - codecov -X gcov
 
   # Run the dynamic linters with for cardboardlint as configured in in ~/.cardboardlint.yaml
   # (Dynamic liners require compilation or interpretaton of code.)
