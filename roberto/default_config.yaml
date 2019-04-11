@@ -104,6 +104,9 @@ tools:
       - yamllint
       - flake8
       - doxygen
+      - autopep8
+      - black
+      - yapf
     # Commands to be executed when working in the merge_branch, usually
     # this is the master branch.
     commands_master:

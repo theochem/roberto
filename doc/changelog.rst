@@ -3,6 +3,10 @@
 Change log
 ##########
 
+- Version 1.6.0 April 12, 2019
+
+  - Add formatter dependencies for cardboardlint to default config.
+
 - Version 1.5.0 April 09, 2019
 
   - Call cardboardlinter with parallel option.
