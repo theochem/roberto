@@ -107,6 +107,7 @@ tools:
       - autopep8
       - black
       - yapf
+      - restructuredtext_lint
     # Commands to be executed when working in the merge_branch, usually
     # this is the master branch.
     commands_master:
