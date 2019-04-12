@@ -7,6 +7,7 @@ Change log
 
   - Add formatter dependencies for cardboardlint to default config.
   - Add rst-lint dependency for cardboardlint to default config.
+  - Add ROBERTO_ABS=1 option to disable relative linting.
 
 - Version 1.5.0 April 09, 2019
 
