@@ -36,7 +36,8 @@ conda:
   maxosx_sdk_release: 'https://github.com/phracker/MacOSX-SDKs/releases/download/10.13'
 deploy_noarch: false  # Set to true for deployment of architecture-independent files.
 deploy_binary: false  # Set to true for deployment of architecture-dependent files.
-upload_coverage: false
+upload_coverage: false  # Set to true for uploading coverage
+abs: false  # Force absolute comparison for cardboardlint
 git:
   # Name of the branch being merged into, may be same as git.branch, if not a PR.
   merge_branch: master

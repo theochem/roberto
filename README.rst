@@ -102,6 +102,11 @@ your ``${PATH}`` variable is not set correctly, you can also run Roberto as
 It is a good practice to run ``rob`` before every ``git commit`` to make sure
 the committed code is clean and working.
 
+When using the cardboardlint tool and when you are working in a development
+branch, cardboardlint will only show linter messages for lines of code that you
+have changed. If you would like to see all messages, run Roberto as
+``ROBERTO_ABS=1 rob``.
+
 More details, e.g. on how to configure Roberto, can be found in the
 documentation: https://theochem.github.com/roberto
 

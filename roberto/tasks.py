@@ -254,7 +254,7 @@ def write_version(ctx):
 @task(install_requirements, sanitize_git, write_version)
 def lint_static(ctx):
     """Run static linters."""
-    if on_merge_branch(ctx):
+    if on_merge_branch(ctx) or ctx.abs:
         run_all_commands(ctx, "lint-static", 'commands_master')
     else:
         run_all_commands(ctx, "lint-static", 'commands_feature')
@@ -340,7 +340,7 @@ def upload_coverage(ctx):
 @task(build_inplace)
 def lint_dynamic(ctx):
     """Run dynamic linters."""
-    if on_merge_branch(ctx):
+    if on_merge_branch(ctx) or ctx.abs:
         run_all_commands(ctx, "lint-dynamic", 'commands_master')
     else:
         run_all_commands(ctx, "lint-dynamic", 'commands_feature')
