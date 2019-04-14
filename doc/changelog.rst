@@ -3,6 +3,10 @@
 Change log
 ##########
 
+- Version 1.6.1 April 14, 2019
+
+  - Small fixes, mostly for cpp projects.
+
 - Version 1.6.0 April 12, 2019
 
   - Add formatter dependencies for cardboardlint to default config.
