@@ -109,6 +109,7 @@ tools:
       - black
       - yapf
       - restructuredtext_lint
+      - pygments
     # Commands to be executed when working in the merge_branch, usually
     # this is the master branch.
     commands_master:
