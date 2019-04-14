@@ -102,6 +102,7 @@ class RobertoConfig(Config):
             if 'tools' not in package:
                 package.tools = []
             if 'dist_name' not in package and 'conda_name' in package:
+                print("Warning: conda_name is deprecated. Use dist_name instead.")
                 package.dist_name = package.conda_name
             # Check if all tools exist
             for toolname in package.tools:

@@ -370,10 +370,16 @@ tools:
     deploy_labels:
       - main
     commands:
+      # Clumsy way of calling hub, just to make it possible for multiple
+      # packages to upload assets. The create command will fail from the second
+      # time it is called. By calling create once succesfully, all subsequent
+      # edit calls will work fine.
       - hub release create
             -m "Automatic release of version {config.git.tag_version}"
-          {config.git.tag_version}
-      - hub release edit {hub_assets} {config.git.tag_version}
+            {config.git.tag_version};
+        hub release edit
+            -m "Automatic release of version {config.git.tag_version}"
+            {hub_assets} {config.git.tag_version}
 
   # Upload conda packages to anaconda.org
   deploy-conda:
