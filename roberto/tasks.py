@@ -204,7 +204,7 @@ def install_requirements(ctx):  # pylint: disable=too-many-branches
         print("Rendering conda package, extracting requirements, which will be installed.")
 
         # First convert pinning to yaml code
-        own_conda_packages = [package.conda_name for package in ctx.project.packages]
+        own_conda_packages = [package.dist_name for package in ctx.project.packages]
         for recipe_dir in recipe_dirs:
             # Send the output of conda render to a temporary directory.
             with tempfile.TemporaryDirectory() as tmpdir:
@@ -367,7 +367,7 @@ def upload_docs_git(ctx):
 
     for tool, package, fmtkargs in iter_packages_tools(ctx, "upload-docs-git"):
         # Check if deployment is needed with deploy_label.
-        prefix = '{} of {}'.format(tool.name, package.conda_name)
+        prefix = '{} of {}'.format(tool.name, package.dist_name)
         if not need_deployment(ctx, prefix, False, tool.deploy_labels):
             continue
 
@@ -427,7 +427,7 @@ def deploy(ctx):
                                        (False, tool.noarch_asset_patterns)]:
             # Fill in config variables in asset_patterns
             asset_patterns = [pattern.format(**fmtkargs) for pattern in asset_patterns]
-            descr = '{} of {} (binary={})'.format(tool.name, package.conda_name, binary)
+            descr = '{} of {} (binary={})'.format(tool.name, package.dist_name, binary)
             print("Preparing for {}".format(descr))
             # Collect assets, skipping hash files previously generated.
             assets = []
@@ -452,9 +452,8 @@ def deploy(ctx):
             # is maximally postponed to increase the coverage of the code above.
             if need_deployment(ctx, descr, binary, tool.deploy_labels):
                 # Run deployment commands.
-                with ctx.cd(package.path):
-                    for command in tool.commands:
-                        ctx.run(command.format(**fmtkargs), warn=True)
+                for command in tool.commands:
+                    ctx.run(command.format(**fmtkargs), warn=True)
 
 
 @task(setup_conda_env)

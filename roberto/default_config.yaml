@@ -8,7 +8,8 @@ project:
   packages: [
   # Repeat as many as you like. The order determines the order in which they
   # are linted, tested, built, etc.
-  # - conda_name: 'name of the conda package'
+  # - conda_name: 'name of the conda package' # deprecated, use dist_name
+  #   dist_name: 'name_for_distribution_packages' # can include python-
   #   tools: [] # list, any of the tools defined below
   #   name: '' # python or cpp name, defaults to project.name
   #   path: # root of the package relative to the project root defaults to '.'
@@ -364,14 +365,15 @@ tools:
       - GITHUB_TOKEN
     include_sha256: true
     noarch_asset_patterns:
-      - '{package.path}/dist/{package.name}-{config.git.tag_version}.*'
+      - '{package.path}/*dist*/{package.dist_name}-{config.git.tag_version}.*'
     binary_asset_patterns: []
     deploy_labels:
       - main
     commands:
-      - hub release create {hub_assets}
-          -m "Automatic release of version {config.git.tag_version}"
+      - hub release create
+            -m "Automatic release of version {config.git.tag_version}"
           {config.git.tag_version}
+      - hub release edit {hub_assets} {config.git.tag_version}
 
   # Upload conda packages to anaconda.org
   deploy-conda:
@@ -381,10 +383,10 @@ tools:
     deploy_vars:
       - ANACONDA_API_TOKEN
     noarch_asset_patterns:
-      - '{config.conda.build_path}/noarch/{package.conda_name}-{config.git.tag_version}-*.*'
+      - '{config.conda.build_path}/noarch/{package.dist_name}-{config.git.tag_version}-*.*'
     binary_asset_patterns:
-      - '{config.conda.build_path}/linux-64/{package.conda_name}-{config.git.tag_version}-*.*'
-      - '{config.conda.build_path}/osx-64/{package.conda_name}-{config.git.tag_version}-*.*'
+      - '{config.conda.build_path}/linux-64/{package.dist_name}-{config.git.tag_version}-*.*'
+      - '{config.conda.build_path}/osx-64/{package.dist_name}-{config.git.tag_version}-*.*'
     deploy_labels:
       - main
       - test

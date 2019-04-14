@@ -26,9 +26,9 @@ The configuration file must at least contain the following:
     name: your_project_name
     # List one or more software packages below.
     packages:
-        # 'conda_nane' is required and there is no default value.
+        # 'dist_name' is required and there is no default value.
         # It must be unique in case of multiple package.
-      - conda_name: 'conda_package_name'
+      - dist_name: 'name_for_distribution_packages'
         # An optional package name, must not be unique.
         # The default is the project name.
         name: 'package_name'
@@ -45,7 +45,7 @@ The configuration file must at least contain the following:
           - cardboardlint-static
           # ...
       # You can add multiple packages.
-      - conda_name: '...'
+      - dist_name: '...'
         # ...
 
 Each tool of each package will be executed in one task in the overall work
@@ -69,7 +69,7 @@ This is a basic configuration for a Python project, e.g. called `spammer`:
     project:
       name: spammer
       packages:
-        - conda_name: spammer
+        - dist_name: spammer
           tools:
             - write-py-version
             - cardboardlint-static
@@ -108,7 +108,7 @@ called `bummer` can be done as follows:
     project:
       name: bummer
       packages:
-        - conda_name: bummer
+        - dist_name: bummer
           tools:
             - write-cmake-version
             - cardboardlint-static
@@ -120,7 +120,7 @@ called `bummer` can be done as follows:
             - build-conda
             - deploy-conda
             - deploy-github
-        - conda_name: python-bummer
+        - dist_name: python-bummer
           path: python-bummer
           tools:
             - write-py-version
@@ -255,7 +255,7 @@ additional settings depend on the selected ``task``.
 
 Filenames and most other fields in the tool settings can make use of
 other confiruaton values, e.g. with ``{config.project.name}``, package-specific
-configuration, e.g. ``{package.conda_name}``, or tool-specific settings, e.g.
+configuration, e.g. ``{package.dist_name}``, or tool-specific settings, e.g.
 ``{tool.destination}``. These substitutions are not carried out recursively.
 
 In `default configuration file <https://github.com/theochem/roberto/blob/master/roberto/default_config.yaml>`_,

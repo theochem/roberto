@@ -101,6 +101,8 @@ class RobertoConfig(Config):
                 package.name = self.project.name
             if 'tools' not in package:
                 package.tools = []
+            if 'dist_name' not in package and 'conda_name' in package:
+                package.dist_name = package.conda_name
             # Check if all tools exist
             for toolname in package.tools:
                 if toolname not in self.tools:
