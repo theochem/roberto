@@ -377,10 +377,10 @@ tools:
     deploy_vars:
       - ANACONDA_API_TOKEN
     noarch_asset_patterns:
-      - '{config.conda.build_path}/noarch/{package.name}-{config.git.tag_version}-*.*'
+      - '{config.conda.build_path}/noarch/{package.conda_name}-{config.git.tag_version}-*.*'
     binary_asset_patterns:
-      - '{config.conda.build_path}/linux-64/{package.name}-{config.git.tag_version}-*.*'
-      - '{config.conda.build_path}/osx-64/{package.name}-{config.git.tag_version}-*.*'
+      - '{config.conda.build_path}/linux-64/{package.conda_name}-{config.git.tag_version}-*.*'
+      - '{config.conda.build_path}/osx-64/{package.conda_name}-{config.git.tag_version}-*.*'
     deploy_labels:
       - main
       - test
