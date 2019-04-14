@@ -153,6 +153,7 @@ tools:
         fi;
         python setup.py build_ext -i --define CYTHON_TRACE_NOGIL
         $([[ -n "${{RPATH}}" ]] && echo -R "${{RPATH}}")
+        -I ${{CONDA_PREFIX}}/include
 
   # Perform an in-place build of a CMake package.
   build-cmake-inplace:
