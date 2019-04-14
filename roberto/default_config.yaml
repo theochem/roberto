@@ -109,6 +109,8 @@ tools:
       - black
       - yapf
       - restructuredtext_lint
+      # Following is needed for rst-lint.
+      # See https://github.com/twolfson/restructuredtext-lint/issues/41
       - pygments
     # Commands to be executed when working in the merge_branch, usually
     # this is the master branch.
