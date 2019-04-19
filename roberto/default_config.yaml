@@ -136,7 +136,7 @@ tools:
     # here, their contents before any in-place build are printed, so one sees
     # pre-existing variables that may affect the in-place build.
     check_vars:
-      - CPPFLAGS
+      - CXXFLAGS
       - CFLAGS
       - LDFLAGS
       - PYTHONPATH
@@ -167,14 +167,14 @@ tools:
       # for the linker, so we cannot use LDFLAGS for this, alas.
       RPATH: '{package.abspath}/build/{package.name}'
     export_flags:
-      CPPFLAGS: >-
+      CXXFLAGS: >-
         -I {package.abspath}
       CFLAGS: >-
         -I {package.abspath}
       LDFLAGS: >-
         -L {package.abspath}/build/{package.name}
     check_vars:
-      - CPPFLAGS
+      - CXXFLAGS
       - CFLAGS
       - LDFLAGS
     commands:
