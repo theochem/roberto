@@ -3,6 +3,12 @@
 Change log
 ##########
 
+- Version 1.7.0 May 16, 2019
+
+  - Fix typo (CXXFLAGS).
+  - Skip dependency installation for absent conda recipes without crashing.
+  - Use ``dist_name`` instead of ``conda_name`` in the configuration.
+
 - Version 1.6.1 April 14, 2019
 
   - Small fixes, mostly for cpp projects.

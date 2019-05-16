@@ -1,7 +1,7 @@
 project:
   name: roberto
   packages:
-    - conda_name: roberto
+    - dist_name: roberto
       name: roberto
       path: .
       tools:
