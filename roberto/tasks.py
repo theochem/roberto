@@ -147,7 +147,7 @@ def setup_conda_env(ctx):
 
 
 @task(setup_conda_env)
-def install_requirements(ctx):  # pylint: disable=too-many-branches
+def install_requirements(ctx):  # pylint: disable=too-many-branches,too-many-statements
     """Install all requirements, including tools used by Roberto."""
     # Collect all parameters determining the install commands, to good
     # approximation and turn them into a hash.
@@ -163,7 +163,11 @@ def install_requirements(ctx):  # pylint: disable=too-many-branches
     for package in ctx.project.packages:
         for toolname in package.tools:
             tools.append(ctx.tools[toolname])
-        recipe_dirs.append(os.path.join(package.path, "tools", "conda.recipe"))
+        recipe_dir = os.path.join(package.path, "tools", "conda.recipe")
+        if os.path.isdir(recipe_dir):
+            recipe_dirs.append(recipe_dir)
+        else:
+            print("Skipping recipe {}. (directory does not exist)".format(recipe_dir))
     for tool in tools:
         conda_packages.update(tool.get('conda_requirements', []))
         pip_packages.update(tool.get('pip_requirements', []))
