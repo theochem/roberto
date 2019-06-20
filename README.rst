@@ -1,5 +1,5 @@
-.. image:: https://travis-ci.org/theochem/roberto.svg?branch=master
-    :target: https://travis-ci.org/theochem/roberto
+.. image:: https://travis-ci.com/theochem/roberto.svg?branch=master
+    :target: https://travis-ci.com/theochem/roberto
 .. image:: https://anaconda.org/theochem/roberto/badges/version.svg
     :target: https://anaconda.org/theochem/roberto
 .. image:: https://codecov.io/gh/theochem/roberto/branch/master/graph/badge.svg
