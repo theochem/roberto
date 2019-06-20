@@ -191,6 +191,7 @@ tools:
       - pytest
       - pytest-cov
       - pytest-xdist
+      - pytest-regressions
     # Bash commands to perform the tests. Environment variables defined in the
     # in-place build will still be set.
     commands:
