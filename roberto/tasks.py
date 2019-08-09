@@ -221,8 +221,14 @@ def install_requirements(ctx):  # pylint: disable=too-many-branches,too-many-sta
                     rendered = yaml.safe_load(f)
             # Build a (simplified) list of requirements and install.
             requirements = set([])
-            for reqtype in 'build', 'host', 'run':
-                for requirement in rendered.get("requirements", {}).get(reqtype, []):
+            reqsources = [
+                ("requirements", 'build'),
+                ("requirements", 'host'),
+                ("requirements", 'run'),
+                ("test", 'requires'),
+            ]
+            for reqsection, reqtype in reqsources:
+                for requirement in rendered.get(reqsection, {}).get(reqtype, []):
                     words = requirement.split()
                     if words[0] not in own_conda_packages:
                         requirements.add(" ".join(words[:2]))
