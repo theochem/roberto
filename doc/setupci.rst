@@ -321,7 +321,8 @@ print errors for exactly the same code on Travis. (This should be rare though.)
 In this case, it could be helpful to run ``rob`` or any other tests manually in
 a Travis docker image:
 
-1. Install docker-ce: https://docs.docker.com/install/
+1. Install docker-ce: https://docs.docker.com/install/ or an alternative engine
+   for OCI containers, e.g. podman: https://podman.io/
 
 2. Get an up-to-date travis-ci docker image. For our linux builds, these can
    be found here: https://hub.docker.com/r/travisci/ci-sardonyx/tags
@@ -330,17 +331,17 @@ a Travis docker image:
 
    .. code-block:: bash
 
-       docker pull travisci/ci-sardonyx:packer-1549881206-387f377
+       docker pull travisci/ci-sardonyx:packer-1553530531-f909ac5
 
    This will take a while. (3GB download!)
-   You may want to use a newer tag than ``packer-1549881206-387f377``.
+   You may want to use a newer tag than ``packer-1553530531-f909ac5``.
 
 3. Run the headless image:
 
    .. code-block:: bash
 
        docker run --name foobar \
-           travisci/ci-sardonyx:packer-1549881206-387f377 \
+           travisci/ci-sardonyx:packer-1553530531-f909ac5 \
            /sbin/init
 
    where you may also need to change the tag to be consistent with step 2.
