@@ -179,7 +179,7 @@ def update_env_command(ctx: Context, command: str) -> None:
     newenv = json.loads(result.stdout)
     for key, value in newenv.items():
         os.environ[key] = value
-    removed_keys = [key for key in os.environ.keys() if key not in newenv]
+    removed_keys = [key for key in os.environ if key not in newenv]
     for key in removed_keys:
         del os.environ[key]
 
