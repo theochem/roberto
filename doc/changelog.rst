@@ -3,6 +3,12 @@
 Change log
 ##########
 
+- Version 1.8.0 May 14, 2020
+
+  - Fix some URLs (Miniconda)
+  - Install pytest-regressions extensions by default
+  - Test requirements in Conda environment.
+
 - Version 1.7.0 May 16, 2019
 
   - Fix typo (CXXFLAGS).
