@@ -3,6 +3,10 @@
 Change log
 ##########
 
+- Version 1.9.0 Aug 15, 2020
+
+  - Configure channels with prepend instead of append.
+
 - Version 1.8.0 May 14, 2020
 
   - Fix some URLs (Miniconda)
