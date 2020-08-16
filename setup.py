@@ -71,7 +71,7 @@ setup(
         'console_scripts': ['rob = roberto.__main__:main']
     },
     classifiers=[
-        'Development Status :: 4 - Beta',
+        'Development Status :: 5 - Production/Stable',
         'Environment :: Console',
         'License :: OSI Approved :: GNU General Public License v3 or later (GPLv3+)',
         'Operating System :: POSIX :: Linux',
