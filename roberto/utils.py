@@ -94,7 +94,7 @@ def parse_git_describe(git_describe: str) -> dict:
         or version_info['tag_test']
         or version_info['tag_dev'])
     if version_info['tag_stable']:
-        version_info['deploy_label'] = 'main'
+        version_info['deploy_label'] = "main"
     elif version_info['tag_test']:
         version_info['deploy_label'] = "test"
     elif version_info['tag_dev']:

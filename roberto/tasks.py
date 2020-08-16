@@ -32,7 +32,7 @@ import tempfile
 import time
 import urllib.request
 
-from invoke import task, Failure
+from invoke import task, Failure, UnexpectedExit
 import yaml
 
 from .utils import (conda_deactivate, conda_activate, compute_req_hash,
@@ -461,9 +461,12 @@ def deploy(ctx):
             # Check if deployment is needed before running commands. This check
             # is maximally postponed to increase the coverage of the code above.
             if need_deployment(ctx, descr, binary, tool.deploy_labels):
-                # Run deployment commands.
-                for command in tool.commands:
-                    ctx.run(command.format(**fmtkargs), warn=True)
+                try:
+                    # Run deployment commands.
+                    for command in tool.commands:
+                        ctx.run(command.format(**fmtkargs))
+                except UnexpectedExit:
+                    print("Deployment failed:", descr)
 
 
 @task(setup_conda_env)

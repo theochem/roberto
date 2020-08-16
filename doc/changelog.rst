@@ -3,6 +3,10 @@
 Change log
 ##########
 
+- Version 1.10.0 Aug 16, 2020
+
+  - Improved support for deployment of pre-releases.
+
 - Version 1.9.0 Aug 15, 2020
 
   - Configure channels with prepend instead of append.
