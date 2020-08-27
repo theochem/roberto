@@ -36,15 +36,15 @@ from setuptools import setup
 NAME = 'roberto'
 
 
-def get_version():
-    """Read __version__ from version.py, with exec to avoid importing it."""
+def get_version_info():
+    """Read __version__ and DEV_CLASSIFIER from version.py, using exec, not import."""
     try:
         with open(os.path.join(NAME, 'version.py'), 'r') as f:
             myglobals = {}
             exec(f.read(), myglobals)  # pylint: disable=exec-used
-        return myglobals['__version__']
+        return myglobals['__version__'], myglobals['DEV_CLASSIFIER']
     except IOError:
-        return "0.0.0.post0"
+        return "0.0.0.post0", "Development Status :: 2 - Pre-Alpha"
 
 
 def load_readme():
@@ -53,9 +53,12 @@ def load_readme():
         return f.read()
 
 
+VERSION, DEV_CLASSIFIER = get_version_info()
+
+
 setup(
     name=NAME,
-    version=get_version(),
+    version=VERSION,
     package_dir={NAME: NAME},
     packages=[NAME, NAME + '.test'],
     description='Collection of configurable development workflows',
@@ -71,7 +74,7 @@ setup(
         'console_scripts': ['rob = roberto.__main__:main']
     },
     classifiers=[
-        'Development Status :: 5 - Production/Stable',
+        DEV_CLASSIFIER,
         'Environment :: Console',
         'License :: OSI Approved :: GNU General Public License v3 or later (GPLv3+)',
         'Operating System :: POSIX :: Linux',

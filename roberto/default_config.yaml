@@ -76,6 +76,7 @@ tools:
       The derived version is: ``{config.git.tag_version}``
       """
       __version__ = '{config.git.tag_version}'
+      DEV_CLASSIFIER = '{config.git.dev_classifier}'
     # The file to be written. Existing files are overwritten.
     destination: '{package.name}/version.py'
 
@@ -357,22 +358,6 @@ tools:
       - dev
     # Finally, the commands to perform the upload.
     commands:
-      # Make sure classifiers are present in setup.py when needed. If not,
-      # this mistake would be too ugly to fix afterwards. It is better to fail
-      # before uploading instead.
-      - 'if [[ "{config.git.deploy_label}" == "dev" ]] &&
-          ! (grep -q "Development Status :: 3 - Alpha" setup.py); then
-          echo "Alpha classifier missing"; exit -1;
-        fi'
-      - 'if [[ "{config.git.deploy_label}" == "test" ]] &&
-          ! (grep -q "Development Status :: 4 - Beta" setup.py); then
-          echo "Beta classifier missing"; exit -1;
-        fi'
-      - 'if [[ "{config.git.deploy_label}" == "main" ]] &&
-          ! (grep -q "Development Status :: 5 - Production/Stable" setup.py); then
-          echo "Stable classifier missing"; exit -1;
-        fi'
-      # Upload
       - twine upload --non-interactive {assets}
 
   # Upload any source packages to github.com

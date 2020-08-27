@@ -88,6 +88,7 @@ def test_parse_git_describe():
         'tag_dev': False,
         'tag_release': True,
         'deploy_label': 'main',
+        'dev_classifier': 'Development Status :: 5 - Production/Stable',
     }
     assert parse_git_describe("0.18.1b1") == {
         'describe': '0.18.1b1',
@@ -103,6 +104,7 @@ def test_parse_git_describe():
         'tag_dev': False,
         'tag_release': True,
         'deploy_label': 'test',
+        'dev_classifier': 'Development Status :: 4 - Beta',
     }
     assert parse_git_describe("30.1.2a7") == {
         'describe': '30.1.2a7',
@@ -118,6 +120,7 @@ def test_parse_git_describe():
         'tag_dev': True,
         'tag_release': True,
         'deploy_label': 'dev',
+        'dev_classifier': 'Development Status :: 3 - Alpha',
     }
     assert parse_git_describe("15.13.11a9-10") == {
         'describe': '15.13.11a9-10',
@@ -133,6 +136,7 @@ def test_parse_git_describe():
         'tag_dev': False,
         'tag_release': False,
         'deploy_label': None,
+        'dev_classifier': 'Development Status :: 2 - Pre-Alpha',
     }
     assert parse_git_describe("1.0.30l") == {
         'describe': '1.0.30l',
@@ -148,6 +152,7 @@ def test_parse_git_describe():
         'tag_dev': False,
         'tag_release': False,
         'deploy_label': None,
+        'dev_classifier': 'Development Status :: 2 - Pre-Alpha',
     }
     assert parse_git_describe("5.0.0") == {
         'describe': '5.0.0',
@@ -163,6 +168,7 @@ def test_parse_git_describe():
         'tag_dev': False,
         'tag_release': True,
         'deploy_label': 'main',
+        'dev_classifier': 'Development Status :: 5 - Production/Stable',
     }
     assert parse_git_describe("2.7.0-3-foo") == {
         'describe': '2.7.0-3-foo',
@@ -178,6 +184,7 @@ def test_parse_git_describe():
         'tag_dev': False,
         'tag_release': False,
         'deploy_label': None,
+        'dev_classifier': 'Development Status :: 2 - Pre-Alpha',
     }
     assert parse_git_describe("0.9.0a2") == {
         'describe': '0.9.0a2',
@@ -193,6 +200,7 @@ def test_parse_git_describe():
         'tag_dev': True,
         'tag_release': True,
         'deploy_label': 'dev',
+        'dev_classifier': 'Development Status :: 3 - Alpha',
     }
     assert parse_git_describe("0.0.0-666-notag") == {
         'describe': '0.0.0-666-notag',
@@ -208,6 +216,7 @@ def test_parse_git_describe():
         'tag_dev': False,
         'tag_release': False,
         'deploy_label': None,
+        'dev_classifier': 'Development Status :: 2 - Pre-Alpha'
     }
     with raises(TagError):
         parse_git_describe('1.2')

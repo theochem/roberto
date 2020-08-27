@@ -3,6 +3,10 @@
 Change log
 ##########
 
+- Version 1.11.0 Aug 27, 2020
+
+  - Derive development classifier from git tag.
+
 - Version 1.10.0 Aug 16, 2020
 
   - Improved support for deployment of pre-releases.

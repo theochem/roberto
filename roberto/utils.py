@@ -95,12 +95,17 @@ def parse_git_describe(git_describe: str) -> dict:
         or version_info['tag_dev'])
     if version_info['tag_stable']:
         version_info['deploy_label'] = "main"
+        version_info['dev_classifier'] = 'Development Status :: 5 - Production/Stable'
     elif version_info['tag_test']:
         version_info['deploy_label'] = "test"
+        version_info['dev_classifier'] = 'Development Status :: 4 - Beta'
     elif version_info['tag_dev']:
         version_info['deploy_label'] = "dev"
+        version_info['dev_classifier'] = 'Development Status :: 3 - Alpha'
     else:
+        # Non-release tag or no tag.
         version_info['deploy_label'] = None
+        version_info['dev_classifier'] = 'Development Status :: 2 - Pre-Alpha'
     return version_info
 
 
