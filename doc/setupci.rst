@@ -19,7 +19,7 @@ set additional environment variables:
   binary releases.
 
 - ``ROBERTO_DEPLOY_NOARCH``. Set this to ``1`` if you want Roberto to upload
-  architecture independent releases
+  architecture-independent releases and documentation.
 
 - ``ROBERTO_UPLOAD_COVERAGE``. Set this to ``1`` if you want coverage reports
   on CodeCov.
