@@ -43,7 +43,7 @@ work on both Linux and OSX:
   # These commands assume you are in the root of the repository and
   # that a basic Python 3 (>= 3.5) is installed.
   # 1) Install pip and roberto
-  wget --no-clobber -O ${HOME}/get-pip.py https://bootstrap.pypa.io/get-pip.py || true
+  wget --no-clobber -O ${HOME}/get-pip.py https://bootstrap.pypa.io/3.5/get-pip.py || true
   python3 ${HOME}/get-pip.py --user
   python3 -m pip install roberto --user
   # 2) Run Roberto
@@ -133,7 +133,7 @@ Minimal example of a ``.travis.yaml`` file that uses Roberto
       # Get a basic python 3 with pip to run roberto
       - python3 --version
       - wget --no-clobber -O ${HOME}/cache/get-pip.py
-        https://bootstrap.pypa.io/get-pip.py || true
+        https://bootstrap.pypa.io/3.5/get-pip.py || true
       - python3 ${HOME}/cache/get-pip.py --user
       # To avoid surprises, constrain the major
       # version number of roberto.
