@@ -24,7 +24,7 @@ jobs:
       - uses: actions/cache@v2
         with:
           path: ~/venvs
-          key: ${{ runner.os }}-venv
+          key: ${{ runner.os }}-${{ matrix.python-version }}-venv
       - name: Install Pip and Roberto
         run: |
           python -m pip install --upgrade pip
