@@ -50,7 +50,12 @@ jobs:
           pip install ./
       - name: Testing Roberto with
         run: |
-          ROBERTO_TESTENV_USE=venv \
-          ROBERTO_GIT_MERGE_BRANCH=${GITHUB_HEAD_REF} \
-          ROBERTO_GIT_BRANCH=${GITHUB_BASE_REF} \
-          rob
+          if [[ -n "${GITHUB_HEAD_REF}" ]]; then
+            ROBERTO_TESTENV_USE=venv \
+            ROBERTO_GIT_MERGE_BRANCH=${GITHUB_HEAD_REF} \
+            ROBERTO_GIT_BRANCH=${GITHUB_BASE_REF} \
+            rob
+          else
+            ROBERTO_TESTENV_USE=venv \
+            rob
+          fi
