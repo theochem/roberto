@@ -49,7 +49,8 @@ jobs:
           python -m pip install --upgrade pip
           pip install ./
       - name: Testing Roberto with
-        run: ROBERTO_TESTENV_USE=venv rob
-        env:
-          ROBERTO_GIT_MERGE_BRANCH: env.GITHUB_HEAD_REF
-          ROBERTO_GIT_BRANCH: env.GITHUB_BASE_REF
+        run: |
+          ROBERTO_TESTENV_USE=venv \
+          ROBERTO_GIT_MERGE_BRANCH=${GITHUB_HEAD_REF} \
+          ROBERTO_GIT_BRANCH=${GITHUB_BASE_REF} \
+          rob
