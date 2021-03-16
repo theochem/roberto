@@ -57,5 +57,5 @@ jobs:
             rob
           else
             ROBERTO_TESTENV_USE=venv \
-            rob
+            rob robot
           fi
