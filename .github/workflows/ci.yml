@@ -10,10 +10,31 @@ jobs:
     strategy:
       fail-fast: false
       matrix:
-        os: [ubuntu-latest, macos-latest]
-        python-version: [3.7, 3.8, 3.9]
+        include:
+          - os: ubuntu-latest
+            python-version: 3.7
+            roberto_deploy_noarch: 1
+          - os: ubuntu-latest
+            python-version: 3.8
+            roberto_deploy_noarch: 0
+          - os: ubuntu-latest
+            python-version: 3.9
+            roberto_deploy_noarch: 0
+          - os: macos-latest
+            python-version: 3.7
+            roberto_deploy_noarch: 0
 
     runs-on: ${{ matrix.os }}
+    env:
+      # Tell Roberto to upload coverage results
+      ROBERTO_UPLOAD_COVERAGE: 1
+      ROBERTO_DEPLOY_NOARCH: ${{ matrix.roberto_deploy_noarch }}
+      # Tell roberto which branch is being
+      # merged into, in case of a PR.
+      ROBERTO_GIT_MERGE_BRANCH: env.GITHUB_HEAD_REF
+      ROBERTO_GIT_BRANCH: env.GITHUB_BASE_REF
+      TWINE_PASSWORD: ${{ secrets.TWINE_PASSWORD }}
+      GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
     steps:
       - uses: actions/checkout@v2
       - name: Set up Python ${{ matrix.python-version }}
