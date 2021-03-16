@@ -89,9 +89,9 @@ def install_requirements_venv(ctx: Context):
                 if os.path.isfile("requirements.txt"):
                     ctx.run("pip install -U -r requirements")
                 # setup.py must be present.
-                # TODO: seems unwise, but may be ok. Just installing deps
-                # would suffice, but for multi-projects, installing could
-                # be the only way to work?
+                # Installing as editable package differs from the conda
+                # environment, where in-place packages are used instead.
+                # It would be nice to get the same behavior in both cases.
                 ctx.run("pip install -e ./")
         # Update the timestamp on the skip file.
         with open(fn_skip, 'w') as f:
