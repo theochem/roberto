@@ -20,7 +20,7 @@
 
 import os
 
-from pytest import raises
+import pytest
 
 from invoke import Context
 from invoke.config import DataProxy
@@ -43,34 +43,32 @@ def test_update_env_command():
 
 def test_req_hash(tmpdir):
     tmpdir = str(tmpdir)  # for python-3.5 compatibility
-    conda_packages = ["conda-build", "anaconda-client", "conda-verify"]
-    pip_packages = ["codecov"]
+    req_items = set(["conda-build", "anaconda-client", "conda-verify"])
     # Use a fake but safe recipe dir
-    with open(os.path.join(tmpdir, "foo"), "w") as f:
+    fn_foo = os.path.join(tmpdir, "foo")
+    with open(fn_foo, "w") as f:
         f.write("bar")
-    recipe_dirs = [tmpdir]
-    hash1 = compute_req_hash(conda_packages, recipe_dirs, pip_packages)
+    req_fns = set([fn_foo])
+    hash1 = compute_req_hash(req_items, req_fns)
     assert len(hash1) == 64
-    pip_packages.append("1")
-    hash2 = compute_req_hash(conda_packages, recipe_dirs, pip_packages)
+    req_items.add("1")
+    hash2 = compute_req_hash(req_items, req_fns)
     assert len(hash2) == 64
     assert hash1 != hash2
-    pip_packages.append("aaa")
-    hash3 = compute_req_hash(conda_packages, recipe_dirs, pip_packages)
+    req_items.add("aaa")
+    hash3 = compute_req_hash(req_items, req_fns)
     assert len(hash3) == 64
     assert hash1 != hash3
     assert hash2 != hash3
-    with open(os.path.join(tmpdir, "egg"), "w") as f:
+    fn_egg = os.path.join(tmpdir, "egg")
+    with open(fn_egg, "w") as f:
         f.write("spam")
-    hash4 = compute_req_hash(conda_packages, recipe_dirs, pip_packages)
+    req_fns.add(fn_egg)
+    hash4 = compute_req_hash(req_items, req_fns)
     assert len(hash4) == 64
     assert hash1 != hash4
     assert hash2 != hash4
     assert hash3 != hash4
-    os.mkdir(os.path.join(tmpdir, "subdir"))
-    hash5 = compute_req_hash(conda_packages, recipe_dirs, pip_packages)
-    assert len(hash5) == 64
-    assert hash4 == hash5
 
 
 def test_parse_git_describe():
@@ -218,15 +216,15 @@ def test_parse_git_describe():
         'deploy_label': None,
         'dev_classifier': 'Development Status :: 2 - Pre-Alpha'
     }
-    with raises(TagError):
+    with pytest.raises(TagError):
         parse_git_describe('1.2')
-    with raises(TagError):
+    with pytest.raises(TagError):
         parse_git_describe('0.0.0.1')
-    with raises(TagError):
+    with pytest.raises(TagError):
         parse_git_describe('0.0.foo')
-    with raises(TagError):
+    with pytest.raises(TagError):
         parse_git_describe('0.foo.0')
-    with raises(TagError):
+    with pytest.raises(TagError):
         parse_git_describe('foo.0.0')
 
 

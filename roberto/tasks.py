@@ -27,18 +27,15 @@ from glob import glob
 import json
 import os
 import platform
-import stat
-import tempfile
-import time
 import urllib.request
 
-from invoke import task, Failure, UnexpectedExit
-import yaml
+from invoke import task, UnexpectedExit
 
-from .utils import (conda_deactivate, conda_activate, compute_req_hash,
-                    iter_packages_tools, run_all_commands, write_sha256_sum,
+from .conda import install_requirements_conda, nuclear_conda
+from .utils import (iter_packages_tools, run_all_commands, write_sha256_sum,
                     sanitize_branch, on_merge_branch, need_deployment,
                     check_env_var)
+from .venv import install_requirements_venv, nuclear_venv
 
 
 @task()
@@ -50,205 +47,14 @@ def sanitize_git(ctx):
 
 
 @task()
-def install_conda(ctx):
-    """Install miniconda if not present yet. On OSX, also install the SDK."""
-    # Prepare the download directory
-    dwnldir = ctx.conda.download_dir
-    if not os.path.isdir(dwnldir):
-        os.makedirs(dwnldir)
-
-    # Install miniconda if needed.
-    dest = ctx.conda.base_path
-    if not os.path.isdir(os.path.join(dest, 'bin')):
-        dwnlconda = os.path.join(dwnldir, 'miniconda.sh')
-        if os.path.isfile(dwnlconda):
-            print("Conda installer already present: {}".format(dwnlconda))
-        else:
-            print("Downloading latest conda to {}.".format(dwnlconda))
-            if platform.system() == 'Darwin':
-                urllib.request.urlretrieve(ctx.conda.osx_url, dwnlconda)
-            elif platform.system() == 'Linux':
-                urllib.request.urlretrieve(ctx.conda.linux_url, dwnlconda)
-            else:
-                raise Failure("Operating system {} not supported.".format(platform.system()))
-
-        # Fix permissions of the conda installer.
-        os.chmod(dwnlconda, os.stat(dwnlconda).st_mode | stat.S_IXUSR)
-
-        # Unload any currently loaded conda environments.
-        conda_deactivate(ctx)
-
-        # Install
-        print("Installing conda in {}.".format(dest))
-        ctx.run("{} -b -p {}".format(dwnlconda, dest))
-
-        # Load our new conda environment
-        conda_activate(ctx, "base")
-
-    # Install MacOSX SDK if on OSX
-    if platform.system() == 'Darwin':
-        optdir = os.path.join(ctx.conda.base_path, 'opt')
-        if not os.path.isdir(optdir):
-            os.makedirs(optdir)
-        sdk = 'MacOSX{}.sdk'.format(ctx.conda.macosx)
-        sdkroot = os.path.join(optdir, sdk)
-        if not os.path.isdir(sdkroot):
-            sdktar = '{}.tar.xz'.format(sdk)
-            sdkdwnl = os.path.join(dwnldir, sdktar)
-            sdkurl = '{}/{}'.format(ctx.conda.maxosx_sdk_release, sdktar)
-            print("Downloading {}".format(sdkurl))
-            urllib.request.urlretrieve(sdkurl, sdkdwnl)
-            with ctx.cd(optdir):
-                ctx.run('tar -xJf {}'.format(sdkdwnl))
-        os.environ['MACOSX_DEPLOYMENT_TARGET'] = ctx.conda.macosx
-        os.environ['SDKROOT'] = sdkroot
-        print('MaxOSX sdk in: {}'.format(sdkroot))
-        ctx.run('ls -alh {}'.format(sdkroot))
-        ctx.conda.sdkroot = sdkroot
-
-
-@task(install_conda)
-def setup_conda_env(ctx):
-    """Set up a conda testing environment."""
-    # Check the sanity of the pinning configuration
-    for char in "=<>!*":
-        if char in ctx.conda.pinning:
-            raise Failure("Character '{}' should not be used in pinning.".format(char))
-    pinned_words = ctx.conda.pinning.split()
-    if len(pinned_words) % 2 != 0:
-        raise Failure("Pinning config should be an even number of words, alternating "
-                      "package names and versions, without wildcards.")
-    pinned_reqs = ["{}={}".format(name, version) for name, version
-                   in zip(pinned_words[::2], pinned_words[1::2])]
-
-    # Load the correct base environment.
-    conda_deactivate(ctx)
-    conda_activate(ctx, "base")
-
-    # Check if the right environment exists, and make if needed.
-    result = ctx.run("conda env list --json")
-    print("Conda env needed is: {}".format(ctx.conda.env_path))
-    if ctx.conda.env_path not in json.loads(result.stdout)["envs"]:
-        ctx.run("conda create -n {} {} -y".format(ctx.conda.env_name, " ".join(pinned_reqs)))
-        with open(os.path.join(ctx.conda.env_path, "conda-meta", "pinning"), "w") as f:
-            for pin in pinned_reqs:
-                f.write(pin + "\n")
-
-    # Load the development environment.
-    conda_activate(ctx, ctx.conda.env_name)
-
-    # Reset the channels. Removing previous may fail if there were none. That's ok.
-    ctx.run("conda config --remove-key channels", warn=True, hide='err')
-    for channel in ctx.conda.channels:
-        # Prepend is used to take as many packages as possible, e.g.
-        # from conda-forge. Appending can cause issues with some packages are
-        # present in the default channel and some are not (dependency issues.)
-        ctx.run("conda config --prepend channels {}".format(channel))
-
-
-@task(setup_conda_env)
 def install_requirements(ctx):  # pylint: disable=too-many-branches,too-many-statements
     """Install all requirements, including tools used by Roberto."""
-    # Collect all parameters determining the install commands, to good
-    # approximation and turn them into a hash.
-    # Some conda requirements are included by default because they must be present:
-    # - conda: to make sure it is always up to date.
-    # - conda-build: to have conda-render for getting requirements from recipes.
-    # - pip: to install dependencies for tasks with pip, must be recent to work
-    #        wel with conda.
-    conda_packages = set(["conda", "conda-build", "pip"])
-    pip_packages = set([])
-    recipe_dirs = []
-    tools = [ctx.project]  # Add project as a tool because it also contains requirements.
-    for package in ctx.project.packages:
-        for toolname in package.tools:
-            tools.append(ctx.tools[toolname])
-        recipe_dir = os.path.join(package.path, "tools", "conda.recipe")
-        if os.path.isdir(recipe_dir):
-            recipe_dirs.append(recipe_dir)
-        else:
-            print("Skipping recipe {}. (directory does not exist)".format(recipe_dir))
-    for tool in tools:
-        conda_packages.update(tool.get('conda_requirements', []))
-        pip_packages.update(tool.get('pip_requirements', []))
-    conda_packages = sorted(conda_packages)
-    pip_packages = sorted(pip_packages)
-    recipe_dirs = sorted(recipe_dirs)
-    req_hash = compute_req_hash(conda_packages, recipe_dirs, pip_packages)
-
-    # The install and update will be skipped if it was done already once,
-    # less than 24 hours ago and the req_hash has not changed.
-    fn_skip = os.path.join(ctx.conda.env_path, ".skip_install")
-    skip_install = False
-    if os.path.isfile(fn_skip):
-        if (time.time() - os.path.getmtime(fn_skip)) < 24*3600:
-            with open(fn_skip) as f:
-                if f.read().strip() == req_hash:
-                    skip_install = True
-
-    if skip_install:
-        print("Skipping install+update of packages in conda env.")
-        print("To force install+update: rm {}".format(fn_skip))
+    if ctx.testenv.use == "conda":
+        install_requirements_conda(ctx)
+    elif ctx.testenv.use == "venv":
+        install_requirements_venv(ctx)
     else:
-        print("Starting install+update of packages in conda env.")
-        print("To skip install+update: echo {} > {}".format(req_hash, fn_skip))
-
-        # Update conda packages in the base env. Conda packages in the dev env
-        # tend to be ignored.
-        ctx.run("conda install --update-deps -y -n base -c defaults {}".format(
-            " ".join("'{}'".format(conda_package) for conda_package
-                     in conda_packages if conda_package.startswith('conda'))))
-
-        # Update and install other requirements for Roberto, in the dev env.
-        conda_activate(ctx, ctx.conda.env_name)
-        ctx.run("conda install --update-deps -y {}".format(" ".join(
-            "'{}'".format(conda_package) for conda_package in conda_packages
-            if not conda_package.startswith('conda'))))
-
-        print("Rendering conda package, extracting requirements, which will be installed.")
-
-        # First convert pinning to yaml code
-        own_conda_packages = [package.dist_name for package in ctx.project.packages]
-        for recipe_dir in recipe_dirs:
-            # Send the output of conda render to a temporary directory.
-            with tempfile.TemporaryDirectory() as tmpdir:
-                rendered_path = os.path.join(tmpdir, "rendered.yml")
-                ctx.run(
-                    "conda render -f {} {} --variants {}".format(
-                        rendered_path, recipe_dir, ctx.conda.variants),
-                    env={"PROJECT_VERSION": ctx.git.tag_version})
-                with open(rendered_path) as f:
-                    rendered = yaml.safe_load(f)
-            # Build a (simplified) list of requirements and install.
-            requirements = set([])
-            reqsources = [
-                ("requirements", 'build'),
-                ("requirements", 'host'),
-                ("requirements", 'run'),
-                ("test", 'requires'),
-            ]
-            for reqsection, reqtype in reqsources:
-                for requirement in rendered.get(reqsection, {}).get(reqtype, []):
-                    words = requirement.split()
-                    if words[0] not in own_conda_packages:
-                        requirements.add(" ".join(words[:2]))
-            ctx.run("conda install --update-deps -y {}".format(" ".join(
-                "'{}'".format(conda_package) for conda_package in requirements)))
-
-        # Deactivate and activate conda again after installing conda packages,
-        # because new environment variables may need to be set by the activation
-        # script.
-        conda_deactivate(ctx)
-        conda_activate(ctx, ctx.conda.env_name)
-
-        # Update and install requirements for Roberto from pip, if any.
-        if pip_packages:
-            ctx.run("pip install --upgrade {}".format(" ".join(
-                "'{}'".format(pip_package) for pip_package in pip_packages)))
-
-        # Update the timestamp on the skip file.
-        with open(fn_skip, 'w') as f:
-            f.write(req_hash + '\n')
+        raise NotImplementedError
 
 
 @task()
@@ -264,7 +70,7 @@ def write_version(ctx):
 @task(install_requirements, sanitize_git, write_version)
 def lint_static(ctx):
     """Run static linters."""
-    if on_merge_branch(ctx) or ctx.abs:
+    if on_merge_branch(ctx) or ctx.absolute:
         run_all_commands(ctx, "lint-static", 'commands_master')
     else:
         run_all_commands(ctx, "lint-static", 'commands_feature')
@@ -310,10 +116,18 @@ def build_inplace(ctx):  # pylint: disable=too-many-branches
     # activate the in-place build.
     fn_activate = 'activate-{}.sh'.format(ctx.conda.env_name)
     with open(fn_activate, 'w') as f:
-        f.write('[[ -n "${CONDA_PREFIX_1}" ]] && conda deactivate &> /dev/null\n')
-        f.write('[[ -n "${CONDA_PREFIX}" ]] && conda deactivate &> /dev/null\n')
-        f.write('source "{}/bin/activate"\n'.format(ctx.conda.base_path))
-        f.write('conda activate "{}"\n'.format(ctx.conda.env_name))
+        if ctx.testenv.from_scratch:
+            if ctx.testenv.use == "conda":
+                f.write('[[ -n "${CONDA_PREFIX_1}" ]] && conda deactivate &> /dev/null\n')
+                f.write('[[ -n "${CONDA_PREFIX}" ]] && conda deactivate &> /dev/null\n')
+                f.write('source "{}/bin/activate"\n'.format(ctx.conda.base_path))
+                f.write('conda activate "{}"\n'.format(ctx.conda.env_name))
+                f.write('export CONDA_BLD_PATH="{}"\n'.format(ctx.conda.build_path))
+            elif ctx.testenv.use == "venv":
+                f.write('[[ -n "${VIRTUAL_ENV}" ]] && deactivate &> /dev/null\n')
+                f.write('source "{}/bin/activate"\n'.format(ctx.venv.base_path))
+            else:
+                raise NotImplementedError
         for extra_vars, separator in [(extra_paths, ':'), (extra_flags, ' ')]:
             for name, values in extra_vars.items():
                 f.write('if [[ -n "${{{0}}}" ]]; then\n'.format(name))
@@ -323,11 +137,10 @@ def build_inplace(ctx):  # pylint: disable=too-many-branches
                 f.write('  export {0}="{1}"\n'.format(name, separator.join(values)))
                 f.write('fi\n')
         f.write('export PROJECT_VERSION="{}"\n'.format(ctx.git.tag_version))
-        f.write('export CONDA_BLD_PATH="{}"\n'.format(ctx.conda.build_path))
-        if platform.system() == 'Darwin':
+        if platform.system() == 'Darwin' and ctx.macosx.install_sdk:
             f.write('# MacOSX specific variables\n')
-            f.write('export MACOSX_DEPLOYMENT_TARGET="{}"\n'.format(ctx.conda.macosx))
-            f.write('export SDKROOT="{}"\n'.format(ctx.conda.sdkroot))
+            f.write('export MACOSX_DEPLOYMENT_TARGET="{}"\n'.format(ctx.macosx.release))
+            f.write('export SDKROOT="{}"\n'.format(ctx.macosx.sdk_root))
     ctx.run('cat "{}"'.format(fn_activate))
 
 
@@ -350,7 +163,7 @@ def upload_coverage(ctx):
 @task(build_inplace)
 def lint_dynamic(ctx):
     """Run dynamic linters."""
-    if on_merge_branch(ctx) or ctx.abs:
+    if on_merge_branch(ctx) or ctx.absolute:
         run_all_commands(ctx, "lint-dynamic", 'commands_master')
     else:
         run_all_commands(ctx, "lint-dynamic", 'commands_feature')
@@ -469,13 +282,15 @@ def deploy(ctx):
                     print("Deployment failed:", descr)
 
 
-@task(setup_conda_env)
+@task()
 def nuclear(ctx):
-    """Purge the conda environment and stale source files. USE AT YOUR OWN RISK."""
-    # Go back to the base env before nuking the development env.
-    conda_deactivate(ctx, iterate=False)
-    ctx.run("conda uninstall -n {} --all -y".format(ctx.conda.env_name))
-    ctx.run("git clean -fdX")
+    """Purge the environment and stale source files. USE AT YOUR OWN RISK."""
+    if ctx.testenv.use == "conda":
+        nuclear_conda(ctx)
+    elif ctx.testenv.use == "venv":
+        nuclear_venv(ctx)
+    else:
+        raise NotImplementedError
 
 
 @task(lint_static, test_inplace, upload_coverage, lint_dynamic, build_docs, default=True)

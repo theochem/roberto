@@ -3,8 +3,10 @@ project:
   # One can specify project-level extra requirements, but this normally not
   # needed. Roberto will try to derive all requirements automatically from
   # the default configuration and the conda recipes present in the project.
-  conda_requirements: []
-  pip_requirements: []
+  # Requirements are always specified as a 2-tuple with a conda package name
+  # and a pip package name. When a package does not exist, use null instead
+  # of the name
+  requirements: []
   packages: [
   # Repeat as many as you like. The order determines the order in which they
   # are linted, tested, built, etc.
@@ -19,8 +21,19 @@ project:
 
 run:
   echo: true
+testenv:
+  # General settings for the testing environment
+  use: conda  # either conda or venv
+  # The following flag controls if a new testing environment should be created
+  # from scratch (true) or whether Roberto may assume the testing environment
+  # is already in place and activated. When set to true, Roberto will still try
+  # to reuse an testing environment it previously created, but this will not
+  # work for externally created testing environments.
+  from_scratch: true
+  # When set to False, it is assumed any dependencies have already been
+  # installed.
+  install_requirements: true
 conda:
-  download_dir: '${HOME}/Downloads/'  # Used for downloading miniconda and optionally macosx sdk
   linux_url: 'https://repo.anaconda.com/miniconda/Miniconda3-latest-Linux-x86_64.sh'
   osx_url: 'https://repo.anaconda.com/miniconda/Miniconda3-latest-MacOSX-x86_64.sh'
   base_path: '${HOME}/miniconda3'
@@ -32,13 +45,24 @@ conda:
   # The following are set automatically...
   env_name: null  # The name of the conda development environment.
   env_path: null  # The path of the conda development environment.
+venv:
+  # New virtual environments will be created in:
+  base_path: '${HOME}/venvs'
+  # Python binary to use when creating new venv:
+  python_bin: python
+  # The following are set automatically...
+  env_name: null  # The name of the conda development environment.
+  env_path: null  # The path of the conda development environment.
+macosx:
   # Needed to make clang happy inside conda...
-  macosx: '10.9'
-  maxosx_sdk_release: 'https://github.com/phracker/MacOSX-SDKs/releases/download/10.13'
+  install_sdk: false
+  release: '10.9'
+  sdk_release: 'https://github.com/phracker/MacOSX-SDKs/releases/download/10.13'
+download_dir: '${HOME}/Downloads/'  # Used for downloading miniconda and optionally macosx sdk
 deploy_noarch: false  # Set to true for deployment of architecture-independent files.
 deploy_binary: false  # Set to true for deployment of architecture-dependent files.
 upload_coverage: false  # Set to true for uploading coverage
-abs: false  # Force absolute comparison for cardboardlint
+absolute: false  # Treat feature branches as if they are the master branch
 git:
   # Name of the branch being merged into, may be same as git.branch, if not a PR.
   merge_branch: master
@@ -96,24 +120,26 @@ tools:
   # Run the static linters with for cardboardlint as configured in in ~/.cardboardlint.yaml
   # (Static liners do not require compilation or interpretaton of code.)
   # See https://github.com/theochem/cardboardlint/
+  # Some requirements have no pip packages. You may install these manually,
+  # e.g. using your OS package manager.
   cardboardlint-static:
     task: lint-static
-    conda_requirements:
-      - theochem::cardboardlint
-      - pycodestyle
-      - pydocstyle
-      - cppcheck
-      - cpplint
-      - yamllint
-      - flake8
-      - doxygen
-      - autopep8
-      - black
-      - yapf
-      - restructuredtext_lint
+    requirements:
+      - [theochem::cardboardlint, cardboardlint]
+      - [pycodestyle, pycodestyle]
+      - [pydocstyle, pydocstyle]
+      - [cppcheck, null]
+      - [cpplint, cpplint]
+      - [yamllint, yamllint]
+      - [flake8, flake8]
+      - [doxygen, null]
+      - [autopep8, autopep8]
+      - [black, black]
+      - [yapf, yapf]
+      - [restructuredtext_lint, restructuredtext_lint]
       # Following is needed for rst-lint.
       # See https://github.com/twolfson/restructuredtext-lint/issues/41
-      - pygments
+      - [pygments, pygments]
     # Commands to be executed when working in the merge_branch, usually
     # this is the master branch.
     commands_master:
@@ -160,9 +186,9 @@ tools:
   # Perform an in-place build of a CMake package.
   build-cmake-inplace:
     task: build-inplace
-    conda_requirements:
-      - cmake
-      - make
+    requirements:
+      - [cmake, null]
+      - [make, null]
     export_paths:
       # Different compilers have incompatible arguments to set the RPATH
       # for the linker, so we cannot use LDFLAGS for this, alas.
@@ -188,11 +214,11 @@ tools:
   # Run unit tests on an in-place build with pytest.
   pytest:
     task: test-inplace
-    conda_requirements:
-      - pytest
-      - pytest-cov
-      - pytest-xdist
-      - pytest-regressions
+    requirements:
+      - [pytest, pytest]
+      - [pytest-cov, pytest-cov]
+      - [pytest-xdist, pytest-xdist]
+      - [pytest-regressions, pytest-regressions]
     # Bash commands to perform the tests. Environment variables defined in the
     # in-place build will still be set.
     commands:
@@ -205,9 +231,9 @@ tools:
   # Run unit tests on an in-place build with nosetests.
   nose:
     task: test-inplace
-    conda_requirements:
-      - nose
-      - coverage
+    requirements:
+      - [nose, nose]
+      - [coverage, coverage]
     commands:
       - rm -f .coverage
       - nosetests {package.name} -v --detailed-errors --with-coverage
@@ -218,9 +244,9 @@ tools:
   # Run unit tests on an in-place build with `make test`.
   maketest:
     task: test-inplace
-    conda_requirements:
-      - gcovr
-      - make
+    requirements:
+      - [gcovr, null]
+      - [make, null]
     commands:
       # Remove old coverage results, if any.
       - cd build; find . | grep '\\.gcda$' | xargs rm -vf
@@ -239,8 +265,8 @@ tools:
   # Upload coverage result to codecov
   upload-codecov:
     task: upload-coverage
-    pip_requirements:
-      - codecov
+    requirements:
+      - [codecov, codecov]
     commands:
       # We have already executed gcov previously, so no need to run it again.
       - codecov -X gcov
@@ -250,9 +276,9 @@ tools:
   # See https://github.com/theochem/cardboardlint/
   cardboardlint-dynamic:
     task: lint-dynamic
-    conda_requirements:
-      - theochem::cardboardlint
-      - pylint
+    requirements:
+      - [theochem::cardboardlint, cardboardlint]
+      - [pylint, pylint]
     # Commands to be executed when working in the merge_branch, usually
     # this is the master branch.
     commands_master:
@@ -267,11 +293,11 @@ tools:
   build-sphinx-doc:
     # The task build-docs compiles the (online) documentation.
     task: build-docs
-    conda_requirements:
-      - sphinx >=1.8
-      - sphinx_rtd_theme
-      - sphinx-autodoc-typehints
-      - sphinxcontrib-apidoc
+    requirements:
+      - [sphinx >=1.8, sphinx>=1.8]
+      - [sphinx_rtd_theme, sphinx_rtd_theme]
+      - [sphinx-autodoc-typehints, sphinx-autodoc-typehints]
+      - [sphinxcontrib-apidoc, sphinxcontrib-apidoc]
     # Bash commands to build the documentation
     commands:
       - cd doc; make html
@@ -296,6 +322,7 @@ tools:
   build-py-source:
     # The task build-packages prepares packages for deployment.
     task: build-packages
+    testenv: [conda, venv]
     # Bash commands to make the packages.
     commands:
       - python setup.py sdist
@@ -303,9 +330,10 @@ tools:
   # Build a source distribution with cmake
   build-cmake-source:
     task: build-packages
-    conda_requirements:
-      - cmake
-      - make
+    testenv: [conda]
+    requirements:
+      - [cmake, null]
+      - [make, null]
     commands:
       - mkdir -p dist
       - cd dist; cmake .. -DCMAKE_BUILD_TYPE=release
@@ -314,9 +342,10 @@ tools:
   # Build a conda package
   build-conda:
     task: build-packages
-    conda_requirements:
-      - conda-build
-      - conda-verify
+    testenv: [conda]
+    requirements:
+      - [conda-build, null]
+      - [conda-verify, null]
     commands:
       # CONDA_BLD_PATH must be set because otherwise local dependencies
       # cannot be found when working in any other environment than base.
@@ -338,8 +367,9 @@ tools:
   deploy-pypi:
     # The task deploy uploads software packages to distribution servers.
     task: deploy
-    conda_requirements:
-      - twine
+    testenv: [conda, venv]
+    requirements:
+      - [twine, twine]
     deploy_vars:
       - TWINE_USERNAME
       - TWINE_PASSWORD
@@ -363,8 +393,9 @@ tools:
   # Upload any source packages to github.com
   deploy-github:
     task: deploy
-    conda_requirements:
-      - hub
+    testenv: [conda, venv]
+    requirements:
+      - [hub, hub]
     deploy_vars:
       - GITHUB_TOKEN
     include_sha256: true
@@ -396,8 +427,9 @@ tools:
   # Upload conda packages to anaconda.org
   deploy-conda:
     task: deploy
-    conda_requirements:
-      - anaconda-client
+    testenv: [conda]
+    requirements:
+      - [anaconda-client, null]
     deploy_vars:
       - ANACONDA_API_TOKEN
     noarch_asset_patterns:

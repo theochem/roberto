@@ -19,21 +19,17 @@
 """Utilities used by tasks in Roberto's workflow."""
 
 
-from glob import glob
 import hashlib
 import json
 import os
+import platform
 import re
-from typing import List
+import time
+import urllib.request
+import warnings
+from typing import List, Set
 
 from invoke import Context, Failure
-
-
-__all__ = [
-    'parse_git_describe', 'TagError', 'sanitize_branch',
-    'conda_deactivate', 'conda_activate', 'update_env_command',
-    'compute_req_hash', 'iter_packages_tools', 'run_all_commands',
-    'check_env_var', 'need_deployment', 'write_sha256_sum']
 
 
 def parse_git_describe(git_describe: str) -> dict:
@@ -189,80 +185,15 @@ def update_env_command(ctx: Context, command: str) -> None:
         del os.environ[key]
 
 
-def conda_deactivate(ctx: Context, iterate: bool = True):
-    """Deactivate the current conda environment, if any.
-
-    Parameters
-    ----------
-    ctx
-        A invoke.Context instance.
-    iterate
-        Normally, this function keeps deactivating until conda is totally
-        out of the environment variables. To get a single iteration, set this
-        argument to False
-
-    """
-    def clean_env():
-        """Get rid of lingering conda environment variables."""
-        # See https://github.com/conda/conda/issues/7031
-        if "HOST" in os.environ:
-            del os.environ['HOST']
-        for name in list(os.environ.keys()):
-            if name.startswith("CONDA_"):
-                del os.environ[name]
-
-    # 0) Return if no work needs to be done
-    if "CONDA_PREFIX" not in os.environ:
-        clean_env()
-        return
-
-    # 1) Get the base path of the currently loaded conda, could be different
-    #    from ours
-    conda_exe = os.path.normpath(os.environ["CONDA_EXE"])
-    conda_base_path = os.sep.join(conda_exe.split('/')[:-2])
-    command = ". {}/etc/profile.d/conda.sh; conda deactivate".format(conda_base_path)
-
-    # 2) Deactivate until conda is gone.
-    update_env_command(ctx, command)
-    if iterate:
-        while "CONDA_PREFIX" in os.environ:
-            update_env_command(ctx, command)
-        clean_env()
-
-
-def conda_activate(ctx: Context, env: str):
-    """Activate the given conda environment.
-
-    Parameters
-    ----------
-    ctx
-        A invoke.Context instance.
-    env
-        The name of the environment to activate.
-
-    """
-    # Load the correct base environment. These commands define bash functions
-    # which are not exported, but we need them for future conda commands to
-    # work, hence "set -a" to export all variables and functions, also those not
-    # marked for export.
-    command = ("set -a && . {}/etc/profile.d/conda.sh; conda activate {}").format(
-        ctx.conda.base_path, env)
-    update_env_command(ctx, command)
-
-
-def compute_req_hash(conda_packages: List[str], recipe_dirs: List[str],
-                     pip_packages: List[str]) -> str:
+def compute_req_hash(req_items: Set[str], req_fns: Set[str]) -> str:
     """Compute a hash from all parameters that affect installed packages.
 
     Parameters
     ----------
-    conda_packages
-        A list of packages to be installed with conda.
-    recipe_dirs
-        The directories with the conda recipes. All files in these directories
-        will be loaded and hashed.
-    pip_packages:
-        A list of packages to be installed with pip.
+    req_items
+        A set of requirement items.
+    req_fns
+        A set of requirement files.
 
     Returns
     -------
@@ -271,16 +202,76 @@ def compute_req_hash(conda_packages: List[str], recipe_dirs: List[str],
 
     """
     hasher = hashlib.sha256()
-    for conda_package in conda_packages:
-        hasher.update(conda_package.encode('utf-8'))
-    for recipe_dir in recipe_dirs:
-        for fn_recipe in glob(os.path.join(recipe_dir, "*")):
-            if os.path.isfile(fn_recipe):
-                with open(fn_recipe, 'br') as f:
-                    hasher.update(f.read())
-    for pip_package in pip_packages:
-        hasher.update(pip_package.encode('utf-8'))
+    for req_item in sorted(req_items):
+        hasher.update(req_item.encode('utf-8'))
+    for req_fn in sorted(req_fns):
+        hasher.update(req_fn.encode("utf-8"))
+        if os.path.isfile(req_fn):
+            with open(req_fn, 'br') as f:
+                hasher.update(f.read())
     return hasher.hexdigest()
+
+
+def check_install_requirements(fn_skip: str, req_hash: str) -> bool:
+    """Check if reinstallation of requirements is desired.
+
+    Parameters
+    ----------
+    fn_skip
+        File where the requirements hash is stored.
+    req_has
+        The (new) requirement hash.
+
+    Returns
+    -------
+    install
+        True if reinstallation is desired.
+
+    """
+    # The install and update will be skipped if it was done already once,
+    # less than 24 hours ago and the req_hash has not changed.
+    if os.path.isfile(fn_skip):
+        if (time.time() - os.path.getmtime(fn_skip)) < 24*3600:
+            with open(fn_skip) as f:
+                if f.read().strip() == req_hash:
+                    print("Skipping install+update of requirements.")
+                    print("To force install+update: rm {}".format(fn_skip))
+                    return False
+    print("Starting install+update of requirements.")
+    print("To skip install+update: echo {} > {}".format(req_hash, fn_skip))
+    return True
+
+
+def install_macosx_sdk(ctx: Context, base_path: str):
+    """Install MacOSX SDK if on OSX if needed.
+
+    Parameters
+    ----------
+    ctx
+        The context object with which to execute the commands.
+    base_path
+        SDK Install location.
+
+    """
+    if platform.system() == 'Darwin' and ctx.macosx.install_sdk:
+        optdir = os.path.join(base_path, 'opt')
+        if not os.path.isdir(optdir):
+            os.makedirs(optdir)
+        sdk = 'MacOSX{}.sdk'.format(ctx.macosx.release)
+        sdk_root = os.path.join(optdir, sdk)
+        if not os.path.isdir(sdk_root):
+            sdk_tar = '{}.tar.xz'.format(sdk)
+            sdk_dwnl = os.path.join(ctx.download_dir, sdk_tar)
+            sdk_url = '{}/{}'.format(ctx.maxosx.sdk_release, sdk_tar)
+            print("Downloading {}".format(sdk_url))
+            urllib.request.urlretrieve(sdk_url, sdk_dwnl)
+            with ctx.cd(optdir):
+                ctx.run('tar -xJf {}'.format(sdk_dwnl))
+        os.environ['MACOSX_DEPLOYMENT_TARGET'] = ctx.macosx.release
+        os.environ['SDKROOT'] = sdk_root
+        print('MaxOSX sdk in: {}'.format(sdk_root))
+        ctx.run('ls -alh {}'.format(sdk_root))
+        ctx.macosx.sdk_root = sdk_root
 
 
 def iter_packages_tools(ctx: Context, task: str):
@@ -306,6 +297,12 @@ def iter_packages_tools(ctx: Context, task: str):
     for package in ctx.project.packages:
         for toolname in package.tools:
             tool = ctx.tools[toolname]
+            # Skip tools which are not supported
+            if "testenv" in tool and ctx.testenv.use not in tool.testenv:
+                warnings.warn(
+                    f"Tool {tool} skipped due to incompatibility with "
+                    f"testenv {ctx.testenv.use}.")
+                continue
             tool.name = toolname
             if task in ('__all__', tool.task):
                 fmtkargs = {'config': ctx.config, 'package': package}
