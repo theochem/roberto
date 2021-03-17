@@ -22,23 +22,11 @@ import os
 
 import pytest
 
-from invoke import Context
 from invoke.config import DataProxy
 
-from ..utils import (update_env_command, compute_req_hash, parse_git_describe,
+from ..utils import (compute_req_hash, parse_git_describe,
                      iter_packages_tools, write_sha256_sum, TagError,
                      check_env_var, need_deployment)
-
-
-def test_update_env_command():
-    context = Context()
-    context.config.run.in_stream = False
-    varname = "SDAFSDFADGQERGADFGASDFADFADFASDGQ"
-    assert varname not in os.environ
-    update_env_command(context, "export {}=4".format(varname))
-    assert os.environ[varname] == "4"
-    update_env_command(context, "unset {}".format(varname))
-    assert varname not in os.environ
 
 
 def test_req_hash(tmpdir):

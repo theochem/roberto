@@ -26,74 +26,11 @@ import platform
 import stat
 import tempfile
 import urllib.request
-import warnings
 
 from invoke import Context, Failure
 import yaml
 
-from .utils import (update_env_command, compute_req_hash,
-                    check_install_requirements, install_macosx_sdk)
-
-
-def conda_deactivate(ctx: Context, iterate: bool = True):
-    """Deactivate the current conda environment, if any.
-
-    Parameters
-    ----------
-    ctx
-        A invoke.Context instance.
-    iterate
-        Normally, this function keeps deactivating until conda is totally
-        out of the environment variables. To get a single iteration, set this
-        argument to False
-
-    """
-    def clean_env():
-        """Get rid of lingering conda environment variables."""
-        # See https://github.com/conda/conda/issues/7031
-        if "HOST" in os.environ:
-            del os.environ['HOST']
-        for name in list(os.environ.keys()):
-            if name.startswith("CONDA_"):
-                del os.environ[name]
-
-    # 0) Return if no work needs to be done
-    if "CONDA_PREFIX" not in os.environ:
-        clean_env()
-        return
-
-    # 1) Get the base path of the currently loaded conda, could be different
-    #    from ours
-    conda_exe = os.path.normpath(os.environ["CONDA_EXE"])
-    conda_base_path = os.sep.join(conda_exe.split('/')[:-2])
-    command = ". {}/etc/profile.d/conda.sh; conda deactivate".format(conda_base_path)
-
-    # 2) Deactivate until conda is gone.
-    update_env_command(ctx, command)
-    if iterate:
-        while "CONDA_PREFIX" in os.environ:
-            update_env_command(ctx, command)
-        clean_env()
-
-
-def conda_activate(ctx: Context, env: str):
-    """Activate the given conda environment.
-
-    Parameters
-    ----------
-    ctx
-        A invoke.Context instance.
-    env
-        The name of the environment to activate.
-
-    """
-    # Load the correct base environment. These commands define bash functions
-    # which are not exported, but we need them for future conda commands to
-    # work, hence "set -a" to export all variables and functions, also those not
-    # marked for export.
-    command = ("set -a && . {}/etc/profile.d/conda.sh; conda activate {}").format(
-        ctx.conda.base_path, env)
-    update_env_command(ctx, command)
+from .utils import compute_req_hash, check_install_requirements, install_macosx_sdk
 
 
 def install_conda(ctx: Context):
@@ -116,15 +53,11 @@ def install_conda(ctx: Context):
         # Fix permissions of the conda installer.
         os.chmod(dwnlconda, os.stat(dwnlconda).st_mode | stat.S_IXUSR)
 
-        # Unload any currently loaded conda environments.
-        conda_deactivate(ctx)
-
         # Install
         print("Installing conda in {}.".format(dest))
         ctx.run("{} -b -p {}".format(dwnlconda, dest))
 
-        # Load our new conda environment
-        conda_activate(ctx, "base")
+    ctx.conda.activate_base = "source {}/etc/profile.d/conda.sh".format(ctx.conda.base_path)
 
 
 def setup_conda_env(ctx: Context):
@@ -146,29 +79,28 @@ def setup_conda_env(ctx: Context):
     pinned_reqs = ["{}={}".format(name, version) for name, version
                    in zip(pinned_words[::2], pinned_words[1::2])]
 
-    # Load the correct base environment.
-    conda_deactivate(ctx)
-    conda_activate(ctx, "base")
+    with ctx.prefix(ctx.conda.activate_base):
+        # Check if the right environment exists, and make if needed.
+        result = ctx.run("conda env list --json")
+        print("Conda env needed is: {}".format(ctx.conda.env_path))
+        if ctx.conda.env_path not in json.loads(result.stdout)["envs"]:
+            ctx.run("conda create -n {} {} -y".format(ctx.conda.env_name, " ".join(pinned_reqs)))
+            with open(os.path.join(ctx.conda.env_path, "conda-meta", "pinning"), "w") as f:
+                for pin in pinned_reqs:
+                    f.write(pin + "\n")
 
-    # Check if the right environment exists, and make if needed.
-    result = ctx.run("conda env list --json")
-    print("Conda env needed is: {}".format(ctx.conda.env_path))
-    if ctx.conda.env_path not in json.loads(result.stdout)["envs"]:
-        ctx.run("conda create -n {} {} -y".format(ctx.conda.env_name, " ".join(pinned_reqs)))
-        with open(os.path.join(ctx.conda.env_path, "conda-meta", "pinning"), "w") as f:
-            for pin in pinned_reqs:
-                f.write(pin + "\n")
+    ctx.testenv.activate = "{} && conda activate {}".format(
+        ctx.conda.activate_base, ctx.conda.env_name
+    )
 
-    # Load the development environment.
-    conda_activate(ctx, ctx.conda.env_name)
-
-    # Reset the channels. Removing previous may fail if there were none. That's ok.
-    ctx.run("conda config --remove-key channels", warn=True, hide='err')
-    for channel in ctx.conda.channels:
-        # Prepend is used to take as many packages as possible, e.g.
-        # from conda-forge. Appending can cause issues with some packages are
-        # present in the default channel and some are not (dependency issues.)
-        ctx.run("conda config --prepend channels {}".format(channel))
+    with ctx.prefix(ctx.testenv.activate):
+        # Reset the channels. Removing previous may fail if there were none. That's ok.
+        ctx.run("conda config --env --remove-key channels", warn=True, hide='err')
+        for channel in ctx.conda.channels:
+            # Prepend is used to take as many packages as possible, e.g.
+            # from conda-forge. Appending can cause issues with some packages are
+            # present in the default channel and some are not (dependency issues.)
+            ctx.run("conda config --env --prepend channels {}".format(channel))
 
 
 # pylint: disable=too-many-branches,too-many-statements
@@ -199,7 +131,7 @@ def install_requirements_conda(ctx: Context):
         if os.path.isdir(recipe_dir):
             recipe_dirs.append(recipe_dir)
         else:
-            warnings.warn("Skipping recipe {}. (directory does not exist)".format(recipe_dir))
+            print("Skipping recipe {}. (directory does not exist)".format(recipe_dir))
     for tool in tools:
         for conda_req, pip_req in tool.get("requirements", []):
             if conda_req is None:
@@ -215,58 +147,52 @@ def install_requirements_conda(ctx: Context):
 
     fn_skip = os.path.join(ctx.conda.env_path, ".skip_install")
     if check_install_requirements(fn_skip, req_hash):
-        # Update conda packages in the base env. Conda packages in the dev env
-        # tend to be ignored.
-        ctx.run("conda install --update-deps -y -n base -c defaults {}".format(
-            " ".join("'{}'".format(conda_req) for conda_req
-                     in conda_reqs if conda_req.startswith('conda'))))
+        with ctx.prefix(ctx.testenv.activate):
+            # Update conda packages in the base env. Conda packages in the dev env
+            # tend to be ignored.
+            ctx.run("conda install --update-deps -y -n base -c defaults {}".format(
+                " ".join("'{}'".format(conda_req) for conda_req
+                         in conda_reqs if conda_req.startswith('conda'))))
 
-        # Update and install other requirements for Roberto, in the dev env.
-        conda_activate(ctx, ctx.conda.env_name)
-        ctx.run("conda install --update-deps -y {}".format(" ".join(
-            "'{}'".format(conda_req) for conda_req in conda_reqs
-            if not conda_req.startswith('conda'))))
-
-        print("Rendering conda package, extracting requirements, which will be installed.")
-
-        # Install dependencies from recipes, excluding own packages.
-        own_conda_reqs = [package.dist_name for package in ctx.project.packages]
-        for recipe_dir in recipe_dirs:
-            # Send the output of conda render to a temporary directory.
-            with tempfile.TemporaryDirectory() as tmpdir:
-                rendered_path = os.path.join(tmpdir, "rendered.yml")
-                ctx.run(
-                    "conda render -f {} {} --variants {}".format(
-                        rendered_path, recipe_dir, ctx.conda.variants),
-                    env={"PROJECT_VERSION": ctx.git.tag_version})
-                with open(rendered_path) as f:
-                    rendered = yaml.safe_load(f)
-            # Build a (simplified) list of requirements and install.
-            dep_conda_reqs = set([])
-            req_sources = [
-                ("requirements", 'build'),
-                ("requirements", 'host'),
-                ("requirements", 'run'),
-                ("test", 'requires'),
-            ]
-            for req_section, req_type in req_sources:
-                for recipe_req in rendered.get(req_section, {}).get(req_type, []):
-                    words = recipe_req.split()
-                    if words[0] not in own_conda_reqs:
-                        dep_conda_reqs.add(" ".join(words[:2]))
+            # Update and install other requirements for Roberto, in the dev env.
             ctx.run("conda install --update-deps -y {}".format(" ".join(
-                "'{}'".format(conda_req) for conda_req in dep_conda_reqs)))
+                "'{}'".format(conda_req) for conda_req in conda_reqs
+                if not conda_req.startswith('conda'))))
 
-        # Deactivate and activate conda again after installing conda packages,
-        # because new environment variables may need to be set by the activation
-        # script.
-        conda_deactivate(ctx)
-        conda_activate(ctx, ctx.conda.env_name)
+            print("Rendering conda package, extracting requirements, which will be installed.")
 
-        # Update and install requirements for Roberto from pip, if any.
-        if pip_reqs:
-            ctx.run("pip install --upgrade {}".format(" ".join(
-                "'{}'".format(pip_req) for pip_req in pip_reqs)))
+            # Install dependencies from recipes, excluding own packages.
+            own_conda_reqs = [package.dist_name for package in ctx.project.packages]
+            for recipe_dir in recipe_dirs:
+                # Send the output of conda render to a temporary directory.
+                with tempfile.TemporaryDirectory() as tmpdir:
+                    rendered_path = os.path.join(tmpdir, "rendered.yml")
+                    ctx.run(
+                        "conda render -f {} {} --variants {}".format(
+                            rendered_path, recipe_dir, ctx.conda.variants),
+                        env={"PROJECT_VERSION": ctx.git.tag_version})
+                    with open(rendered_path) as f:
+                        rendered = yaml.safe_load(f)
+                # Build a (simplified) list of requirements and install.
+                dep_conda_reqs = set([])
+                req_sources = [
+                    ("requirements", 'build'),
+                    ("requirements", 'host'),
+                    ("requirements", 'run'),
+                    ("test", 'requires'),
+                ]
+                for req_section, req_type in req_sources:
+                    for recipe_req in rendered.get(req_section, {}).get(req_type, []):
+                        words = recipe_req.split()
+                        if words[0] not in own_conda_reqs:
+                            dep_conda_reqs.add(" ".join(words[:2]))
+                ctx.run("conda install --update-deps -y {}".format(" ".join(
+                    "'{}'".format(conda_req) for conda_req in dep_conda_reqs)))
+
+            # Update and install requirements for Roberto from pip, if any.
+            if pip_reqs:
+                ctx.run("pip install --upgrade {}".format(" ".join(
+                    "'{}'".format(pip_req) for pip_req in pip_reqs)))
 
         # Update the timestamp on the skip file.
         with open(fn_skip, 'w') as f:
@@ -276,8 +202,7 @@ def install_requirements_conda(ctx: Context):
 def nuclear_conda(ctx: Context):
     """Erase the conda environment."""
     # Go back to the base env before nuking the development env.
-    conda_deactivate(ctx)
-    conda_activate(ctx, "base")
     if ctx.testenv.from_scratch:
-        ctx.run("conda uninstall -n {} --all -y".format(ctx.conda.env_name))
+        with ctx.prefix(ctx.conda.activate_base):
+            ctx.run("conda uninstall -n {} --all -y".format(ctx.conda.env_name))
         ctx.run("git clean -fdX")

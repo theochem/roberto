@@ -20,13 +20,11 @@
 
 
 import hashlib
-import json
 import os
 import platform
 import re
 import time
 import urllib.request
-import warnings
 from typing import List, Set
 
 from invoke import Context, Failure
@@ -162,29 +160,6 @@ def on_merge_branch(ctx: Context):
     return result.stdout.strip() == ""
 
 
-def update_env_command(ctx: Context, command: str) -> None:
-    """Update the environment variables with a bash command.
-
-    The command should not produce any output.
-
-    Parameters
-    ----------
-    ctx
-        The context object with which to execute the command.
-    command
-        A bash command line.
-
-    """
-    dump = 'python -c "import os, json; print(json.dumps(dict(os.environ)))"'
-    result = ctx.run('{} && {}'.format(command, dump), hide='out')
-    newenv = json.loads(result.stdout)
-    for key, value in newenv.items():
-        os.environ[key] = value
-    removed_keys = [key for key in os.environ if key not in newenv]
-    for key in removed_keys:
-        del os.environ[key]
-
-
 def compute_req_hash(req_items: Set[str], req_fns: Set[str]) -> str:
     """Compute a hash from all parameters that affect installed packages.
 
@@ -297,14 +272,14 @@ def iter_packages_tools(ctx: Context, task: str):
     for package in ctx.project.packages:
         for toolname in package.tools:
             tool = ctx.tools[toolname]
-            # Skip tools which are not supported
-            if "testenv" in tool and ctx.testenv.use not in tool.testenv:
-                warnings.warn(
-                    f"Tool {tool} skipped due to incompatibility with "
-                    f"testenv {ctx.testenv.use}.")
-                continue
             tool.name = toolname
             if task in ('__all__', tool.task):
+                # Skip tools which are not supported
+                if "testenv" in tool and ctx.testenv.use not in tool.testenv:
+                    print(
+                        f"Tool {toolname} skipped due to incompatibility with "
+                        f"testenv {ctx.testenv.use}.")
+                    continue
                 fmtkargs = {'config': ctx.config, 'package': package}
                 yield tool, package, fmtkargs
 
@@ -323,7 +298,7 @@ def run_all_commands(ctx: Context, task: str, commands_name: str = 'commands'):
 
     """
     for tool, package, fmtkargs in iter_packages_tools(ctx, task):
-        with ctx.cd(package.path):
+        with ctx.cd(package.path), ctx.prefix(ctx.testenv.activate):
             commands = tool.get(commands_name, [])
             for command in commands:
                 ctx.run(command.format(**fmtkargs))

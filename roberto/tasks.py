@@ -98,7 +98,7 @@ def build_inplace(ctx):  # pylint: disable=too-many-branches
     extra_flags = {}
     for tool, package, fmtkargs in iter_packages_tools(ctx, "build-inplace"):
         # Run commands
-        with ctx.cd(package.path):
+        with ctx.cd(package.path), ctx.prefix(ctx.testenv.activate):
             for command in tool.commands:
                 ctx.run(command.format(**fmtkargs))
         # Update *PATH variables
@@ -125,7 +125,7 @@ def build_inplace(ctx):  # pylint: disable=too-many-branches
                 f.write('export CONDA_BLD_PATH="{}"\n'.format(ctx.conda.build_path))
             elif ctx.testenv.use == "venv":
                 f.write('[[ -n "${VIRTUAL_ENV}" ]] && deactivate &> /dev/null\n')
-                f.write('source "{}/bin/activate"\n'.format(ctx.venv.base_path))
+                f.write('source "{}/bin/activate"\n'.format(ctx.venv.env_path))
             else:
                 raise NotImplementedError
         for extra_vars, separator in [(extra_paths, ':'), (extra_flags, ' ')]:
@@ -183,10 +183,20 @@ def upload_docs_git(ctx):
         # First get user info from the owner of the token
         req = urllib.request.Request('https://api.github.com/user')
         req.add_header('Authorization', 'token {}'.format(os.environ['GITHUB_TOKEN']))
-        with urllib.request.urlopen(req) as f:
-            login = json.loads(f.read().decode('utf-8'))['login']
-        ctx.run('git config --global user.email "{}@users.noreply.github.com"'.format(login))
-        ctx.run('git config --global user.name "{}"'.format(login))
+        try:
+            with urllib.request.urlopen(req) as f:
+                user_info = json.loads(f.read().decode('utf-8'))['login']
+        except urllib.error.HTTPError:
+            # The exception may be raised when the token has no permission to
+            # access user information.
+            user_info = {}
+        author_name = user_info.get("name", user_info.get("login", "Roberto"))
+        fallback_email = user_info.get("login", "roberto") + "@users.noreply.github.com"
+        author_email = user_info.get("email", fallback_email)
+        os.environ["GIT_AUTHOR_NAME"] = author_name
+        os.environ["GIT_AUTHOR_EMAIL"] = author_email
+        os.environ["GIT_COMMITTER_NAME"] = author_name
+        os.environ["GIT_COMMITTER_EMAIL"] = author_email
 
     for tool, package, fmtkargs in iter_packages_tools(ctx, "upload-docs-git"):
         # Check if deployment is needed with deploy_label.

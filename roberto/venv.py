@@ -22,33 +22,18 @@ import os
 
 from invoke import Context
 
-from .utils import (update_env_command, compute_req_hash,
-                    check_install_requirements, install_macosx_sdk)
-
-
-def venv_deactivate(ctx: Context):
-    """Deactivate the virtual environement."""
-    if "VIRTUAL_ENV" in os.environ:
-        update_env_command(ctx, "deactivate")
-
-
-def venv_activate(ctx: Context):
-    """Activate the virtual environement."""
-    update_env_command(ctx, "source {}/bin/activate".format(ctx.venv.env_path))
+from .utils import compute_req_hash, check_install_requirements, install_macosx_sdk
 
 
 def setup_venv(ctx: Context):
     """Make sure there is a virtual environment and activate it."""
     if not ctx.testenv.from_scratch:
         return
-    # Deactivate any existing venv
-    venv_deactivate(ctx)
     # Check if the required environment already exists
     if not os.path.isdir(ctx.venv.env_path):
         # Create a new environment
         ctx.run("{} -m venv {}".format(ctx.venv.python_bin, ctx.venv.env_path))
-    # Activate the environment
-    venv_activate(ctx)
+    ctx.testenv.activate = "source {}/bin/activate".format(ctx.venv.env_path)
 
 
 def install_requirements_venv(ctx: Context):
@@ -80,19 +65,23 @@ def install_requirements_venv(ctx: Context):
 
     fn_skip = os.path.join(ctx.venv.env_path, ".skip_install")
     if check_install_requirements(fn_skip, req_hash):
-        # Install pip packages for the tools
-        ctx.run("pip install -U {}".format(" ".join(
-                "'{}'".format(pip_req) for pip_req in pip_reqs)))
-        # Install dependencies for the project.
-        for package in ctx.project.packages:
-            with ctx.cd(package.path):
-                if os.path.isfile("requirements.txt"):
-                    ctx.run("pip install -U -r requirements")
-                # setup.py must be present.
-                # Installing as editable package differs from the conda
-                # environment, where in-place packages are used instead.
-                # It would be nice to get the same behavior in both cases.
-                ctx.run("pip install -e ./")
+        with ctx.prefix(ctx.testenv.activate):
+            # Install pip packages for the tools
+            ctx.run("pip install -U {}".format(" ".join(
+                    "'{}'".format(pip_req) for pip_req in pip_reqs)))
+            # Install dependencies for the project.
+            for package in ctx.project.packages:
+                with ctx.cd(package.path):
+                    if os.path.isfile("requirements.txt"):
+                        ctx.run("pip install -U -r requirements")
+                    # setup.py must be present.
+                    # Pip cannot install dependencies without installing the
+                    # package itself. We therefore install it and uninstall
+                    # afterwards, which leaves the dependencies in place.
+                    # This avoids potential confusion between in-place and
+                    # installed versions of the package.
+                    ctx.run("pip install -e ./")
+                    ctx.run("pip uninstall {} -y".format(package.dist_name))
         # Update the timestamp on the skip file.
         with open(fn_skip, 'w') as f:
             f.write(req_hash + '\n')
@@ -100,7 +89,6 @@ def install_requirements_venv(ctx: Context):
 
 def nuclear_venv(ctx: Context):
     """Erase the virtual environment."""
-    venv_deactivate(ctx)
     if ctx.testenv.from_scratch:
-        ctx.run("echo rm -rv {}".format(ctx.conda.env_path))
+        ctx.run("rm -rv {}".format(ctx.venv.env_path))
         ctx.run("git clean -fdX")

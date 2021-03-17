@@ -33,6 +33,8 @@ testenv:
   # When set to False, it is assumed any dependencies have already been
   # installed.
   install_requirements: true
+  # The following are set automatically...
+  activate: null  # command to activate test environment
 conda:
   linux_url: 'https://repo.anaconda.com/miniconda/Miniconda3-latest-Linux-x86_64.sh'
   osx_url: 'https://repo.anaconda.com/miniconda/Miniconda3-latest-MacOSX-x86_64.sh'
@@ -45,6 +47,7 @@ conda:
   # The following are set automatically...
   env_name: null  # The name of the conda development environment.
   env_path: null  # The path of the conda development environment.
+  activate_base: null  # command to activate base environment
 venv:
   # New virtual environments will be created in:
   base_path: '${HOME}/venvs'
