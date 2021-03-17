@@ -25,6 +25,7 @@ Due to the decorators, no documentation is generated for this module. Use
 
 from glob import glob
 import json
+from functools import wraps
 import os
 import platform
 import urllib.request
@@ -38,7 +39,25 @@ from .utils import (iter_packages_tools, run_all_commands, write_sha256_sum,
 from .venv import install_requirements_venv, nuclear_venv
 
 
+TASK_HEADER = """\033[0;36m\
+  ___
+ |@,@|  Roberto: {task}
+  \\-/   {line}\033[0;0m\
+"""
+
+
+def with_stdout_header(f):
+    """Print a header for a task."""
+    @wraps(f)
+    def wrapper(ctx, *args, **kwargs):
+        name = f.__name__
+        print(TASK_HEADER.format(task=name, line="-"*(len(name)+9)))
+        return f(ctx, *args, **kwargs)
+    return wrapper
+
+
 @task()
+@with_stdout_header
 def sanitize_git(ctx):
     """Fetch the git branch to be merged into, if it is absent."""
     sanitize_branch(ctx, ctx.git.merge_branch)
@@ -47,6 +66,7 @@ def sanitize_git(ctx):
 
 
 @task()
+@with_stdout_header
 def install_requirements(ctx):  # pylint: disable=too-many-branches,too-many-statements
     """Install all requirements, including tools used by Roberto."""
     if ctx.testenv.use == "conda":
@@ -58,6 +78,7 @@ def install_requirements(ctx):  # pylint: disable=too-many-branches,too-many-sta
 
 
 @task()
+@with_stdout_header
 def write_version(ctx):
     """Derive the version files from ``git describe --tags``."""
     for tool, package, fmtkargs in iter_packages_tools(ctx, "write-version"):
@@ -68,6 +89,7 @@ def write_version(ctx):
 
 
 @task(install_requirements, sanitize_git, write_version)
+@with_stdout_header
 def lint_static(ctx):
     """Run static linters."""
     if on_merge_branch(ctx) or ctx.absolute:
@@ -77,6 +99,7 @@ def lint_static(ctx):
 
 
 @task(install_requirements, sanitize_git, write_version)
+@with_stdout_header
 def build_inplace(ctx):  # pylint: disable=too-many-branches
     """Build software in-place and update environment variables."""
     # This is a fairly complicated process, so yes too many branches. Clarity
@@ -145,6 +168,7 @@ def build_inplace(ctx):  # pylint: disable=too-many-branches
 
 
 @task(build_inplace)
+@with_stdout_header
 def test_inplace(ctx):
     """Run tests in-place and upload coverage if requested."""
     # In-place tests need the environment variable changes from the in-place build.
@@ -152,6 +176,7 @@ def test_inplace(ctx):
 
 
 @task(test_inplace)
+@with_stdout_header
 def upload_coverage(ctx):
     """Upload coverage reports, if explicitly enabled in config."""
     if ctx.upload_coverage:
@@ -161,6 +186,7 @@ def upload_coverage(ctx):
 
 
 @task(build_inplace)
+@with_stdout_header
 def lint_dynamic(ctx):
     """Run dynamic linters."""
     if on_merge_branch(ctx) or ctx.absolute:
@@ -170,12 +196,14 @@ def lint_dynamic(ctx):
 
 
 @task(install_requirements, build_inplace, write_version)
+@with_stdout_header
 def build_docs(ctx):
     """Build documentation."""
     run_all_commands(ctx, "build-docs")
 
 
 @task(install_requirements, build_docs)
+@with_stdout_header
 def upload_docs_git(ctx):
     """Squash-push documentation to a git branch."""
     # Try to get a git username and author argument for the doc commit.
@@ -239,12 +267,14 @@ def upload_docs_git(ctx):
 
 
 @task(install_requirements, write_version)
+@with_stdout_header
 def build_packages(ctx):
     """Build software package(s)."""
     run_all_commands(ctx, "build-packages")
 
 
 @task(install_requirements, build_packages)
+@with_stdout_header
 def deploy(ctx):
     """Run all deployment tasks."""
     # Check if and how deployment vars are set.
@@ -293,6 +323,7 @@ def deploy(ctx):
 
 
 @task()
+@with_stdout_header
 def nuclear(ctx):
     """Purge the environment and stale source files. USE AT YOUR OWN RISK."""
     if ctx.testenv.use == "conda":
