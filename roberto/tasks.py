@@ -39,10 +39,10 @@ from .utils import (iter_packages_tools, run_all_commands, write_sha256_sum,
 from .venv import install_requirements_venv, nuclear_venv
 
 
-TASK_HEADER = """\033[0;36m\
-  ___
- |@,@|  Roberto: {task}
-  \\-/   {line}\033[0;0m\
+TASK_HEADER = """\
+\033[0;36m  ___\033[0;0m
+\033[0;36m |@,@|  Roberto: {task}\033[0;0m
+\033[0;36m  \\-/   {line}\033[0;0m\
 """
 
 
@@ -86,6 +86,7 @@ def write_version(ctx):
         content = tool.template.format(**fmtkargs)
         with open(os.path.join(package.path, fn_version), 'w') as f:
             f.write(content)
+        print("version file written to:", fn_version)
 
 
 @task(install_requirements, sanitize_git, write_version)
