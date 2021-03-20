@@ -97,7 +97,7 @@ def install_requirements_conda(ctx: Context):
     # Some conda requirements are included by default because they must be present:
     # - conda: to make sure it is always up to date.
     # - conda-build: to have conda-render for getting requirements from recipes.
-    conda_reqs = set(["conda", "conda-build"])
+    conda_reqs = set(["conda"])
     pip_reqs = set([])
     recipe_dirs = []
     # Add project as a tool because it also contains requirements.
