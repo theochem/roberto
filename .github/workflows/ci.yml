@@ -77,10 +77,10 @@ jobs:
       - uses: actions/cache@v2
         with:
           path: ~/miniconda3
-          key: ${{ runner.os }}-conda
+          key: ${{ runner.os }}-conda-2
       - name: Install Roberto
         run: |
           pip install ./
       - name: Test Roberto with itself
         run: |
-          ROBERTO_CONDA_BASE_PATH=${CONDA} rob robot
+          rob robot
