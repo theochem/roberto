@@ -219,7 +219,7 @@ def install_requirements_pip(ctx: Context):
 
     fn_skip = os.path.join(ctx.testenv.path, ".skip_install")
     if check_install_requirements(fn_skip, req_hash):
-        with ctx.prefix(ctx.activate):
+        with ctx.prefix(ctx.testenv.activate):
             if len(pip_reqs) > 0:
                 # Install pip packages for the tools
                 ctx.run("pip install -U {}".format(" ".join(

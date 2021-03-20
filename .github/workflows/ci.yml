@@ -7,6 +7,7 @@ on:
 
 jobs:
   test-venv:
+    timeout-minutes: 30
     strategy:
       fail-fast: false
       matrix:
@@ -52,6 +53,7 @@ jobs:
 
 
   test-conda:
+    timeout-minutes: 30
     if: github.ref == 'refs/heads/master'
     strategy:
       fail-fast: false
@@ -73,11 +75,16 @@ jobs:
         with:
           auto-activate-base: true
           activate-environment: ""
+      - uses: actions/cache@v2
+        with:
+          # There should be a nicer way that just hardcoding the path ...
+          path: /usr/share/miniconda/envs
+          key: conda
+      - name: Conda info
+        run: conda info
       - name: Install Roberto
         run: |
           pip install ./
-      - name: Conda info
-        run: conda info
       - name: Test Roberto with itself
         run: |
           ROBERTO_CONDA_BASE_PATH=${CONDA} rob robot
