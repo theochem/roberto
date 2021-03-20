@@ -168,3 +168,4 @@ def quality(ctx):  # pylint: disable=unused-argument
 @task(quality, upload_docs, deploy)
 def robot(ctx):  # pylint: disable=unused-argument
     """Run all tasks, except nuke_virtual_env."""
+    print("\033[0;92m All tasks completed!\033[0;0m")

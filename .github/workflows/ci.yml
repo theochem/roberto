@@ -12,6 +12,7 @@ on:
 jobs:
   test-venv:
     timeout-minutes: 30
+    if: "! startsWith(github.ref, 'refs/tags')"
     strategy:
       fail-fast: false
       matrix:
