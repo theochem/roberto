@@ -112,7 +112,7 @@ tools:
       """
       __version__ = '{config.git.tag_version}'
       DEV_CLASSIFIER = '{config.git.dev_classifier}'
-    destination: '{package.name}/version.py'
+    destination: '{package.name}/_version.py'
 
   # Write a CMakeListsVersion.txt.in file
   write-cmake-version:

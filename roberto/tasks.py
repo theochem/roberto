@@ -62,12 +62,19 @@ def sanitize_git(ctx):
 
 @task()
 @with_stdout_header
-def setup_virtual_env(ctx):
+def write_version(ctx):
+    """Derive the version files from ``git describe --tags``."""
+    execute_tools(ctx, WriteVersion)
+
+
+@task()
+@with_stdout_header
+def setup_testenv(ctx):
     """Set up a testing environment."""
     ctx.testenv.setup(ctx)
 
 
-@task(setup_virtual_env)
+@task(setup_testenv)
 @with_stdout_header
 def install_requirements(ctx):
     """Install all requirements, including tools used by Roberto."""
@@ -77,13 +84,6 @@ def install_requirements(ctx):
         install_requirements_pip(ctx)
     else:
         raise NotImplementedError
-
-
-@task()
-@with_stdout_header
-def write_version(ctx):
-    """Derive the version files from ``git describe --tags``."""
-    execute_tools(ctx, WriteVersion)
 
 
 @task(install_requirements, sanitize_git, write_version)
@@ -103,7 +103,7 @@ def build_inplace(ctx):  # pylint: disable=too-many-branches
 @task(build_inplace)
 @with_stdout_header
 def test_inplace(ctx):
-    """Run tests in-place and upload coverage if requested."""
+    """Run tests in-place."""
     execute_tools(ctx, TestInPlace)
 
 
@@ -154,8 +154,8 @@ def deploy(ctx):
 
 @task()
 @with_stdout_header
-def nuke_virtual_env(ctx):
-    """Purge the environment and stale source files. USE AT YOUR OWN RISK."""
+def nuke_testenv(ctx):
+    """Purge the test environment and stale source files. USE AT YOUR OWN RISK."""
     ctx.testenv.nuke(ctx)
 
 

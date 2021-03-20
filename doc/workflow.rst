@@ -13,12 +13,12 @@ When ``rob`` is executed without arguments, the **quality** task is executed,
 which runs all the tests related to the in-placed build. You may provide one or
 more task names as positional command-line arguments to change this behavior.
 The **robot** task is a more complete test and runs all tasks except for
-**nuke-virtual-env**, so also including the packaging.
+**nuke-testenv**, so also including the packaging.
 
-The tasks **sanitize-git**, **setup-virtual-env**, **install-requirements** and
-**nuke-virtual-env** are less configurable than the other tasks. They take care
+The tasks **sanitize-git**, **setup-testenv**, **install-requirements** and
+**nuke-testenv** are less configurable than the other tasks. They take care
 of a proper development environment for the remaining tasks, except for
-**nuke-virtual-env** which does exactly the opposite.
+**nuke-testenv** which does exactly the opposite.
 
 The other tasks are more configurable through ``.roberto.yml``. In this file,
 you specify which software packages need to be built and which tools should be
@@ -27,13 +27,15 @@ used in each task. More details can be found in :ref:`configuration`.
 When Roberto starts, it will also run ``git describe --tags`` to determine the
 current version. It is assumed that git tags are complete `semantic version
 numbers <https://semver.org>`_. The expected format of a tag is just three
-numbers separated by dots, *not* prefixed with a ``v``. Roberto will fail when
-the last tag does not follow these conventions. The version information can be
-used in all tasks.
+numbers separated by dots, *not* prefixed with a ``v``. Suffixes for alpha (dev),
+beta (test) and post releases are supported in line with
+`PEP404 <https://www.python.org/dev/peps/pep-0440/>`_.
+Roberto will fail when the last tag does not follow these conventions. The
+version information can be used in all tasks. The most prominent one is
+**write-version**, which can write updated version files.
 
 For development purposes, it is often sufficient to run ``rob quality`` to
 perform all code quality checks or ``rob build-inplace`` to prepare a working
 in-place compilation. The latter will also generate a file
-``activate-{project.name}-dev-{pinning}.sh``, which can be sourced to load all
-the environment variables that will activate the in-place build for further
-testing.
+``activate-*-dev-*.sh``, which can be sourced to load all the environment
+variables that will activate the in-place build for further testing.

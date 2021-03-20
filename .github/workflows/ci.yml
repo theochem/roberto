@@ -10,6 +10,7 @@ on:
       - master
 
 jobs:
+  # These are quick tests using Python's venv on different Python versions.
   test-venv:
     timeout-minutes: 30
     if: "! startsWith(github.ref, 'refs/tags')"
@@ -58,6 +59,8 @@ jobs:
 
 
   test-conda:
+    # This is a slow test in a Conda environment, including deployment of
+    # tagged releases.
     timeout-minutes: 30
     if: (github.ref == 'refs/heads/master') || startsWith(github.ref, 'refs/tags')
     strategy:

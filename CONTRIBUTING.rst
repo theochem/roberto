@@ -92,8 +92,7 @@ Longer version:
 11. Make a pull request from your branch `new-feature` in your forked repository
     to the `master` branch in the original repository.
 
-12. Wait for the tests on Travis-CI to complete. These should pass. Also
-    coverage analysis will be shown, but this is merely indicative. Normally,
-    someone should review your pull request in a few days. Ideally, the review
-    results in minor corrections at worst. We'll do our best to avoid larger
-    problems in step 1.
+12. Wait for the QC tests to complete. Also coverage analysis will be shown, but
+    this is merely indicative. Normally, someone should review your pull request
+    in a few days. Ideally, the review results in minor corrections at worst.
+    We'll do our best to avoid larger problems in step 1.

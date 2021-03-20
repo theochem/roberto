@@ -1,6 +1,6 @@
 # Roberto workflow artifacts
 activate-*-dev-*.sh
-roberto/version.py
+roberto/_version.py
 doc/_build
 doc/api
 coverage*.xml

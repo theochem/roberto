@@ -50,7 +50,7 @@ The configuration file must at least contain the following:
 
 Each tool of each package will be executed in one task in the overall work
 flow. See section :ref:`workflow` for a more detailed description. A complete
-list of the built-in tools can be found in the
+list of the built-in tools and configuration options can be found in the
 `default configuration file <https://github.com/theochem/roberto/blob/master/roberto/default_config.yaml>`_.
 
 Other sections can be added as well, e.g. to define new tools as explained
@@ -154,7 +154,7 @@ Working with git tag for versions
 When Roberto starts, it will run ``git describe --tags`` to determine the
 version number and add this version information in various forms in the ``git``
 section of the
-`default configuration file <https://github.com/theochem/roberto/blob/master/roberto/default_config.yaml>`.
+`default configuration file <https://github.com/theochem/roberto/blob/master/roberto/default_config.yaml>`_.
 From there, all tasks
 can access version information when they need it. Below the most important of
 these tasks are discussed.
@@ -162,7 +162,7 @@ these tasks are discussed.
 Python projects
 ---------------
 
-Us the tool ``write-py-version`` to make sure the file ``version.py`` exists
+Use the tool ``write-py-version`` to make sure the file ``_version.py`` exists
 before ``setup.py`` is called.
 
 In ``setup.py``, use the following code to derive the version instead of
@@ -176,26 +176,39 @@ hard-coding it:
 
     def get_version():
         """Read __version__ from version.py, with exec to avoid importing it."""
-        try:
-            with open(os.path.join(NAME, 'version.py'), 'r') as f:
-                myglobals = {}
-                # pylint: disable=exec-used
-                exec(f.read(), myglobals)
-            return myglobals['__version__']
-        except IOError:
-            return "0.0.0.post0"
+        with open(os.path.join(NAME, 'version.py'), 'r') as f:
+            myglobals = {"__name__": f"{NAME}.version"}
+            # pylint: disable=exec-used
+            exec(f.read(), myglobals)
+        return myglobals['__version__'], myglobals['DEV_CLASSIFIER']
+
+    VERSION, DEV_CLASSIFIER = get_version_info()
 
     setup(
         name=NAME,
-        version=get_version(),
+        version=VERSION,
         package_dir={NAME: NAME},
         packages=[NAME, NAME + '.test'],
+        classifiers=[
+            DEV_CLASSIFIER,
+            # ...
+        ],
         # ...
     )
 
-This is an ugly trick but for a good reason. It is needed because (in
-general) one cannot assume the package can be imported before ``setup.py`` has
-been executed.
+The file ``version.py`` contains the following
+
+  .. code-block:: python
+
+    try:
+        # pylint: disable=unused-import
+        from ._version import __version__, DEV_CLASSIFIER
+    except ImportError:
+        __version__ = '0.0.0.post0'
+        DEV_CLASSIFIER = 'Development Status :: 2 - Pre-Alpha'
+
+This is automates all versioning tasks but still works when Roberto has not
+been used to write the version file.
 
 When the Sphinx documentation is built, one can assume an in-place built has
 succeeded and one can simply import the version in ``doc/conf.py`` as follows:
@@ -233,8 +246,8 @@ templating to insert the version number:
     package:
       version: "{{ PROJECT_VERSION }}"
 
-When Roberto builds conda packages with the tool ``build-conda``, the
-environment variable ``${PROJECT_VERSION}`` will be set.
+When Roberto sets up a conda environment, environment variable
+``${PROJECT_VERSION}`` will be set.
 
 
 Adding tools
@@ -250,17 +263,17 @@ configuration file:
         cls: <Class name from roberto/tools.py>
         # ...
 
-Additional fields can be added after ``task``, and the details of these
-additional settings depend on the selected ``task``.
+Additional fields can be added after ``cls``, and the details of these
+additional settings depend on the selected ``cls``.
 
 Filenames and most other fields in the tool settings can make use of
 other confiruaton values, e.g. with ``{config.project.name}``, package-specific
 configuration, e.g. ``{package.dist_name}``, or tool-specific settings, e.g.
 ``{tool.destination}``. These substitutions are not carried out recursively.
 
-The fields in the tool section are (almost) all constructor arguments for a corresponding
-class in `roberto/tools.py`. Refer to their docstrings for more details. There
-are two optional fields not used as constructor arguments:
+The fields in the tool section are (almost) all constructor arguments for a
+corresponding class in `roberto/tools.py`. Refer to their docstrings for more
+details. There are two optional fields not used as constructor arguments:
 
 - ``requirements``: a list of 2-tuples, in which the first string is the
   conda package name and the second is the pip package name (if available).

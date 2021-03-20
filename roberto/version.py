@@ -16,19 +16,12 @@
 # You should have received a copy of the GNU General Public License
 # along with this program; if not, see <http://www.gnu.org/licenses/>
 # --
-"""Define the Roberto program."""
+"""Load version info or, when that failed, resort to bogus values."""
 
 
-from invoke import Collection, Program
-
-from . import tasks
-from .config import RobertoConfig
-from .version import __version__
-
-
-# The program instance provides a `run` method, which is the entrypoint.
-program = Program(   # pylint: disable=invalid-name
-    config_class=RobertoConfig,
-    namespace=Collection.from_module(tasks),
-    version=__version__
-)
+try:
+    # pylint: disable=unused-import
+    from ._version import __version__, DEV_CLASSIFIER
+except ImportError:
+    __version__ = '0.0.0.post0'
+    DEV_CLASSIFIER = 'Development Status :: 2 - Pre-Alpha'

@@ -18,7 +18,7 @@ requirements:
     - pip
     - setuptools
   run:
-    - python
+    - python >=3.6
     - pyyaml
     - invoke
     - importlib_resources  # [py<37]

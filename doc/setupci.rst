@@ -11,9 +11,10 @@ When using Roberto to drive a continuous integration (CI) setup, you may want to
 set additional environment variables:
 
 - ``ROBERTO_CONDA_PINNING`` can be used to pin any dependencies to a specific
-  version, e.g. ``"python 3.5"`` will let Roberto install Python-3.5 instead of
-  the default. This variable must be an even number of strings separated by
-  spaces, each time a conda package followed by a version number.
+  version, e.g. ``"python 3.5"`` will let Roberto install a Python-3.5 conda
+  environment instead of the default. This variable must be an even number of
+  strings separated by spaces, each time a conda package followed by a version
+  number. (This is ignored when using Python's venv.)
 
 - ``ROBERTO_DEPLOY_BINARY``. Set this to ``1`` if you want Roberto to upload
   binary releases.
@@ -25,14 +26,15 @@ set additional environment variables:
   on CodeCov.
 
 - ``GITHUB_TOKEN``: a token with write access to your repo, to
-  make deployment to Github and pushing to gh-pages work.
+  make deployment to Github and pushing to gh-pages work. (This is automatically
+  set in Github Actions.)
 
 - ``ANACONDA_API_TOKEN``: a token to make anaconda uploads work.
 
 - ``TWINE_USERNAME`` and ``TWINE_PASSWORD``: needed for uploads to pypi.
 
-Make sure tokens are encrypted and passwords in your CI configuration
-file.
+Make sure tokens and passwords are never shown in plain text in your CI
+configuration. Use encryption or other mechanisms to hide them.
 
 Besides setting the above environment variables, you also need to install and
 run Roberto correctly. The following minimalistic set of bash commands should
@@ -49,53 +51,48 @@ work on both Linux and OSX:
   # 2) Run Roberto
   python3 -m roberto
 
+
 Tips and tricks for Github Actions
 ==================================
 
-Minimal example of a ``.github/workflow/ci.yml`` file
------------------------------------------------------
-
-.. warning::
-    This is work in progress ...
+Example of a ``.github/workflow/ci.yml`` file
+---------------------------------------------
 
 .. code-block:: yaml
 
     name: CI
     on:
       push:
-        branches: [master]
+        tags:
+          - '[1-9]+.[0-9]+.[0-9]+*'
+        branches:
+          - master
       pull_request:
-        branches: [master]
+        branches:
+          - master
 
     jobs:
-      test:
+      # These are quick tests using Python's venv on different Python versions.
+      test-venv:
+        timeout-minutes: 30
+        if: "! startsWith(github.ref, 'refs/tags')"
         strategy:
           fail-fast: false
           matrix:
             include:
               - os: ubuntu-latest
                 python-version: 3.7
-                roberto_deploy_noarch: 1
               - os: ubuntu-latest
                 python-version: 3.8
-                roberto_deploy_noarch: 0
               - os: ubuntu-latest
                 python-version: 3.9
-                roberto_deploy_noarch: 0
               - os: macos-latest
                 python-version: 3.7
-                roberto_deploy_noarch: 0
 
         runs-on: ${{ matrix.os }}
         env:
           # Tell Roberto to upload coverage results
           ROBERTO_UPLOAD_COVERAGE: 1
-          ROBERTO_DEPLOY_NOARCH: ${{ matrix.roberto_deploy_noarch }}
-          # Tell roberto which branch is being
-          # merged into, in case of a PR.
-          TWINE_USERNAME: theochem
-          TWINE_PASSWORD: ${{ secrets.TWINE_PASSWORD }}
-          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
         steps:
           - uses: actions/checkout@v2
           - name: Set up Python ${{ matrix.python-version }}
@@ -105,8 +102,8 @@ Minimal example of a ``.github/workflow/ci.yml`` file
               architecture: x64
           - uses: actions/cache@v2
             with:
-              path: ~/venvs
-              key: ${{ runner.os }}-${{ matrix.python-version }}-venv
+              path: ~/.local/venvs
+              key: ${{ runner.os }}-Python-${{ matrix.python-version }}-venv
           - name: Install Pip and Roberto
             run: |
               python -m pip install --upgrade pip
@@ -114,7 +111,6 @@ Minimal example of a ``.github/workflow/ci.yml`` file
           - name: Test Roberto with itself
             run: |
               if [[ -n "${GITHUB_HEAD_REF}" ]]; then
-                ROBERTO_TESTENV_USE=venv \
                 ROBERTO_GIT_MERGE_BRANCH=${GITHUB_HEAD_REF} \
                 ROBERTO_GIT_BRANCH=${GITHUB_BASE_REF} \
                 rob
@@ -122,6 +118,38 @@ Minimal example of a ``.github/workflow/ci.yml`` file
                 ROBERTO_TESTENV_USE=venv \
                 rob robot
               fi
+
+
+      test-conda:
+        # This is a slow test in a Conda environment, including deployment of
+        # tagged releases.
+        timeout-minutes: 30
+        if: (github.ref == 'refs/heads/master') || startsWith(github.ref, 'refs/tags')
+        strategy:
+          fail-fast: false
+
+        runs-on: ubuntu-latest
+        env:
+          ROBERTO_UPLOAD_COVERAGE: 1
+          ROBERTO_PACKAGE_MANAGER: conda
+          ROBERTO_TESTENV_USE: conda
+          ROBERTO_DEPLOY_NOARCH: 1
+          TWINE_USERNAME: theochem
+          TWINE_PASSWORD: ${{ secrets.TWINE_PASSWORD }}
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          ANACONDA_API_TOKEN: ${{ secrets.ANACONDA_API_TOKEN }}
+        steps:
+          - uses: actions/checkout@v2
+          - uses: actions/cache@v2
+            with:
+              path: ~/miniconda3
+              key: ${{ runner.os }}-conda-2
+          - name: Install Roberto
+            run: |
+              pip install ./
+          - name: Test Roberto with itself
+            run: |
+              rob robot
 
 
 Tips and tricks for Travis-CI
