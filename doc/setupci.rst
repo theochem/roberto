@@ -95,6 +95,13 @@ Example of a ``.github/workflow/ci.yml`` file
           ROBERTO_UPLOAD_COVERAGE: 1
         steps:
           - uses: actions/checkout@v2
+            with:
+              fetch-depth: 2
+          - name: Fetch base branch (usually master)
+            run: |
+              if [[ -n "${GITHUB_HEAD_REF}" ]]; then
+                git fetch origin ${GITHUB_BASE_REF} --depth=2
+              fi
           - name: Set up Python ${{ matrix.python-version }}
             uses: actions/setup-python@v2
             with:
@@ -107,11 +114,11 @@ Example of a ``.github/workflow/ci.yml`` file
           - name: Install Pip and Roberto
             run: |
               python -m pip install --upgrade pip
-              pip install ./
-          - name: Test Roberto with itself
+              python -m pip install roberto>=2.0.0
+          - name: Test with Roberto
             run: |
               if [[ -n "${GITHUB_HEAD_REF}" ]]; then
-                ROBERTO_GIT_MERGE_BRANCH=${GITHUB_HEAD_REF} \
+                ROBERTO_GIT_MERGE_BRANCH=${GITHUB_SHA} \
                 ROBERTO_GIT_BRANCH=${GITHUB_BASE_REF} \
                 rob
               else
@@ -142,12 +149,21 @@ Example of a ``.github/workflow/ci.yml`` file
           - uses: actions/checkout@v2
           - uses: actions/cache@v2
             with:
-              path: ~/miniconda3
-              key: ${{ runner.os }}-conda-2
+              path: |
+                ~/miniconda3
+                !~/miniconda3/conda-bld
+                !~/miniconda3/locks
+                !~/miniconda3/pkgs
+                !~/miniconda3/var
+                !~/miniconda3/envs/*/conda-bld
+                !~/miniconda3/envs/*/locks
+                !~/miniconda3/envs/*/pkgs
+                !~/miniconda3/envs/*/var
+              key: ${{ runner.os }}-conda-3
           - name: Install Roberto
             run: |
-              pip install ./
-          - name: Test Roberto with itself
+              python -m pip install roberto>=2.0.0
+          - name: Test and deploy with Roberto
             run: |
               rob robot
 

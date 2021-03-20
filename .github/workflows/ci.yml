@@ -97,7 +97,7 @@ jobs:
             !~/miniconda3/envs/*/locks
             !~/miniconda3/envs/*/pkgs
             !~/miniconda3/envs/*/var
-          key: ${{ runner.os }}-conda-2
+          key: ${{ runner.os }}-conda-3
       - name: Install Roberto
         run: |
           pip install ./
