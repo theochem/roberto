@@ -85,8 +85,8 @@ This is a basic configuration for a Python project, e.g. called `spammer`:
             - deploy-conda
             - deploy-github
 
-This configuration assumes you have at least the following files in your Git
-repository:
+This configuration assumes that you have at least the following files in your
+Git repository:
 
 .. code-block:: bash
 
@@ -194,10 +194,10 @@ hard-coding it:
     )
 
 This is an ugly trick but for a good reason. It is needed because (in
-general) one not assume the package can be imported before ``setup.py`` has been
-executed.
+general) one cannot assume the package can be imported before ``setup.py`` has
+been executed.
 
-When the Sphinx documentation is build, one can assume an in-place built has
+When the Sphinx documentation is built, one can assume an in-place built has
 succeeded and one can simply import the version in ``doc/conf.py`` as follows:
 
   .. code-block:: python
@@ -247,7 +247,7 @@ configuration file:
 
     tools:
       <name of the tool>:
-        task: <name of task for which the tool is intended>
+        cls: <Class name from roberto/tools.py>
         # ...
 
 Additional fields can be added after ``task``, and the details of these
@@ -258,9 +258,13 @@ other confiruaton values, e.g. with ``{config.project.name}``, package-specific
 configuration, e.g. ``{package.dist_name}``, or tool-specific settings, e.g.
 ``{tool.destination}``. These substitutions are not carried out recursively.
 
-In `default configuration file <https://github.com/theochem/roberto/blob/master/roberto/default_config.yaml>`_,
-there is one tool for each task, for which the settings are explained in detail.
-Read these comments if you would like add a new tool in your configuration file.
+The fields in the tool section are (almost) all constructor arguments for a corresponding
+class in `roberto/tools.py`. Refer to their docstrings for more details. There
+are two optional fields not used as constructor arguments:
 
-All tasks can specify ``pip_requirements`` and ``conda_requirements``, which
-will be installed upfront when Roberto prepares the development environment.
+- ``requirements``: a list of 2-tuples, in which the first string is the
+  conda package name and the second is the pip package name (if available).
+
+- ``suported_envs``: present when a tool is only supported by conda, in which
+  case the corresponding value is ``[conda]``. When not present, the tool is
+  assumed to work for both types of virtual environments.

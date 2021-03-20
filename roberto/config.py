@@ -29,6 +29,8 @@ from invoke.config import Config, merge_dicts, DataProxy
 import yaml
 
 from .utils import parse_git_describe
+from .tools import initialize_tools
+from .testenvs import init_testenv
 
 
 class RobertoConfig(Config):
@@ -69,33 +71,18 @@ class RobertoConfig(Config):
     def load_shell_env(self):
         """Call _finalize after Invoke has loaded the complete config."""
         Config.load_shell_env(self)
-        # Once everything is loaded, including environment variables, finalize
-        # the config, mostly for convenience.
         self._finalize()
 
     def _finalize(self):
-        """Derive some config variables for convenience."""
+        """Derive some config variables and fill in defaults for convenience."""
         # Check if essential configuration is present.
         if self.project.name is None:
             raise TypeError("No project name defined in the configuration. Missing .roberto.yaml?")
 
-        # Expand stuff in paths
+        # Prepare download directory
         self.download_dir = os.path.expandvars(os.path.expanduser(self.download_dir))
-        self.conda.base_path = os.path.expandvars(os.path.expanduser(self.conda.base_path))
-        self.venv.base_path = os.path.expandvars(os.path.expanduser(self.venv.base_path))
-
-        # Create download directory if not present
         if not os.path.isdir(self.download_dir):
             os.makedirs(self.download_dir)
-
-        # Derive the name for the conda environment.
-        env_name = self.project.name + '-dev'
-        if self.conda.pinning:
-            env_name += '-' + '-'.join(self.conda.pinning.split())
-        self.conda.env_name = env_name
-        self.conda.env_path = os.path.join(self.conda.base_path, 'envs', env_name)
-        self.venv.env_name = env_name
-        self.venv.env_path = os.path.join(self.venv.base_path, env_name)
 
         # Package default options
         self.project.packages = [
@@ -108,25 +95,20 @@ class RobertoConfig(Config):
                 package.name = self.project.name
             if 'tools' not in package:
                 package.tools = []
-            if 'dist_name' not in package and 'conda_name' in package:
-                print("Warning: conda_name is deprecated. Use dist_name instead.")
-                package.dist_name = package.conda_name
+            if 'conda_name' in package:
+                raise RuntimeError("conda_name is no longer supported. Use dist_name instead.")
+            if 'dist_name' not in package:
+                package.dist_name = package.name
             # Check if all tools exist
             for toolname in package.tools:
                 if toolname not in self.tools:
                     raise ValueError("Unknown Roberto tool: {}".format(toolname))
 
-        # CONDA_BLD_PATH should not be overwritten, to allow for customization.
-        if 'CONDA_BLD_PATH' in os.environ:
-            self.conda.build_path = os.environ['CONDA_BLD_PATH']
-        else:
-            self.conda.build_path = os.path.join(self.conda.env_path, 'conda-bld')
+        # Replace the testenv string by an object
+        init_testenv(self)
 
-        # Create the variants argument for render and build
-        pinned_words = self.conda.pinning.split()
-        self.conda.variants = '"{' + ','.join(
-            "{}: '{}'".format(name, version) for name, version
-            in zip(pinned_words[::2], pinned_words[1::2])) + '}"'
+        # Initialize tools
+        initialize_tools(self.tools)
 
     @staticmethod
     def global_defaults() -> dict:

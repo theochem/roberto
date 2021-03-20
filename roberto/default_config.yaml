@@ -17,55 +17,40 @@ project:
   #   path: # root of the package relative to the project root defaults to '.'
   ]
 
+# Either use "pip" or "conda" (with pip as fallback) as package manager.
+package_manager: pip
+testenv:
+  # The following setting controls what kind of virtual environment should be
+  # used. This can be "venv", "conda" or "none". When set to "none", it is
+  # assumed that some environment is externally created and activated before
+  # calling Roberto. (The latter may be useful for CI in the cloud.)
+  use: venv
+  # The following are filled-in automatically and can be useful in the
+  # tools defined below:
+  base_path: null  # Root directory where all environments are stored.
+  name: null  # Name of the testing environment.
+  path: null  # Directory containing the testing environment.
+# When the absolute is set to true, feature branches are treated as if they are
+# the master branch. This only affects linters that can ignore issues outside
+# the feature branch.
+absolute: false
+
+
 # Custom configuration below this line should be rarely needed.
+
+
+# Used for downloading miniconda and optionally macosx sdk:
+download_dir: '${HOME}/Downloads/'
+# Set to true for deployment of architecture-independent files:
+deploy_noarch: false
+# Set to true for deployment of architecture-dependent files:
+deploy_binary: false
+# Set to true for uploading coverage:
+upload_coverage: false
 
 run:
   echo: true
-testenv:
-  # General settings for the testing environment
-  use: conda  # either conda or venv
-  # The following flag controls if a new testing environment should be created
-  # from scratch (true) or whether Roberto may assume the testing environment
-  # is already in place and activated. When set to true, Roberto will still try
-  # to reuse an testing environment it previously created, but this will not
-  # work for externally created testing environments.
-  from_scratch: true
-  # When set to False, it is assumed any dependencies have already been
-  # installed.
-  install_requirements: true
-  # The following are set automatically...
-  activate: null  # command to activate test environment
-conda:
-  linux_url: 'https://repo.anaconda.com/miniconda/Miniconda3-latest-Linux-x86_64.sh'
-  osx_url: 'https://repo.anaconda.com/miniconda/Miniconda3-latest-MacOSX-x86_64.sh'
-  base_path: '${HOME}/miniconda3'
-  # The pinning config must be a string of words separated by whitespace,
-  # alternating package and version number. These packages will be pinned at
-  # the given version in conda. Don't use wildcards.
-  pinning: 'python 3.7'
-  channels: [conda-forge]  # you practically always need to include conda-forge.
-  # The following are set automatically...
-  env_name: null  # The name of the conda development environment.
-  env_path: null  # The path of the conda development environment.
-  activate_base: null  # command to activate base environment
-venv:
-  # New virtual environments will be created in:
-  base_path: '${HOME}/venvs'
-  # Python binary to use when creating new venv:
-  python_bin: python
-  # The following are set automatically...
-  env_name: null  # The name of the conda development environment.
-  env_path: null  # The path of the conda development environment.
-macosx:
-  # Needed to make clang happy inside conda...
-  install_sdk: false
-  release: '10.9'
-  sdk_release: 'https://github.com/phracker/MacOSX-SDKs/releases/download/10.13'
-download_dir: '${HOME}/Downloads/'  # Used for downloading miniconda and optionally macosx sdk
-deploy_noarch: false  # Set to true for deployment of architecture-independent files.
-deploy_binary: false  # Set to true for deployment of architecture-dependent files.
-upload_coverage: false  # Set to true for uploading coverage
-absolute: false  # Treat feature branches as if they are the master branch
+
 git:
   # Name of the branch being merged into, may be same as git.branch, if not a PR.
   merge_branch: master
@@ -84,15 +69,38 @@ git:
   tag_dev: false  # is the current build a development or alpha release?
   tag_release: false  # is the current build a release
 
+# Some special settings for a special OS:
+macosx:
+  install_sdk: false
+  release: '10.9'
+  sdk_release: 'https://github.com/phracker/MacOSX-SDKs/releases/download/10.13'
+  # The following will be derived from the above settings.
+  sdk_root: null
+
+# Conda-specific settings:
+conda:
+  linux_url: 'https://repo.anaconda.com/miniconda/Miniconda3-latest-Linux-x86_64.sh'
+  osx_url: 'https://repo.anaconda.com/miniconda/Miniconda3-latest-MacOSX-x86_64.sh'
+  base_path: '${HOME}/miniconda3'
+  # The pinning config must be a string of words separated by whitespace,
+  # alternating package and version number. These packages will be pinned at
+  # the given version in conda. Don't use wildcards.
+  pinning: 'python 3.7'
+  channels: [conda-forge]  # you practically always need to include conda-forge.
+
+
+# Venv-specific settings
+venv:
+  # New virtual environments will be created in:
+  base_path: '${HOME}/.local/venvs'
+  # Python binary to use when creating new venv:
+  python_bin: python
+
+
 tools:
-  # Write a version.py file
+  # Writer a version.py file.
   write-py-version:
-    task: write-version
-    # A template for the file to be written, usually short.
-    # You can use python string formatting to insert fields
-    # from the configuration. When Roberto starts, it derives
-    # the version from the git tag and stores it in the
-    # configuration. It can be inserted as {config.git.tag_version}.
+    cls: WriteVersion
     template: |
       """Autogenerated version information file.
 
@@ -104,12 +112,11 @@ tools:
       """
       __version__ = '{config.git.tag_version}'
       DEV_CLASSIFIER = '{config.git.dev_classifier}'
-    # The file to be written. Existing files are overwritten.
     destination: '{package.name}/version.py'
 
   # Write a CMakeListsVersion.txt.in file
   write-cmake-version:
-    task: write-version
+    cls: WriteVersion
     template: |
       # This file is automatically generated. Manual changes will be overwritten.
       set(GIT_DESCRIBE "{config.git.describe}")
@@ -126,7 +133,7 @@ tools:
   # Some requirements have no pip packages. You may install these manually,
   # e.g. using your OS package manager.
   cardboardlint-static:
-    task: lint-static
+    cls: LintStatic
     requirements:
       - [theochem::cardboardlint, cardboardlint]
       - [pycodestyle, pycodestyle]
@@ -143,66 +150,42 @@ tools:
       # Following is needed for rst-lint.
       # See https://github.com/twolfson/restructuredtext-lint/issues/41
       - [pygments, pygments]
-    # Commands to be executed when working in the merge_branch, usually
-    # this is the master branch.
     commands_master:
       - cardboardlinter -f static -n auto
-    # Commdands to be executed when working in a feature banch, which is to
-    # be merged into the merge_branch. This makes it possible to filter out
-    # linting messages that are unrelated to the changes in the feature branch.
     commands_feature:
       - 'cardboardlinter -r {config.git.merge_branch} -f static -n auto'
 
   # Perform an in-place build of a Python package. This may even be useful for
   # pure python packages, to generate a suitable activate script.
   build-py-inplace:
-    task: build-inplace
-    # Additions to *PATH variables due to this in-place build, possibly needed
-    # by other packages, or when one would like to use the in-place build.
-    export_paths:
-      # Variables with null will be initialized with an empty value.
-      PYTHONPATH: '{package.abspath}'
-    # Environment variables that could affect this in-place build. When listed
-    # here, their contents before any in-place build are printed, so one sees
-    # pre-existing variables that may affect the in-place build.
+    cls: BuildInPlace
     check_vars:
       - CXXFLAGS
       - CFLAGS
       - LDFLAGS
       - PYTHONPATH
       - RPATH
-    # Bash commands to build in-place.
     commands:
       # Note that distutils is not very clever with an empty -R argument.
       # This would simply result in a disfunctional compiler argument,
       # which we have to avoid. Hence, some ugly bash is needed.
       # In case of OSX, i.e. when SDKROOT is specified, we need to set CFLAGS
       # and CXXFLAGS explicitly because distutils does not pick this up for us.
-      - if [[ -n "${{SDKROOT}}" ]]; then
+      - if [[ -n "${{CONDA_BUILD_SYSROOT}}" ]]; then
           export CXXFLAGS="${{CXXFLAGS}} -isysroot ${{CONDA_BUILD_SYSROOT}}";
           export CFLAGS="${{CFLAGS}} -isysroot ${{CONDA_BUILD_SYSROOT}}";
         fi;
         python setup.py build_ext -i --define CYTHON_TRACE_NOGIL
         $([[ -n "${{RPATH}}" ]] && echo -R "${{RPATH}}")
-        -I ${{CONDA_PREFIX}}/include
+    extra_vars:
+      PYTHONPATH: '{package.abspath}'
 
   # Perform an in-place build of a CMake package.
   build-cmake-inplace:
-    task: build-inplace
+    cls: BuildInPlace
     requirements:
       - [cmake, null]
       - [make, null]
-    export_paths:
-      # Different compilers have incompatible arguments to set the RPATH
-      # for the linker, so we cannot use LDFLAGS for this, alas.
-      RPATH: '{package.abspath}/build/{package.name}'
-    export_flags:
-      CXXFLAGS: >-
-        -I {package.abspath}
-      CFLAGS: >-
-        -I {package.abspath}
-      LDFLAGS: >-
-        -L {package.abspath}/build/{package.name}
     check_vars:
       - CXXFLAGS
       - CFLAGS
@@ -212,18 +195,26 @@ tools:
       # https://cmake.org/cmake/help/latest/variable/CMAKE_OSX_SYSROOT.html
       - mkdir -p build
       - cd build; cmake .. -DCMAKE_BUILD_TYPE=debug
-      - cd build; VERBOSE=1 make -j $(getconf _NPROCESSORS_ONLN)
+      - cd build; make VERBOSE=1 -j
+    extra_vars:
+      # Different compilers have incompatible arguments to set the RPATH
+      # for the linker, so we cannot use LDFLAGS for this, alas.
+      RPATH: '{package.abspath}/build/{package.name}'
+      CXXFLAGS: >-
+        -I{package.abspath}
+      CFLAGS: >-
+        -I{package.abspath}
+      LDFLAGS: >-
+        -L{package.abspath}/build/{package.name}
 
   # Run unit tests on an in-place build with pytest.
   pytest:
-    task: test-inplace
+    cls: TestInPlace
     requirements:
       - [pytest, pytest]
       - [pytest-cov, pytest-cov]
       - [pytest-xdist, pytest-xdist]
       - [pytest-regressions, pytest-regressions]
-    # Bash commands to perform the tests. Environment variables defined in the
-    # in-place build will still be set.
     commands:
       - pytest {package.name} -v --cov={package.name}
           --cov-report xml:coverage_pytest.xml
@@ -231,22 +222,9 @@ tools:
           --cov-branch --color=yes
           -n auto
 
-  # Run unit tests on an in-place build with nosetests.
-  nose:
-    task: test-inplace
-    requirements:
-      - [nose, nose]
-      - [coverage, coverage]
-    commands:
-      - rm -f .coverage
-      - nosetests {package.name} -v --detailed-errors --with-coverage
-          --cover-package={package.name} --cover-tests --cover-inclusive
-          --cover-branches
-      - coverage xml -i -o coverage_nose.xml
-
   # Run unit tests on an in-place build with `make test`.
   maketest:
-    task: test-inplace
+    cls: TestInPlace
     requirements:
       - [gcovr, null]
       - [make, null]
@@ -256,18 +234,18 @@ tools:
       # Run the tests.
       - cd build; make test
       # Run gcov manually, only on Linux for now.
-      - if [[ -z "${{SDKROOT}}" ]]; then
+      - if [[ "$OSTYPE" == "linux-gnu"* ]]; then
           cd build; find . -type f -name '*.gcno' -exec ${{HOST}}-gcov -pbc {{}} +;
         fi
       # Remove coverage files related to libraries in the conda env.
-      - cd build; rm -vf *'#envs#{config.conda.env_name}#'*.gcov
+      - cd build; rm -vf *'#envs#{config.testenv.name}#'*.gcov
       # gcovr searches for all *.gcov files and produces a nice text report on
       # stdout.
       - gcovr -gk
 
   # Upload coverage result to codecov
   upload-codecov:
-    task: upload-coverage
+    cls: UploadCoverage
     requirements:
       - [codecov, codecov]
     commands:
@@ -275,65 +253,48 @@ tools:
       - codecov -X gcov
 
   # Run the dynamic linters with for cardboardlint as configured in in ~/.cardboardlint.yaml
-  # (Dynamic liners require compilation or interpretaton of code.)
+  # (Dynamic liners may require compilation or interpretaton of code.)
   # See https://github.com/theochem/cardboardlint/
   cardboardlint-dynamic:
-    task: lint-dynamic
+    cls: LintDynamic
     requirements:
       - [theochem::cardboardlint, cardboardlint]
       - [pylint, pylint]
-    # Commands to be executed when working in the merge_branch, usually
-    # this is the master branch.
     commands_master:
       - cardboardlinter -f dynamic -n auto
-    # Commdands to be executed when working in a feature banch, which is to
-    # be merged into the merge_branch. This makes it possible to filter out
-    # linting messages that are unrelated to the changes in the feature branch.
     commands_feature:
       - 'cardboardlinter -r {config.git.merge_branch} -f dynamic -n auto'
 
   # Build the sphinx documentation
   build-sphinx-doc:
-    # The task build-docs compiles the (online) documentation.
-    task: build-docs
+    cls: BuildDocs
     requirements:
       - [sphinx >=1.8, sphinx>=1.8]
       - [sphinx_rtd_theme, sphinx_rtd_theme]
       - [sphinx-autodoc-typehints, sphinx-autodoc-typehints]
       - [sphinxcontrib-apidoc, sphinxcontrib-apidoc]
-    # Bash commands to build the documentation
     commands:
       - cd doc; make html
 
   # Upload (force-push) the sphinx documentation to gh-pages on github.com
   upload-docs-gh:
-    # The task upload-docs-git pushes the previously built documentation to a
-    # git branch of choice.
-    task: upload-docs-git
-    # The root of the documentation website.
+    cls: UploadDocsGit
     docroot: '{package.path}/doc/_build/html'
-    # The branch to push to. Changes will be amended and force-pushed.
     docbranch: gh-pages
-    # The name of the git remote to push to.
     docremote: origin
-    # Use labels to decide for which releases an upload is needed.
     deploy_labels:
       - main
       - test
 
   # Build a python sdist
   build-py-source:
-    # The task build-packages prepares packages for deployment.
-    task: build-packages
-    testenv: [conda, venv]
-    # Bash commands to make the packages.
+    cls: BuildPackage
     commands:
       - python setup.py sdist
 
   # Build a source distribution with cmake
   build-cmake-source:
-    task: build-packages
-    testenv: [conda]
+    cls: BuildPackage
     requirements:
       - [cmake, null]
       - [make, null]
@@ -344,8 +305,8 @@ tools:
 
   # Build a conda package
   build-conda:
-    task: build-packages
-    testenv: [conda]
+    cls: BuildPackage
+    supported_envs: [conda]
     requirements:
       - [conda-build, null]
       - [conda-verify, null]
@@ -358,8 +319,8 @@ tools:
       # without proper testing on both Linux and OSX.
       - if [[ -n "${{SDKROOT}}" ]]; then
           printf "CONDA_BUILD_SYSROOT:\n  - ${{SDKROOT}}\n"
-          > {config.conda.env_path}/conda_build_config.yaml;
-          cd {config.conda.env_path};
+          > {config.testenv.path}/conda_build_config.yaml;
+          cd {config.testenv.path};
         fi;
         CONDA_BLD_PATH={config.conda.build_path}
         PROJECT_VERSION={config.git.tag_version}
@@ -368,35 +329,26 @@ tools:
 
   # Upload python source packages to pypi
   deploy-pypi:
-    # The task deploy uploads software packages to distribution servers.
-    task: deploy
-    testenv: [conda, venv]
+    cls: Deploy
     requirements:
       - [twine, twine]
     deploy_vars:
       - TWINE_USERNAME
       - TWINE_PASSWORD
-    # Include a file with the sha256 sum when uploading, optional.
     include_sha256: false
-    # Glob patterns to locate architecture-independent "assets".
     noarch_asset_patterns:
-      - '{package.path}/dist/{package.name}-{config.git.tag_version}.*'
-    # Glob patterns to locate binary "assets".
+      - '{package.path}/dist/{package.dist_name}-{config.git.tag_version}.*'
     binary_asset_patterns: []
-    # List labels here for when the deployment is required. With main, only
-    # stable releases are uploaded.
     deploy_labels:
       - main
       - test
       - dev
-    # Finally, the commands to perform the upload.
     commands:
       - twine upload --non-interactive {assets}
 
   # Upload any source packages to github.com
   deploy-github:
-    task: deploy
-    testenv: [conda, venv]
+    cls: Deploy
     requirements:
       - [hub, hub]
     deploy_vars:
@@ -429,12 +381,13 @@ tools:
 
   # Upload conda packages to anaconda.org
   deploy-conda:
-    task: deploy
-    testenv: [conda]
+    cls: Deploy
+    supported_envs: [conda]
     requirements:
       - [anaconda-client, null]
     deploy_vars:
       - ANACONDA_API_TOKEN
+    include_sha256: false
     noarch_asset_patterns:
       - '{config.conda.build_path}/noarch/{package.dist_name}-{config.git.tag_version}-*.*'
     binary_asset_patterns:

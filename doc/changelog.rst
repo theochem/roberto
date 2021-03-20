@@ -3,6 +3,19 @@
 Change log
 ##########
 
+- Version 2.0.0 Mar 20, 2021
+
+  - Support for two types of test environments: conda and venv. (It is also
+    possible not to activate any environment.) The default is venv, which is
+    the fastest of the two. venv does not support all features of Roberto, but
+    can handle most.
+  - Support for two types of package managers: conda and pip. (Obviously,
+    conda can only be used in a conda environment.)
+  - Improved output readability.
+  - All CI tools have corresponding classes in `roberto/tools.py`
+  - Improved activate script handling.
+  - Many small fixes
+
 - Version 1.11.0 Aug 27, 2020
 
   - Derive development classifier from git tag.

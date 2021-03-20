@@ -16,7 +16,7 @@
 # You should have received a copy of the GNU General Public License
 # along with this program; if not, see <http://www.gnu.org/licenses/>
 # --
-"""Unit tests for the utilities defined in Roberto's tasks."""
+"""Unit tests Roberto.utils."""
 
 import os
 
@@ -24,39 +24,8 @@ import pytest
 
 from invoke.config import DataProxy
 
-from ..utils import (compute_req_hash, parse_git_describe,
-                     iter_packages_tools, write_sha256_sum, TagError,
+from ..utils import (parse_git_describe, write_sha256_sum, TagError,
                      check_env_var, need_deployment)
-
-
-def test_req_hash(tmpdir):
-    tmpdir = str(tmpdir)  # for python-3.5 compatibility
-    req_items = set(["conda-build", "anaconda-client", "conda-verify"])
-    # Use a fake but safe recipe dir
-    fn_foo = os.path.join(tmpdir, "foo")
-    with open(fn_foo, "w") as f:
-        f.write("bar")
-    req_fns = set([fn_foo])
-    hash1 = compute_req_hash(req_items, req_fns)
-    assert len(hash1) == 64
-    req_items.add("1")
-    hash2 = compute_req_hash(req_items, req_fns)
-    assert len(hash2) == 64
-    assert hash1 != hash2
-    req_items.add("aaa")
-    hash3 = compute_req_hash(req_items, req_fns)
-    assert len(hash3) == 64
-    assert hash1 != hash3
-    assert hash2 != hash3
-    fn_egg = os.path.join(tmpdir, "egg")
-    with open(fn_egg, "w") as f:
-        f.write("spam")
-    req_fns.add(fn_egg)
-    hash4 = compute_req_hash(req_items, req_fns)
-    assert len(hash4) == 64
-    assert hash1 != hash4
-    assert hash2 != hash4
-    assert hash3 != hash4
 
 
 def test_parse_git_describe():
@@ -214,35 +183,6 @@ def test_parse_git_describe():
         parse_git_describe('0.foo.0')
     with pytest.raises(TagError):
         parse_git_describe('foo.0.0')
-
-
-def test_iter_packages_tools():
-    pk1 = DataProxy.from_data({"tools": ['a', 'b', 'c']})
-    pk2 = DataProxy.from_data({"tools": ['a', 'c']})
-    ctx = DataProxy.from_data({
-        'project': {'packages': [pk1, pk2]},
-        'tools': {
-            'a': {'task': 'first', 'option1': 5, 'foo': 'bar'},
-            'b': {'task': 'first', },
-            'c': {'task': 'second', 'option2': 'egg'},
-        },
-        'config': None
-    })
-    ctx.config = ctx
-    lfirst = [({'task': 'first', 'option1': 5, 'foo': 'bar', 'name': 'a'},
-               pk1, {'config': ctx.config, 'package': pk1}),
-              ({'task': 'first', 'name': 'b'},
-               pk1, {'config': ctx.config, 'package': pk1}),
-              ({'task': 'first', 'option1': 5, 'foo': 'bar', 'name': 'a'},
-               pk2, {'config': ctx.config, 'package': pk2})]
-    lsecond = [({'task': 'second', 'option2': 'egg', 'name': 'c'},
-                pk1, {'config': ctx.config, 'package': pk1}),
-               ({'task': 'second', 'option2': 'egg', 'name': 'c'},
-                pk2, {'config': ctx.config, 'package': pk2})]
-    assert list(iter_packages_tools(ctx, 'first')) == lfirst
-    assert list(iter_packages_tools(ctx, 'second')) == lsecond
-    assert list(iter_packages_tools(ctx, '__all__')) == [
-        lfirst[0], lfirst[1], lsecond[0], lfirst[2], lsecond[1]]
 
 
 def test_check_env_var():

@@ -18,10 +18,12 @@
 # --
 """Define the Roberto program."""
 
+
 from invoke import Collection, Program
 
 from . import tasks
 from .config import RobertoConfig
+
 
 try:
     from .version import __version__

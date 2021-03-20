@@ -19,8 +19,8 @@ theochem organization on Github.
 With a relatively simple configuration file (``.roberto.yaml``), the command
 ``rob`` will take the following steps:
 
-1. Install miniconda (and a MacOSX SDK on OSX).
-2. Make a conda environment for development and testing
+1. Optionally install miniconda (and a MacOSX SDK on OSX).
+2. Make a conda or venv environment for development and testing
 3. Install dependencies (for the package being developed and for all
    development tools).
 4. Build the software in-place, i.e. without installing it.
@@ -37,10 +37,10 @@ not done by default because they are slow and have a low risk of failing:
 
 (A few minor steps were omitted for clarity.) These steps should work on your
 local computer in the same way as on a continuous integration system like
-Travis-CI, making it easy to prepare a pull request locally. It is also possible
-to just run a subset of these tasks, which is often needed when working on the
-code. Several steps will also reuse previous results (e.g. conda environment) if
-these are already present, to speed up Roberto.
+Github Actions, making it easy to prepare a pull request locally. It is also
+possible to just run a subset of these tasks, which is often needed when working
+on the code. Several steps will also reuse previous results (e.g. conda or venv
+environment) if these are already present, to speed up Roberto.
 
 The preparation tasks (1-3) are somewhat hard-coded but they are clever enough
 to install a decent development environment with the correct requirements for
@@ -51,7 +51,7 @@ changed to work for Python and/or CMake projects.
 Installation
 ============
 
-Python 3 (>=3.5) must be installed. Other dependencies will be pulled in with
+Python 3 (>=3.6) must be installed. Other dependencies will be pulled in with
 the instructions below.
 
 Roberto can be installed with conda:
@@ -77,7 +77,11 @@ can run ``rob``.
 Usage
 =====
 
-Before you start, please be aware that Roberto will install miniconda, by default in
+By default, Roberto will use venv, unless it is configured to use conda. While
+conda is more powerful than venv, it is also a lot slower and requires more
+storage than venv.
+
+When using conda, be aware that Roberto will install miniconda, by default in
 ``~/miniconda3``, if not present yet. You can modify this directory by setting
 the environment variable ``ROBERTO_CONDA_BASE_PATH`` or by putting the following
 in your global Roberto configuration file ``~/.roberto.yaml``:
@@ -88,9 +92,10 @@ in your global Roberto configuration file ``~/.roberto.yaml``:
       base_path: <your/preferred/location>
 
 E.g. you can use this to avoid interference with an existing miniconda install.
-However, to avoid such interference, Roberto will also make conda environments
-for the development of every package, with relatively long names. For example,
-when Roberto is executed in its own source tree, the conda environment would be
+
+Roberto will also make new conda or venv environments for the development of
+every package, with relatively long names. For example, when Roberto is executed
+in its own source tree, the conda environment would be
 ``roberto-dev-python-3.7``.
 
 To use Roberto, just run ``rob`` in the root of the source tree, where also the
@@ -105,7 +110,7 @@ the committed code is clean and working.
 When using the cardboardlint tool and when you are working in a development
 branch, cardboardlint will only show linter messages for lines of code that you
 have changed. If you would like to see all messages, run Roberto as
-``ROBERTO_ABS=1 rob``.
+``ROBERTO_ABSOLUTE=1 rob``.
 
 More details, e.g. on how to configure Roberto, can be found in the
 documentation: https://theochem.github.com/roberto

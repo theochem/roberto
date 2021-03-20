@@ -6,34 +6,24 @@ on:
     branches: [master]
 
 jobs:
-  test:
+  test-venv:
     strategy:
       fail-fast: false
       matrix:
         include:
           - os: ubuntu-latest
             python-version: 3.7
-            roberto_deploy_noarch: 1
           - os: ubuntu-latest
             python-version: 3.8
-            roberto_deploy_noarch: 0
           - os: ubuntu-latest
             python-version: 3.9
-            roberto_deploy_noarch: 0
           - os: macos-latest
             python-version: 3.7
-            roberto_deploy_noarch: 0
 
     runs-on: ${{ matrix.os }}
     env:
       # Tell Roberto to upload coverage results
       ROBERTO_UPLOAD_COVERAGE: 1
-      ROBERTO_DEPLOY_NOARCH: ${{ matrix.roberto_deploy_noarch }}
-      # Tell roberto which branch is being
-      # merged into, in case of a PR.
-      TWINE_USERNAME: theochem
-      TWINE_PASSWORD: ${{ secrets.TWINE_PASSWORD }}
-      GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
     steps:
       - uses: actions/checkout@v2
       - name: Set up Python ${{ matrix.python-version }}
@@ -43,7 +33,7 @@ jobs:
           architecture: x64
       - uses: actions/cache@v2
         with:
-          path: ~/venvs
+          path: ~/.local/venvs
           key: ${{ runner.os }}-${{ matrix.python-version }}-venv
       - name: Install Pip and Roberto
         run: |
@@ -52,7 +42,6 @@ jobs:
       - name: Test Roberto with itself
         run: |
           if [[ -n "${GITHUB_HEAD_REF}" ]]; then
-            ROBERTO_TESTENV_USE=venv \
             ROBERTO_GIT_MERGE_BRANCH=${GITHUB_HEAD_REF} \
             ROBERTO_GIT_BRANCH=${GITHUB_BASE_REF} \
             rob
@@ -60,3 +49,35 @@ jobs:
             ROBERTO_TESTENV_USE=venv \
             rob robot
           fi
+
+
+  test-conda:
+    if: github.ref == 'refs/heads/master'
+    strategy:
+      fail-fast: false
+
+    runs-on: ubuntu-latest
+    env:
+      ROBERTO_UPLOAD_COVERAGE: 1
+      ROBERTO_PACKAGE_MANAGER: conda
+      ROBERTO_TESTENV_USE: conda
+      ROBERTO_DEPLOY_NOARCH: 1
+      TWINE_USERNAME: theochem
+      TWINE_PASSWORD: ${{ secrets.TWINE_PASSWORD }}
+      GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+      ANACONDA_API_TOKEN: ${{ secrets.ANACONDA_API_TOKEN }}
+    steps:
+      - uses: actions/checkout@v2
+      - name: Set up Miniconda
+        uses: conda-incubator/setup-miniconda@v2
+        with:
+          auto-activate-base: true
+          activate-environment: ""
+      - name: Install Roberto
+        run: |
+          pip install ./
+      - name: Conda info
+        run: conda info
+      - name: Test Roberto with itself
+        run: |
+          ROBERTO_CONDA_BASE_PATH=${CONDA} rob robot

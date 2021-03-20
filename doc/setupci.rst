@@ -49,9 +49,86 @@ work on both Linux and OSX:
   # 2) Run Roberto
   python3 -m roberto
 
+Tips and tricks for Github Actions
+==================================
+
+Minimal example of a ``.github/workflow/ci.yml`` file
+-----------------------------------------------------
+
+.. warning::
+    This is work in progress ...
+
+.. code-block:: yaml
+
+    name: CI
+    on:
+      push:
+        branches: [master]
+      pull_request:
+        branches: [master]
+
+    jobs:
+      test:
+        strategy:
+          fail-fast: false
+          matrix:
+            include:
+              - os: ubuntu-latest
+                python-version: 3.7
+                roberto_deploy_noarch: 1
+              - os: ubuntu-latest
+                python-version: 3.8
+                roberto_deploy_noarch: 0
+              - os: ubuntu-latest
+                python-version: 3.9
+                roberto_deploy_noarch: 0
+              - os: macos-latest
+                python-version: 3.7
+                roberto_deploy_noarch: 0
+
+        runs-on: ${{ matrix.os }}
+        env:
+          # Tell Roberto to upload coverage results
+          ROBERTO_UPLOAD_COVERAGE: 1
+          ROBERTO_DEPLOY_NOARCH: ${{ matrix.roberto_deploy_noarch }}
+          # Tell roberto which branch is being
+          # merged into, in case of a PR.
+          TWINE_USERNAME: theochem
+          TWINE_PASSWORD: ${{ secrets.TWINE_PASSWORD }}
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        steps:
+          - uses: actions/checkout@v2
+          - name: Set up Python ${{ matrix.python-version }}
+            uses: actions/setup-python@v2
+            with:
+              python-version: ${{ matrix.python-version }}
+              architecture: x64
+          - uses: actions/cache@v2
+            with:
+              path: ~/venvs
+              key: ${{ runner.os }}-${{ matrix.python-version }}-venv
+          - name: Install Pip and Roberto
+            run: |
+              python -m pip install --upgrade pip
+              pip install ./
+          - name: Test Roberto with itself
+            run: |
+              if [[ -n "${GITHUB_HEAD_REF}" ]]; then
+                ROBERTO_TESTENV_USE=venv \
+                ROBERTO_GIT_MERGE_BRANCH=${GITHUB_HEAD_REF} \
+                ROBERTO_GIT_BRANCH=${GITHUB_BASE_REF} \
+                rob
+              else
+                ROBERTO_TESTENV_USE=venv \
+                rob robot
+              fi
+
 
 Tips and tricks for Travis-CI
 =============================
+
+.. warning::
+    This section is mainly kept for historical reasons.
 
 Travis is extensively documented and this section does not replace that
 documentation. See https://docs.travis-ci.com/

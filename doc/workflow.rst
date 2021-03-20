@@ -13,12 +13,12 @@ When ``rob`` is executed without arguments, the **quality** task is executed,
 which runs all the tests related to the in-placed build. You may provide one or
 more task names as positional command-line arguments to change this behavior.
 The **robot** task is a more complete test and runs all tasks except for
-**nuclear**, so also including the packaging.
+**nuke-virtual-env**, so also including the packaging.
 
-The tasks **sanitize-git**, **install-conda**, **setup-conda-env**,
-**install-requirements** and **nuclear** are less configurable than the other
-tasks. They take care of a proper development environment for the remaining
-tasks, except for **nuclear** which does exactly the opposite.
+The tasks **sanitize-git**, **setup-virtual-env**, **install-requirements** and
+**nuke-virtual-env** are less configurable than the other tasks. They take care
+of a proper development environment for the remaining tasks, except for
+**nuke-virtual-env** which does exactly the opposite.
 
 The other tasks are more configurable through ``.roberto.yml``. In this file,
 you specify which software packages need to be built and which tools should be
@@ -32,7 +32,7 @@ the last tag does not follow these conventions. The version information can be
 used in all tasks.
 
 For development purposes, it is often sufficient to run ``rob quality`` to
-perform all code quality checks or ``rob build-inplace`` to prepare a function
+perform all code quality checks or ``rob build-inplace`` to prepare a working
 in-place compilation. The latter will also generate a file
 ``activate-{project.name}-dev-{pinning}.sh``, which can be sourced to load all
 the environment variables that will activate the in-place build for further
