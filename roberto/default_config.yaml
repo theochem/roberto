@@ -350,7 +350,7 @@ tools:
   deploy-github:
     cls: Deploy
     requirements:
-      - [hub, hub]
+      - [gh, null]
     deploy_vars:
       - GITHUB_TOKEN
     include_sha256: true
@@ -362,22 +362,18 @@ tools:
       - test
       - dev
     commands:
-      # Clumsy way of calling hub, just to make it possible for multiple
-      # packages to upload assets. The create command will fail from the second
-      # time it is called. By calling create once succesfully, all subsequent
-      # edit calls will work fine.
+      - gh auth login -w; true
       - if [[ "{config.git.deploy_label}" == "main" ]]; then
-            hub release create
-            -m "Automatic release of version {config.git.tag_version}"
-            {config.git.tag_version};
+            gh release create
+            {config.git.tag_version}
+            {assets}
+            -t "Automatic release of version {config.git.tag_version}";
         else
-            hub release create -p
-            -m "Automatic release of version {config.git.tag_version}"
-            {config.git.tag_version};
+            gh release create -p
+            {config.git.tag_version}
+            {assets}
+            -t "Automatic release of version {config.git.tag_version}";
         fi
-      - hub release edit
-            -m "Automatic release of version {config.git.tag_version}"
-            {hub_assets} {config.git.tag_version}
 
   # Upload conda packages to anaconda.org
   deploy-conda:

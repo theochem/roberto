@@ -3,7 +3,7 @@
 Change log
 ##########
 
-- Version 2.0.0 Mar 20, 2021
+- Version 2.0.0 (to be released)
 
   - Support for two types of test environments: conda and venv. (It is also
     possible not to activate any environment.) The default is venv, which is

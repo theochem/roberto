@@ -35,7 +35,7 @@ jobs:
       - uses: actions/cache@v2
         with:
           path: ~/.local/venvs
-          key: ${{ runner.os }}-${{ matrix.python-version }}-venv
+          key: ${{ runner.os }}-Python-${{ matrix.python-version }}-venv
       - name: Install Pip and Roberto
         run: |
           python -m pip install --upgrade pip
@@ -79,7 +79,7 @@ jobs:
         with:
           # There should be a nicer way that just hardcoding the path ...
           path: /usr/share/miniconda/envs
-          key: conda
+          key: ${{ runner.os }}-conda
       - name: Conda info
         run: conda info
       - name: Install Roberto

@@ -385,7 +385,7 @@ class Deploy(Tool):
         """Execute the tool for a given package."""
         # Check if and how deployment vars are set.
         for deploy_var in self.deploy_vars:
-            check_env_var(deploy_var)
+            print(check_env_var(deploy_var))
 
         for binary, asset_patterns in [(True, self.binary_asset_patterns),
                                        (False, self.noarch_asset_patterns)]:
@@ -408,16 +408,11 @@ class Deploy(Tool):
             # Print final assets
             print("Assets for upload: {}".format(assets))
             # Set extra formatting variables.
-            fmtkwargs.update({
-                'assets': ' '.join(assets),
-                'hub_assets': ' '.join('-a {}'.format(asset) for asset in assets),
-            })
+            fmtkwargs['assets'] = ' '.join(assets)
             # Check if deployment is needed before running commands. This check
             # is maximally postponed to increase the coverage of the code above.
             if need_deployment(ctx, descr, binary, self.deploy_labels):
                 try:
-                    # Run deployment commands.
-                    for command in self.commands:
-                        ctx.run(command.format(**fmtkwargs))
+                    self._run_commands(ctx, package, fmtkwargs, self.commands)
                 except UnexpectedExit:
                     print("\033[0;91m Deployment failed:\033[0;0m", descr)
