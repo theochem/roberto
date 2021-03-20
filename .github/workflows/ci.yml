@@ -33,6 +33,13 @@ jobs:
       ROBERTO_UPLOAD_COVERAGE: 1
     steps:
       - uses: actions/checkout@v2
+        with:
+          fetch-depth: 2
+      - name: Fetch base branch (usually master)
+        run: |
+          if [[ -n "${GITHUB_HEAD_REF}" ]]; then
+            git fetch origin ${GITHUB_BASE_REF} --depth=2
+          fi
       - name: Set up Python ${{ matrix.python-version }}
         uses: actions/setup-python@v2
         with:
@@ -49,7 +56,7 @@ jobs:
       - name: Test Roberto with itself
         run: |
           if [[ -n "${GITHUB_HEAD_REF}" ]]; then
-            ROBERTO_GIT_MERGE_BRANCH=${GITHUB_HEAD_REF} \
+            ROBERTO_GIT_MERGE_BRANCH=${GITHUB_SHA} \
             ROBERTO_GIT_BRANCH=${GITHUB_BASE_REF} \
             rob
           else
@@ -94,6 +101,6 @@ jobs:
       - name: Install Roberto
         run: |
           pip install ./
-      - name: Test Roberto with itself
+      - name: Test and Deploy Roberto with itself
         run: |
           rob robot
