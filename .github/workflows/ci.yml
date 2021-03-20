@@ -58,7 +58,7 @@ jobs:
 
   test-conda:
     timeout-minutes: 30
-    if: (github.ref == 'refs/heads/master') || startsWith(github.ref, 'refs/tags/releases/')
+    if: (github.ref == 'refs/heads/master') || startsWith(github.ref, 'refs/tags')
     strategy:
       fail-fast: false
 
