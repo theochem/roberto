@@ -80,7 +80,16 @@ jobs:
       - uses: actions/checkout@v2
       - uses: actions/cache@v2
         with:
-          path: ~/miniconda3
+          path: |
+            ~/miniconda3
+            !~/miniconda3/conda-bld
+            !~/miniconda3/locks
+            !~/miniconda3/pkgs
+            !~/miniconda3/var
+            !~/miniconda3/envs/*/conda-bld
+            !~/miniconda3/envs/*/locks
+            !~/miniconda3/envs/*/pkgs
+            !~/miniconda3/envs/*/var
           key: ${{ runner.os }}-conda-2
       - name: Install Roberto
         run: |
