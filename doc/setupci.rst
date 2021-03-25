@@ -120,10 +120,10 @@ Example of a ``.github/workflow/ci.yml`` file
               if [[ -n "${GITHUB_HEAD_REF}" ]]; then
                 ROBERTO_GIT_MERGE_BRANCH=${GITHUB_SHA} \
                 ROBERTO_GIT_BRANCH=${GITHUB_BASE_REF} \
-                rob
+                python -m roberto
               else
                 ROBERTO_TESTENV_USE=venv \
-                rob robot
+                python -m roberto robot
               fi
 
 
@@ -165,7 +165,7 @@ Example of a ``.github/workflow/ci.yml`` file
               python -m pip install roberto>=2.0.0
           - name: Test and deploy with Roberto
             run: |
-              rob robot
+              python -m roberto robot
 
 
 Tips and tricks for Travis-CI
