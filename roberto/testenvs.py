@@ -180,8 +180,9 @@ def setup_conda(ctx):
 def nuke_conda(ctx):
     """Erase the conda environment."""
     # Go back to the base env before nuking the development env.
+    setup_conda(ctx)
     with ctx.prefix(ctx.conda.activate_base):
-        ctx.run("conda uninstall -n {} --all -y".format(ctx.conda.env_name))
+        ctx.run("conda uninstall -n {} --all -y".format(ctx.testenv.name))
     ctx.run("git clean -fdX")
 
 
