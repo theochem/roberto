@@ -396,6 +396,7 @@ class Deploy(Tool):
             # Collect assets, skipping hash files previously generated.
             assets = []
             for pattern in asset_patterns:
+                print("  Searching for", pattern)
                 assets.extend([filename for filename in glob(pattern)
                                if not filename.endswith("sha256")])
             if not assets:
