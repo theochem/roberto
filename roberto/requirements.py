@@ -231,6 +231,8 @@ def install_requirements_pip(ctx: Context):
     if check_install_requirements(fn_skip, req_hash):
         with ctx.prefix(ctx.testenv.activate):
             if len(pip_reqs) > 0:
+                # Upgrade pip
+                ctx.run("pip install -U pip")
                 # Install pip packages for the tools
                 pip_reqs_str = " ".join(f"'{pip_req}'" for pip_req in pip_reqs)
                 ctx.run(f"pip install -U {pip_reqs_str}")
