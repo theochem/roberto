@@ -82,10 +82,10 @@ def check_install_requirements(fn_skip: str, req_hash: str) -> bool:
             with open(fn_skip) as f:
                 if f.read().strip() == req_hash:
                     print("Skipping install+update of requirements.")
-                    print("To force install+update: rm {}".format(fn_skip))
+                    print(f"To force install+update: rm {fn_skip}")
                     return False
     print("Starting install+update of requirements.")
-    print("To skip install+update: echo {} > {}".format(req_hash, fn_skip))
+    print(f"To skip install+update: echo {req_hash} > {fn_skip}")
     return True
 
 
@@ -109,7 +109,7 @@ def install_requirements_conda(ctx: Context):
         if os.path.isdir(recipe_dir):
             recipe_dirs.append(recipe_dir)
         else:
-            print("Skipping recipe {}. (directory does not exist)".format(recipe_dir))
+            print(f"Skipping recipe {recipe_dir}. (directory does not exist)")
     for tool in tools:
         for conda_req, pip_req in tool.get("requirements", []):
             if conda_req is None:
@@ -128,18 +128,22 @@ def install_requirements_conda(ctx: Context):
         with ctx.prefix(ctx.conda.activate_base):
             # Update conda packages in the base env. Conda packages in the dev env
             # tend to be ignored.
-            ctx.run("conda install --update-deps -y {}".format(
-                " ".join("'{}'".format(conda_req) for conda_req
-                         in conda_reqs if conda_req.startswith('conda'))))
+            conda_reqs_base_str = " ".join(
+                f"'{conda_req}'" for conda_req
+                in conda_reqs if conda_req.startswith('conda')
+            )
+            ctx.run(f"conda install --update-deps -y {conda_reqs_base_str}")
 
         with ctx.prefix(ctx.testenv.activate):
             # Update packages already installed
             ctx.run("conda update --all -y")
 
             # Update and install other requirements for Roberto, in the dev env.
-            ctx.run("conda install --update-deps -y {}".format(" ".join(
-                "'{}'".format(conda_req) for conda_req in conda_reqs
-                if not conda_req.startswith('conda'))))
+            conda_reqs_dev_str = " ".join(
+                f"'{conda_req}'" for conda_req in conda_reqs
+                if not conda_req.startswith('conda')
+            )
+            ctx.run(f"conda install --update-deps -y {conda_reqs_dev_str}")
 
             print("Rendering conda package, extracting requirements, which will be installed.")
 
@@ -150,8 +154,9 @@ def install_requirements_conda(ctx: Context):
                 with tempfile.TemporaryDirectory() as tmpdir:
                     rendered_path = os.path.join(tmpdir, "rendered.yml")
                     ctx.run(
-                        "conda render -f {} {} --variants {}".format(
-                            rendered_path, recipe_dir, ctx.conda.variants))
+                        f"conda render -f {rendered_path} {recipe_dir} "
+                        f"--variants {ctx.conda.variants}"
+                    )
                     with open(rendered_path) as f:
                         rendered = yaml.safe_load(f)
                 # Build a (simplified) list of requirements and install.
@@ -170,13 +175,15 @@ def install_requirements_conda(ctx: Context):
                             if len(words) > 1 and any(char in words[1] for char in "<>!="):
                                 dep_conda_req += " " + words[1]
                             dep_conda_reqs.add(dep_conda_req)
-                ctx.run("conda install --update-deps -y {}".format(" ".join(
-                    "'{}'".format(conda_req) for conda_req in dep_conda_reqs)))
+                conda_reqs_render_str = " ".join(
+                    f"'{conda_req}'" for conda_req in dep_conda_reqs
+                )
+                ctx.run(f"conda install --update-deps -y {conda_reqs_render_str}")
 
             # Update and install requirements for Roberto from pip, if any.
             if pip_reqs:
-                ctx.run("pip install --upgrade {}".format(" ".join(
-                    "'{}'".format(pip_req) for pip_req in pip_reqs)))
+                pip_reqs_str = " ".join(f"'{pip_req}'" for pip_req in pip_reqs)
+                ctx.run(f"pip install --upgrade {pip_reqs_str}")
 
         # Update the timestamp on the skip file.
         with open(fn_skip, 'w') as f:
@@ -225,8 +232,8 @@ def install_requirements_pip(ctx: Context):
         with ctx.prefix(ctx.testenv.activate):
             if len(pip_reqs) > 0:
                 # Install pip packages for the tools
-                ctx.run("pip install -U {}".format(" ".join(
-                        "'{}'".format(pip_req) for pip_req in pip_reqs)))
+                pip_reqs_str = " ".join(f"'{pip_req}'" for pip_req in pip_reqs)
+                ctx.run(f"pip install -U {pip_reqs_str}")
             # Install dependencies for the project.
             for package in ctx.project.packages:
                 with ctx.cd(package.path):

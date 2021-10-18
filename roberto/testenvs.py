@@ -49,20 +49,20 @@ def install_macosx_sdk(ctx):
         optdir = os.path.join(ctx.testenv.base_path, 'opt')
         if not os.path.isdir(optdir):
             os.makedirs(optdir)
-        sdk = 'MacOSX{}.sdk'.format(ctx.macosx.release)
+        sdk = f'MacOSX{ctx.macosx.release}.sdk'
         sdk_root = os.path.join(optdir, sdk)
         if not os.path.isdir(sdk_root):
-            sdk_tar = '{}.tar.xz'.format(sdk)
+            sdk_tar = f'{sdk}.tar.xz'
             sdk_dwnl = os.path.join(ctx.download_dir, sdk_tar)
-            sdk_url = '{}/{}'.format(ctx.maxosx.sdk_release, sdk_tar)
-            print("Downloading {}".format(sdk_url))
+            sdk_url = f'{ctx.maxosx.sdk_release}/{sdk_tar}'
+            print(f"Downloading {sdk_url}")
             urllib.request.urlretrieve(sdk_url, sdk_dwnl)
             with ctx.cd(optdir):
-                ctx.run('tar -xJf {}'.format(sdk_dwnl))
+                ctx.run(f'tar -xJf {sdk_dwnl}')
         append_activate(ctx, "export MACOSX_DEPLOYMENT_TARGET=" + ctx.macosx.release)
-        append_activate(ctx, 'export SDKROOT="{}"'.format(sdk_root))
-        print('MaxOSX sdk in: {}'.format(sdk_root))
-        ctx.run('ls -alh {}'.format(sdk_root))
+        append_activate(ctx, f'export SDKROOT="{sdk_root}"')
+        print(f'MaxOSX sdk in: {sdk_root}')
+        ctx.run(f'ls -alh {sdk_root}')
         ctx.macosx.sdk_root = sdk_root
 
 
@@ -86,7 +86,7 @@ def init_testenv_conda(cfg):
     if cfg.conda.pinning:
         cfg.testenv.name += '-' + '-'.join(cfg.conda.pinning.split())
     cfg.testenv.path = os.path.join(cfg.testenv.base_path, 'envs', cfg.testenv.name)
-    cfg.testenv.fn_activate = "activate-conda-{}.sh".format(cfg.testenv.name)
+    cfg.testenv.fn_activate = f"activate-conda-{cfg.testenv.name}.sh"
     cfg.testenv.activate = "true"
     cfg.testenv.setup = setup_conda
     cfg.testenv.nuke = nuke_conda
@@ -98,24 +98,24 @@ def install_conda(ctx):
     if not os.path.isdir(os.path.join(ctx.testenv.base_path, 'bin')):
         dwnlconda = os.path.join(ctx.download_dir, 'miniconda.sh')
         if os.path.isfile(dwnlconda):
-            print("Conda installer already present: {}".format(dwnlconda))
+            print(f"Conda installer already present: {dwnlconda}")
         else:
-            print("Downloading latest conda to {}.".format(dwnlconda))
+            print(f"Downloading latest conda to {dwnlconda}.")
             if platform.system() == 'Darwin':
                 urllib.request.urlretrieve(ctx.conda.osx_url, dwnlconda)
             elif platform.system() == 'Linux':
                 urllib.request.urlretrieve(ctx.conda.linux_url, dwnlconda)
             else:
-                raise Failure("Operating system {} not supported.".format(platform.system()))
+                raise Failure(f"Operating system {platform.system()} not supported.")
 
         # Fix permissions of the conda installer.
         os.chmod(dwnlconda, os.stat(dwnlconda).st_mode | stat.S_IXUSR)
 
         # Install
-        print("Installing conda in {}.".format(ctx.testenv.base_path))
-        ctx.run("{} -b -p {}".format(dwnlconda, ctx.testenv.base_path))
+        print(f"Installing conda in {ctx.testenv.base_path}.")
+        ctx.run(f"{dwnlconda} -b -p {ctx.testenv.base_path}")
 
-    ctx.conda.activate_base = "source '{}/bin/activate'".format(ctx.testenv.base_path)
+    ctx.conda.activate_base = f"source '{ctx.testenv.base_path}/bin/activate'"
 
     install_macosx_sdk(ctx)
 
@@ -134,7 +134,7 @@ def setup_conda(ctx):
     # Check the sanity of the pinning configuration
     for char in "=<>!*":
         if char in ctx.conda.pinning:
-            raise Failure("Character '{}' should not be used in pinning.".format(char))
+            raise Failure(f"Character '{char}' should not be used in pinning.")
     pinned_words = ctx.conda.pinning.split()
     if len(pinned_words) % 2 != 0:
         raise Failure("Pinning config should be an even number of words, alternating "
@@ -142,13 +142,13 @@ def setup_conda(ctx):
 
     # pinning as requirements for building the initial test environment.
     pinned_reqs = [
-        "{}={}".format(name, version) for name, version
+        f"{name}={version}" for name, version
         in zip(pinned_words[::2], pinned_words[1::2])]
 
     # Create the variants argument for render and build
     pinned_words = ctx.conda.pinning.split()
     ctx.conda.variants = '"{' + ','.join(
-        "{}: '{}'".format(name, version) for name, version
+        f"{name}: '{version}'" for name, version
         in zip(pinned_words[::2], pinned_words[1::2])) + '}"'
 
     append_activate(ctx, '[[ -n \"${CONDA_PREFIX_1}\" ]] && conda deactivate &> /dev/null')
@@ -158,22 +158,22 @@ def setup_conda(ctx):
     with ctx.prefix(ctx.testenv.activate):
         # Check if the right environment exists, and make if needed.
         result = ctx.run("conda env list --json")
-        print("Required conda env: {}".format(ctx.testenv.path))
+        print(f"Required conda env: {ctx.testenv.path}")
         if ctx.testenv.path not in json.loads(result.stdout)["envs"]:
-            ctx.run("conda create -n {} {} -y".format(ctx.testenv.name, " ".join(pinned_reqs)))
+            ctx.run(f"conda create -n {ctx.testenv.name} {' '.join(pinned_reqs)} -y")
             with open(os.path.join(ctx.testenv.path, "conda-meta", "pinning"), "w") as f:
                 for pin in pinned_reqs:
                     f.write(pin + "\n")
 
-    append_activate(ctx, 'conda activate {}'.format(ctx.testenv.name))
-    append_activate(ctx, 'export CONDA_BLD_PATH="{}"'.format(ctx.conda.build_path))
-    append_activate(ctx, 'export PROJECT_VERSION="{}"'.format(ctx.git.tag_version))
+    append_activate(ctx, f'conda activate {ctx.testenv.name}')
+    append_activate(ctx, f'export CONDA_BLD_PATH="{ctx.conda.build_path}"')
+    append_activate(ctx, f'export PROJECT_VERSION="{ctx.git.tag_version}"')
 
     with ctx.prefix(ctx.testenv.activate):
         # Reset the channels. Removing previous may fail if there were none. That's ok.
         ctx.run("conda config --env --remove-key channels", warn=True, hide='err')
         for channel in ctx.conda.channels:
-            ctx.run("conda config --env --add channels {}".format(channel))
+            ctx.run(f"conda config --env --add channels {channel}")
         ctx.run("conda config --env --set channel_priority strict")
 
 
@@ -182,7 +182,7 @@ def nuke_conda(ctx):
     # Go back to the base env before nuking the development env.
     setup_conda(ctx)
     with ctx.prefix(ctx.conda.activate_base):
-        ctx.run("conda uninstall -n {} --all -y".format(ctx.testenv.name))
+        ctx.run(f"conda uninstall -n {ctx.testenv.name} --all -y")
     ctx.run("git clean -fdX")
 
 
@@ -200,7 +200,7 @@ def init_testenv_venv(cfg):
         pyver = 'X.Y'
     cfg.testenv.name = cfg.project.name + '-dev-python-' + pyver
     cfg.testenv.path = os.path.join(cfg.testenv.base_path, cfg.testenv.name)
-    cfg.testenv.fn_activate = "activate-venv-{}.sh".format(cfg.testenv.name)
+    cfg.testenv.fn_activate = f"activate-venv-{cfg.testenv.name}.sh"
     cfg.testenv.activate = "true"
     cfg.testenv.setup = setup_venv
     cfg.testenv.nuke = nuke_venv
@@ -211,19 +211,20 @@ def setup_venv(ctx):
     # Check if the required environment already exists
     if not os.path.isdir(ctx.testenv.path):
         # Create a new environment
-        ctx.run("{} -m venv {}".format(ctx.venv.python_bin, ctx.testenv.path))
+        ctx.run(f"{ctx.venv.python_bin} -m venv {ctx.testenv.path}")
     else:
         print("Virtual environment already exists:")
         print(ctx.testenv.path)
     append_activate(ctx, '[[ -n "${VIRTUAL_ENV}" ]] && deactivate &> /dev/null')
-    append_activate(ctx, "source {}/bin/activate".format(ctx.testenv.path))
+    append_activate(ctx, f"source {ctx.testenv.path}/bin/activate")
 
     install_macosx_sdk(ctx)
 
 
 def nuke_venv(ctx):
     """Erase the virtual environment."""
-    ctx.run("echo rm -rv {}".format(ctx.testenv.path))
+    # Not (yet) removing it, just showing how.
+    ctx.run(f"echo rm -rv {ctx.testenv.path}")
     ctx.run("git clean -fdX")
 
 

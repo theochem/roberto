@@ -70,8 +70,8 @@ def parse_git_describe(git_describe: str) -> dict:
     version_info = {
         'describe': git_describe,
         'tag': tag,
-        'tag_version': '{}.{}.{}{}'.format(major, minor, patch, suffix),
-        'tag_soversion': '{}.{}'.format(major, minor),
+        'tag_version': f'{major}.{minor}.{patch}{suffix}',
+        'tag_soversion': f'{major}.{minor}',
         'tag_version_major': major,
         'tag_version_minor': minor,
         'tag_version_patch': patch,
@@ -115,7 +115,7 @@ class TagError(Exception):
             message.
 
         """
-        message = 'Invalid tag: {} ({})'.format(tag, message)
+        message = f'Invalid tag: {tag} ({message})'
         super().__init__(message)
 
 
@@ -135,20 +135,20 @@ def sanitize_branch(ctx: Context, branch: str):
     """
     # Test if merge branch is present
     try:
-        ctx.run("git rev-parse --verify {}".format(branch))
+        ctx.run(f"git rev-parse --verify {branch}")
         return
     except Failure:
-        print("Merge branch \"{}\" not found.".format(branch))
+        print(f"Merge branch \"{branch}\" not found.")
 
     # Try to create it without connection to origin
     try:
-        ctx.run("git branch --track {0} origin/{0}".format(branch))
+        ctx.run(f"git branch --track {branch} origin/{branch}")
         return
     except Failure:
-        print("Local copy of remote merge branch \"{}\" not found.".format(branch))
+        print(f"Local copy of remote merge branch \"{branch}\" not found.")
 
     # Last resort: fetch the merge branch
-    ctx.run("git fetch origin {0}:{0}".format(branch))
+    ctx.run(f"git fetch origin {branch}:{branch}")
 
 
 def check_env_var(name: str):
@@ -161,10 +161,10 @@ def check_env_var(name: str):
 
     """
     if name not in os.environ:
-        return 'The environment variable {} is not set.'.format(name)
+        return f'The environment variable {name} is not set.'
     if os.environ[name] == "":
-        return 'The environment variable {} is empty.'.format(name)
-    return 'The environment variable {} is not empty.'.format(name)
+        return f'The environment variable {name} is empty.'
+    return f'The environment variable {name} is not empty.'
 
 
 def need_deployment(ctx: Context, prefix: str, binary: bool, deploy_labels: List[str]) -> bool:
@@ -186,13 +186,13 @@ def need_deployment(ctx: Context, prefix: str, binary: bool, deploy_labels: List
 
     """
     if binary and not ctx.deploy_binary:
-        print("{} not requested in configuration. (binary)".format(prefix))
+        print(f"{prefix} not requested in configuration. (binary)")
         return False
     if not binary and not ctx.deploy_noarch:
-        print("{} not requested in configuration. (noarch)".format(prefix))
+        print(f"{prefix} not requested in configuration. (noarch)")
         return False
     if ctx.git.deploy_label not in deploy_labels:
-        print("{} skipped, because of deploy label {}.".format(prefix, ctx.git.deploy_label))
+        print(f"{prefix} skipped, because of deploy label {ctx.git.deploy_label}.")
         return False
     return True
 
@@ -217,7 +217,7 @@ def write_sha256_sum(fn_asset: str) -> str:
             hasher.update(chunck)
     fn_sha256 = fn_asset + '.sha256'
     with open(fn_sha256, 'w') as f:
-        line = '{}  {}'.format(hasher.hexdigest(), fn_asset)
+        line = f'{hasher.hexdigest()}  {fn_asset}'
         f.write(line + '\n')
         print(line)
     return fn_sha256

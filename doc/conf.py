@@ -32,7 +32,7 @@ runpy.run_path('./list_tasks.py', run_name='__main__')
 # -- Project information -----------------------------------------------------
 
 project = 'Roberto'
-copyright = '{} The Roberto Development Team'.format(datetime.now().year)
+copyright = f'{datetime.now().year} The Roberto Development Team'
 author = 'The Roberto Development Team'
 release = __version__
 version = '.'.join(release.split('.')[:2])

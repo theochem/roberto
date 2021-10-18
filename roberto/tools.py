@@ -155,7 +155,7 @@ class Lint(Tool):
         if ctx.absolute:
             on_merge_branch = True
         else:
-            result = ctx.run('git diff {}..HEAD --stat'.format(ctx.git.merge_branch), hide='out')
+            result = ctx.run(f'git diff {ctx.git.merge_branch}..HEAD --stat', hide='out')
             on_merge_branch = (result.stdout.strip() == "")
         if on_merge_branch:
             self._run_commands(ctx, package, fmtkwargs, self.commands_master)
@@ -200,15 +200,14 @@ class BuildInPlace(Tool):
         print('Existing variables that could affect the in-place build:')
         for varname in self.check_vars:
             if varname in os.environ:
-                print('{}={}'.format(varname, os.environ[varname]))
+                print(f'{varname}={os.environ[varname]}')
 
     def _update_extra_vars(self, ctx, fmtkwargs):
         """Update environment variables after running build commands."""
         for name, value in self.extra_vars.items():
             separator = ":" if "PATH" in name else " "
             value = value.format(**fmtkwargs)
-            append_activate(ctx, 'export {n}="${{{n}:+${{{n}}}{s}}}{v}"'.format(
-                n=name, v=value, s=separator))
+            append_activate(ctx, f'export {name}="${{{name}:+${{{name}}}{separator}}}{value}"')
 
     def execute(self, ctx, package, fmtkwargs):
         """Execute the tool for a given package."""
@@ -287,7 +286,7 @@ class UploadDocsGit(UploadDocs):
         if 'GITHUB_TOKEN' in os.environ:
             # First get user info from the owner of the token
             req = urllib.request.Request('https://api.github.com/user')
-            req.add_header('Authorization', 'token {}'.format(os.environ['GITHUB_TOKEN']))
+            req.add_header('Authorization', f'token {os.environ["GITHUB_TOKEN"]}')
             try:
                 with urllib.request.urlopen(req) as f:
                     user_info = json.loads(f.read().decode('utf-8'))['login']
@@ -304,7 +303,7 @@ class UploadDocsGit(UploadDocs):
             os.environ["GIT_COMMITTER_EMAIL"] = author_email
 
         # Check if deployment is needed with deploy_label.
-        prefix = '{} of {}'.format(self.name, package.dist_name)
+        prefix = f'{self.name} of {package.dist_name}'
         if not need_deployment(ctx, prefix, False, self.deploy_labels):
             return
 
@@ -313,19 +312,19 @@ class UploadDocsGit(UploadDocs):
             # the previous commit. It is assumed that the doc branch is an
             # orphan branch made previously.
             sanitize_branch(ctx, self.docbranch)
-            ctx.run("git checkout {}".format(self.docbranch))
+            ctx.run(f"git checkout {self.docbranch}")
             ctx.run("git ls-tree HEAD -r --name-only | xargs rm")
             # Copy the documentation to the repo root.
             docroot = self.docroot.format(**fmtkwargs)
-            ctx.run("GLOBIGNORE='.:..'; cp -rv {}/* .".format(docroot))
+            ctx.run(f"GLOBIGNORE='.:..'; cp -rv {docroot}/* .")
             # Add all files
             for root, _dirs, filenames in os.walk(docroot):
                 for filename in filenames:
                     fullfn = os.path.join(root, filename)[len(docroot)+1:]
-                    ctx.run("git add {}".format(fullfn))
+                    ctx.run(f"git add {fullfn}")
             # Commit, push and go back to the original branch
             ctx.run("git commit -a -m 'Automatic documentation update' --amend ")
-            ctx.run("git checkout {}".format(ctx.git.branch))
+            ctx.run(f"git checkout {ctx.git.branch}")
             # Push
             if 'GITHUB_TOKEN' in os.environ:
                 # Get the remote url
@@ -334,13 +333,15 @@ class UploadDocsGit(UploadDocs):
                 slug = '/'.join(giturl.replace(':', '/').split('/')[-2:])
                 # Push with github token magic. Taken from
                 # https://gist.github.com/willprice/e07efd73fb7f13f917ea
-                ctx.run("git remote add origin-pages https://{}@github.com/{}".format(
-                    os.environ['GITHUB_TOKEN'], slug
-                ), hide=True, echo=False, warn=True)
-                ctx.run("git push --quiet -f origin-pages {0}:{0}".format(self.docbranch))
+                ctx.run(
+                    "git remote add origin-pages "
+                    f"https://{os.environ['GITHUB_TOKEN']}@github.com/{slug}",
+                    hide=True, echo=False, warn=True
+                )
+                ctx.run(f"git push --quiet -f origin-pages {self.docbranch}:{self.docbranch}")
             else:
                 # Fallback for local doc updates.
-                ctx.run("git push -f {0} {1}:{1}".format(self.docremote, self.docbranch))
+                ctx.run(f"git push -f {self.docremote} {self.docbranch}:{self.docbranch}")
 
 
 class BuildPackage(RunCommands):
@@ -391,8 +392,8 @@ class Deploy(Tool):
                                        (False, self.noarch_asset_patterns)]:
             # Fill in config variables in asset_patterns
             asset_patterns = [pattern.format(**fmtkwargs) for pattern in asset_patterns]
-            descr = '{} of {} (binary={})'.format(self.name, package.dist_name, binary)
-            print("Preparing for {}".format(descr))
+            descr = f'{self.name} of {package.dist_name} (binary={binary})'
+            print(f"Preparing for {descr}")
             # Collect assets, skipping hash files previously generated.
             assets = []
             for pattern in asset_patterns:
@@ -407,7 +408,7 @@ class Deploy(Tool):
             if self.include_sha256:
                 assets.extend(asset_hashes)
             # Print final assets
-            print("Assets for upload: {}".format(assets))
+            print(f"Assets for upload: {assets}")
             # Set extra formatting variables.
             fmtkwargs['assets'] = ' '.join(assets)
             # Check if deployment is needed before running commands. This check

@@ -62,10 +62,10 @@ def main():
             tdr = taskmap[name]
             endsentence = tdr.doc[0][0].lower() + tdr.doc[0][1:]
             if tdr.prenames:
-                f.write("- **{}** depends on **{}** and will {}\n".format(
-                    name, "**, **".join(tdr.prenames), endsentence))
+                fmt_dependencies = ", ".join(f"**{name}**" for name in tdr.prenames)
+                f.write(f"- **{name}** depends on {fmt_dependencies} and will {endsentence}\n")
             else:
-                f.write("- **{}** will {}\n".format(name, endsentence))
+                f.write("- **{name}** will {endsentence}\n")
 
 
 if __name__ == '__main__':

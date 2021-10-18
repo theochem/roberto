@@ -189,11 +189,11 @@ def test_check_env_var():
     # This test assumes the following variable is not defined in the environment.
     name = "d2f400557595b05b39dc6153567b2493c75b132114571b2bdd5d375c88ea732c"
     assert name not in os.environ
-    assert check_env_var(name) == 'The environment variable {} is not set.'.format(name)
+    assert check_env_var(name) == f'The environment variable {name} is not set.'
     os.environ[name] = ''
-    assert check_env_var(name) == 'The environment variable {} is empty.'.format(name)
+    assert check_env_var(name) == f'The environment variable {name} is empty.'
     os.environ[name] = '1'
-    assert check_env_var(name) == 'The environment variable {} is not empty.'.format(name)
+    assert check_env_var(name) == f'The environment variable {name} is not empty.'
 
 
 def test_need_deployment():
@@ -247,7 +247,7 @@ def test_write_sha256_sum_1(tmpdir):
     assert os.path.isfile(fn_hash)
     with open(fn_hash, 'r') as f:
         assert f.read() == ("aec070645fe53ee3b3763059376134f058cc337247c978add1"
-                            "78b6ccdfb0019f  {}\n").format(fn_test)
+                            f"78b6ccdfb0019f  {fn_test}\n")
 
 
 def test_write_sha256_sum_1000(tmpdir):
@@ -256,7 +256,7 @@ def test_write_sha256_sum_1000(tmpdir):
         f.write(b"eggspam\n"*1000)
     fn_hash = write_sha256_sum(fn_test)
     assert os.path.isfile(fn_hash)
-    os.system("sha256sum {}".format(fn_test))
+    os.system(f"sha256sum {fn_test}")
     with open(fn_hash, 'r') as f:
         assert f.read() == ("e3cf7ad45677ef171d77ec47e2dea492ba32e36b9d9fbcd0c9"
-                            "0951421d78bcc9  {}\n").format(fn_test)
+                            f"0951421d78bcc9  {fn_test}\n")

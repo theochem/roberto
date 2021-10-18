@@ -102,7 +102,7 @@ class RobertoConfig(Config):
             # Check if all tools exist
             for toolname in package.tools:
                 if toolname not in self.tools:
-                    raise ValueError("Unknown Roberto tool: {}".format(toolname))
+                    raise ValueError(f"Unknown Roberto tool: {toolname}")
 
         # Replace the testenv string by an object
         init_testenv(self)
