@@ -3,6 +3,10 @@
 Change log
 ##########
 
+- Version 2.0.2 Oct 18, 2021
+
+  - Upgrade pip before using it.
+
 - Version 2.0.1 Oct 18, 2021
 
   - Fix `nuke-testenv` for conda.
