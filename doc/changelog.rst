@@ -3,6 +3,11 @@
 Change log
 ##########
 
+- Version 2.0.1 Oct 18, 2021
+
+  - Fix `nuke-testenv` for conda.
+  - Minor documentation and output improvements.
+
 - Version 2.0.0 Mar 20, 2021
 
   - Support for two types of test environments: conda and venv. (It is also
