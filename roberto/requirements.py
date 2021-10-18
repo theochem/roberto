@@ -166,7 +166,10 @@ def install_requirements_conda(ctx: Context):
                     for recipe_req in rendered.get(req_section, {}).get(req_type, []):
                         words = recipe_req.split()
                         if words[0] not in own_conda_reqs:
-                            dep_conda_reqs.add(" ".join(words[:2]))
+                            dep_conda_req = words[0]
+                            if len(words) > 1 and any(char in words[1] for char in "<>!="):
+                                dep_conda_req += " " + words[1]
+                            dep_conda_reqs.add(dep_conda_req)
                 ctx.run("conda install --update-deps -y {}".format(" ".join(
                     "'{}'".format(conda_req) for conda_req in dep_conda_reqs)))
 
