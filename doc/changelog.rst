@@ -7,6 +7,8 @@ Change log
 
   - Fix `nuke-testenv` for conda.
   - Minor documentation and output improvements.
+  - Use f-strings in source code.
+  - Fix few new types of pylint issues.
 
 - Version 2.0.0 Mar 20, 2021
 
