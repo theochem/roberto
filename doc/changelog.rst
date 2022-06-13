@@ -3,6 +3,11 @@
 Change log
 ##########
 
+- Version 2.0.3 Jun 13, 2022
+
+  - Use strings for Python version in `.github/workflow` files.
+    (Changed in documentation and Roberto's own CI files.)
+
 - Version 2.0.2 Oct 18, 2021
 
   - Upgrade pip before using it.
