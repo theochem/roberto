@@ -81,13 +81,15 @@ Example of a ``.github/workflow/ci.yml`` file
           matrix:
             include:
               - os: ubuntu-latest
-                python-version: 3.7
+                python-version: '3.7'
               - os: ubuntu-latest
-                python-version: 3.8
+                python-version: '3.8'
               - os: ubuntu-latest
-                python-version: 3.9
+                python-version: '3.9'
+              - os: ubuntu-latest
+                python-version: '3.10'
               - os: macos-latest
-                python-version: 3.7
+                python-version: '3.7'
 
         runs-on: ${{ matrix.os }}
         env:
