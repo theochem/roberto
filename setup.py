@@ -32,21 +32,20 @@ import os
 
 from setuptools import setup
 
-
-NAME = 'roberto'
+NAME = "roberto"
 
 
 def get_version_info():
     """Read __version__ and DEV_CLASSIFIER from version.py, using exec, not import."""
-    with open(os.path.join(NAME, 'version.py'), 'r') as f:
+    with open(os.path.join(NAME, "version.py"), "r") as f:
         myglobals = {"__name__": f"{NAME}.version"}
         exec(f.read(), myglobals)  # pylint: disable=exec-used
-    return myglobals['__version__'], myglobals['DEV_CLASSIFIER']
+    return myglobals["__version__"], myglobals["DEV_CLASSIFIER"]
 
 
 def load_readme():
     """Load README for display on PyPI."""
-    with open('README.rst') as f:
+    with open("README.rst") as f:
         return f.read()
 
 
@@ -57,27 +56,29 @@ setup(
     name=NAME,
     version=VERSION,
     package_dir={NAME: NAME},
-    packages=[NAME, NAME + '.test'],
-    description='Collection of configurable development workflows',
+    packages=[NAME, NAME + ".test"],
+    description="Collection of configurable development workflows",
     long_description=load_readme(),
-    author='HORTON-ChemTools Dev Team',
-    author_email='horton.chemtools@gmail.com',
-    url='https://github.com/theochem/roberto',
+    author="HORTON-ChemTools Dev Team",
+    author_email="horton.chemtools@gmail.com",
+    url="https://github.com/theochem/roberto",
     include_package_data=True,
-    install_requires=[
-        'invoke', 'pyyaml', 'importlib_resources; python_version < "3.7"'],
-    python_requires='>=3.6',
-    entry_points={
-        'console_scripts': ['rob = roberto.__main__:main']
-    },
+    install_requires=["invoke", "pyyaml", 'importlib_resources; python_version < "3.7"'],
+    python_requires=">=3.6",
+    entry_points={"console_scripts": ["rob = roberto.__main__:main"]},
     classifiers=[
         DEV_CLASSIFIER,
-        'Environment :: Console',
-        'License :: OSI Approved :: GNU General Public License v3 or later (GPLv3+)',
-        'Operating System :: POSIX :: Linux',
-        'Programming Language :: Python :: 3.6',
-        'Programming Language :: Python :: 3.7',
-        'Programming Language :: Python :: 3.8',
-        'Programming Language :: Python :: 3.9',
-    ],
+        "Environment :: Console",
+        "License :: OSI Approved :: GNU General Public License v3 or later (GPLv3+)",
+        "Operating System :: POSIX :: Linux",
+        "Programming Language :: Python :: 3.6",
+        "Programming Language :: Python :: 3.7",
+        "Programming Language :: Python :: 3.8",
+        "Programming Language :: Python :: 3.9",
+        "Programming Language :: Python :: 3.10",
+        "Programming Language :: Python :: 3.11",
+        'Programming Language :: Python :: 3.10',
+        'Programming Language :: Python :: 3.11',
+        ],
 )
+
