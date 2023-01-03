@@ -49,7 +49,7 @@ jobs:
         with:
           python-version: ${{ matrix.python-version }}
           architecture: x64
-      - uses: actions/cache@v2
+      - uses: actions/cache@v3
         with:
           path: ~/.local/venvs
           key: ${{ runner.os }}-Python-${{ matrix.python-version }}-venv
