@@ -25,7 +25,7 @@ Due to the decorators, no documentation is generated for this module. Use
 
 from functools import wraps
 
-import invoke
+import inspect
 from invoke import task
 
 from .requirements import install_requirements_conda, install_requirements_pip
