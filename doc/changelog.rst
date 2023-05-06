@@ -3,6 +3,10 @@
 Change log
 ##########
 
+- Version 2.0.4 May 6, 2023
+
+  - Update of Python versions in documentation and source.
+
 - Version 2.0.3 Jun 13, 2022
 
   - Use strings for Python version in `.github/workflow` files.
