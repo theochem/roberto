@@ -25,7 +25,6 @@ Due to the decorators, no documentation is generated for this module. Use
 
 from functools import wraps
 
-import inspect
 from invoke import task
 
 from .requirements import install_requirements_conda, install_requirements_pip
@@ -33,10 +32,6 @@ from .utils import sanitize_branch
 from .tools import (execute_tools, WriteVersion, LintStatic, BuildInPlace,
                     TestInPlace, UploadCoverage, LintDynamic, BuildDocs,
                     UploadDocs, BuildPackage, Deploy)
-
-
-if not hasattr(inspect, 'getargspec'):
-    inspect.getargspec = inspect.getfullargspec
 
 
 TASK_HEADER = """\
