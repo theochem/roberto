@@ -156,7 +156,7 @@ class Lint(Tool):
             on_merge_branch = True
         else:
             result = ctx.run(f'git diff {ctx.git.merge_branch}..HEAD --stat', hide='out')
-            on_merge_branch = (result.stdout.strip() == "")
+            on_merge_branch = result.stdout.strip() == ""
         if on_merge_branch:
             self._run_commands(ctx, package, fmtkwargs, self.commands_master)
         else:
