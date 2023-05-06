@@ -24,7 +24,6 @@ from ..requirements import compute_req_hash
 
 
 def test_req_hash(tmpdir):
-    tmpdir = str(tmpdir)  # for python-3.5 compatibility
     req_items = set(["conda-build", "anaconda-client", "conda-verify"])
     # Use a fake but safe recipe dir
     fn_foo = os.path.join(tmpdir, "foo")

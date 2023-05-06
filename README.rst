@@ -51,7 +51,7 @@ changed to work for Python and/or CMake projects.
 Installation
 ============
 
-Python 3 (>=3.6) must be installed. Other dependencies will be pulled in with
+Python 3 (>=3.7) must be installed. Other dependencies will be pulled in with
 the instructions below.
 
 Roberto can be installed with conda:
