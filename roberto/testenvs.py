@@ -224,7 +224,7 @@ def setup_venv(ctx):
 def nuke_venv(ctx):
     """Erase the virtual environment."""
     # Not (yet) removing it, just showing how.
-    ctx.run(f"echo rm -rv {ctx.testenv.path}")
+    ctx.run(f"rm -rv {ctx.testenv.path}")
     ctx.run("git clean -fdX")
 
 
